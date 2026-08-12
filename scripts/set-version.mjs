@@ -23,20 +23,23 @@ function stampJson(path) {
   console.log(`${path} -> ${version}`);
 }
 
-/** Rewrites only the `version = "..."` line of a Cargo manifest's
+/** Matches only the `version = "..."` line of a Cargo manifest's
  * `[package]` section — a blunt full-file regex would also clobber
  * dependency version pins. */
+const PACKAGE_VERSION = /^(\[package\][^[]*?^version\s*=\s*")[^"]*(")/ms;
+
 function stampCargo(path) {
   const original = readFileSync(path, "utf8");
-  const stamped = original.replace(
-    /^(\[package\][^[]*?^version\s*=\s*")[^"]*(")/ms,
-    `$1${version}$2`,
-  );
-  if (stamped === original) {
+  // Tests the pattern rather than comparing the result: stamping the
+  // version the file already carries is a legitimate no-op (it happens on
+  // the very first release, where the computed version *is* the one in
+  // the tree), and a `stamped === original` check would misread that
+  // success as "no [package] version found".
+  if (!PACKAGE_VERSION.test(original)) {
     console.error(`failed to find a [package] version in ${path}`);
     process.exit(1);
   }
-  writeFileSync(path, stamped);
+  writeFileSync(path, original.replace(PACKAGE_VERSION, `$1${version}$2`));
   console.log(`${path} -> ${version}`);
 }
 
