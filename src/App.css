@@ -1,0 +1,71 @@
+/* Placeholder home shell — stands in for the editor/tree views, which
+ * aren't built yet. Settings/onboarding are the actual scope of this pass. */
+
+.home {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.home__panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  text-align: center;
+}
+
+.home__brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--text);
+}
+
+.home__wordmark {
+  font-size: 14px;
+  font-weight: 200;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+}
+
+.home__workspace {
+  font-size: 13px;
+  font-weight: 300;
+  color: var(--text-2);
+}
+
+.home__path {
+  font-size: 11px;
+  font-weight: 300;
+  color: var(--text-3);
+}
+
+.home__loading {
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+
+.settings-launcher {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  cursor: pointer;
+  color: var(--text-3);
+  z-index: 10;
+}
+
+.settings-launcher:hover {
+  color: var(--text);
+}

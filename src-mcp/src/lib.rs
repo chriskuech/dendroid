@@ -1,0 +1,169 @@
+//! MCP server exposing `dendroid_core`'s outline/tree/insert/replaceContent
+//! over the streamable-HTTP transport, matching the `http://host:port/mcp`
+//! shape Settings' "Local MCP" section already advertises (see
+//! `SettingsPage.tsx`'s `mcpConfig`).
+//!
+//! This crate is deliberately thin: every tool method here is a straight
+//! wrapper around a `DendroidDocument`/`markdown` method that already
+//! exists in `dendroid_core` — `getTree` in particular is the same
+//! `resolve_slice` primitive the `@`-links plan calls out as meant to be
+//! shared with the editor's own (not-yet-lazily-loaded) rendering, so this
+//! server isn't a separate implementation of "what's in this section," just
+//! another caller of it.
+//!
+//! Runs in-process inside the Tauri app (see `src-tauri`'s `mcp` module),
+//! operating on the same `NativeDocument` session the GUI itself has open
+//! rather than a second independent one — so an MCP client's edits show up
+//! live in the editor the same way a remote ledger merge would.
+
+use std::net::SocketAddr;
+use std::sync::Arc;
+
+use dendroid_core::native::NativeDocument;
+use rmcp::handler::server::router::tool::ToolRouter;
+use rmcp::handler::server::wrapper::Parameters;
+use rmcp::model::{Implementation, ServerCapabilities, ServerInfo};
+use rmcp::transport::streamable_http_server::session::local::LocalSessionManager;
+use rmcp::transport::streamable_http_server::{StreamableHttpServerConfig, StreamableHttpService};
+use rmcp::{tool, tool_handler, tool_router, ErrorData, ServerHandler};
+use schemars::JsonSchema;
+use serde::Deserialize;
+use tokio::sync::Mutex;
+use tokio_util::sync::CancellationToken;
+
+fn default_depth() -> u32 {
+    3
+}
+
+fn default_link_depth() -> u32 {
+    1
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct GetTreeParams {
+    /// Heading id to root the slice at. Omit for the whole document.
+    pub id: Option<String>,
+    /// Heading levels to include below the root.
+    #[serde(default = "default_depth")]
+    pub depth: u32,
+    /// Inline each `@`-link's own target subtree instead of leaving it as
+    /// a bare `@{heading-id}` reference.
+    #[serde(default)]
+    pub expand_links: bool,
+    /// How many levels deep an expanded link's own subtree goes.
+    #[serde(default = "default_link_depth")]
+    pub link_depth: u32,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ContentParams {
+    /// The heading id to insert into / replace the contents of.
+    pub id: String,
+    /// Markdown — the same subset `getTree` renders (paragraphs, headings,
+    /// bold/italic/strike/code marks, code blocks, blockquotes, flat
+    /// bullet/ordered lists, horizontal rules) plus `@{heading-id}` for an
+    /// `@`-link.
+    pub content: String,
+}
+
+/// The MCP-facing surface — one `NativeDocument` shared with whatever else
+/// (Tauri commands, the ledger-poll thread) is driving the same session,
+/// guarded by a plain `tokio::sync::Mutex` since every tool call here is
+/// already async end to end.
+#[derive(Clone)]
+pub struct DendroidMcpServer {
+    doc: Arc<Mutex<NativeDocument>>,
+    // Read by the `#[tool_handler]`-generated `ServerHandler` methods
+    // below, not by anything in this file directly — dead-code analysis
+    // doesn't see through that, same as upstream rmcp's own tests.
+    #[allow(dead_code)]
+    tool_router: ToolRouter<Self>,
+}
+
+#[tool_router]
+impl DendroidMcpServer {
+    pub fn new(doc: Arc<Mutex<NativeDocument>>) -> Self {
+        Self { doc, tool_router: Self::tool_router() }
+    }
+
+    #[tool(name = "getOutline", description = "Returns just the document's headings (with their stable ids), as JSON.")]
+    async fn get_outline(&self) -> Result<String, ErrorData> {
+        let doc = self.doc.lock().await;
+        let outline = doc.outline().map_err(to_mcp_error)?;
+        serde_json::to_string(&outline).map_err(|e| ErrorData::internal_error(e.to_string(), None))
+    }
+
+    #[tool(
+        name = "getTree",
+        description = "Returns markdown for a slice of the document rooted at a heading id (or the whole document), optionally expanding @-links inline."
+    )]
+    async fn get_tree(&self, params: Parameters<GetTreeParams>) -> Result<String, ErrorData> {
+        let GetTreeParams { id, depth, expand_links, link_depth } = params.0;
+        let doc = self.doc.lock().await;
+        doc.get_tree(id.as_deref(), depth, expand_links, link_depth).map_err(to_mcp_error)
+    }
+
+    #[tool(name = "insert", description = "Appends markdown content inside the given heading's section, after whatever's already there.")]
+    async fn insert(&self, params: Parameters<ContentParams>) -> Result<String, ErrorData> {
+        let ContentParams { id, content } = params.0;
+        let mut doc = self.doc.lock().await;
+        doc.insert(&id, &content).await.map_err(to_mcp_error)?;
+        Ok("inserted".to_string())
+    }
+
+    #[tool(
+        name = "replaceContent",
+        description = "Replaces everything inside the given heading's section (its body content and nested subheadings) with new markdown content. The heading itself — its title and level — is untouched."
+    )]
+    async fn replace_content(&self, params: Parameters<ContentParams>) -> Result<String, ErrorData> {
+        let ContentParams { id, content } = params.0;
+        let mut doc = self.doc.lock().await;
+        doc.replace_content(&id, &content).await.map_err(to_mcp_error)?;
+        Ok("replaced".to_string())
+    }
+}
+
+#[tool_handler]
+impl ServerHandler for DendroidMcpServer {
+    fn get_info(&self) -> ServerInfo {
+        ServerInfo::new(ServerCapabilities::builder().enable_tools().build())
+            .with_server_info(Implementation::new("dendroid", env!("CARGO_PKG_VERSION")))
+            .with_instructions(
+                "Tools for reading and editing a dendroid workspace's markdown graph. \
+                 Headings are addressed by their stable id (see getOutline); @-links point \
+                 at a heading the same way and survive renames.",
+            )
+    }
+}
+
+fn to_mcp_error(err: dendroid_core::DendroidError) -> ErrorData {
+    ErrorData::internal_error(err.to_string(), None)
+}
+
+/// Binds `addr` — split out from `serve_on` so a caller that needs the
+/// actual bound address (tests using port `0` for an OS-assigned one; a
+/// future "port already in use" retry) can get it before the listener
+/// starts accepting.
+pub async fn bind(addr: SocketAddr) -> std::io::Result<tokio::net::TcpListener> {
+    tokio::net::TcpListener::bind(addr).await
+}
+
+/// Serves `doc` over streamable-HTTP on an already-bound `listener` (`/mcp`,
+/// matching what Settings advertises) until `cancellation_token` fires.
+pub async fn serve_on(doc: Arc<Mutex<NativeDocument>>, listener: tokio::net::TcpListener, cancellation_token: CancellationToken) -> std::io::Result<()> {
+    let config = StreamableHttpServerConfig::default().with_cancellation_token(cancellation_token.clone());
+    let service: StreamableHttpService<DendroidMcpServer, LocalSessionManager> =
+        StreamableHttpService::new(move || Ok(DendroidMcpServer::new(doc.clone())), Default::default(), config);
+    let router = axum::Router::new().nest_service("/mcp", service);
+
+    axum::serve(listener, router).with_graceful_shutdown(async move { cancellation_token.cancelled_owned().await }).await
+}
+
+/// `bind` + `serve_on` — one call per "Local MCP" enable. `src-tauri`'s
+/// `mcp` module owns starting/stopping this alongside the settings toggle.
+pub async fn serve(doc: Arc<Mutex<NativeDocument>>, addr: SocketAddr, cancellation_token: CancellationToken) -> std::io::Result<()> {
+    let listener = bind(addr).await?;
+    serve_on(doc, listener, cancellation_token).await
+}

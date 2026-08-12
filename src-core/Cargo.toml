@@ -1,0 +1,25 @@
+[package]
+name = "dendroid-core"
+version = "0.1.0"
+description = "Platform-agnostic core logic for dendroid"
+edition = "2021"
+
+[lib]
+name = "dendroid_core"
+crate-type = ["rlib"]
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+uuid = { version = "1.24.0", features = ["v4", "js"] }
+loro = "1.13"
+base64 = "0.23"
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+thiserror = "2.0"
+pulldown-cmark = { version = "0.13.4", default-features = false }
+
+[dev-dependencies]
+# Blocks on the async `DendroidDocument`/`LedgerStorage` API from plain
+# `#[test]` fns without pulling in a full async runtime — `NativeLedgerStorage`
+# never actually suspends, so there's nothing for a real executor to do.
+pollster = "0.4"

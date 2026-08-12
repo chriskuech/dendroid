@@ -1,0 +1,331 @@
+// The frontend half of the CRDT <-> Ledger bridge.
+//
+//   TipTap (ProseMirror)  <--loro-prosemirror-->  LoroDoc (this mirror)
+//                                                       |
+//                                    doc.subscribeLocalUpdates (this session's edits)
+//                                                       v
+//                                     backend.importUpdate(bytes)  ---.
+//                                                                     |
+//                                          Rust DendroidDocument (native, over
+//                                    Tauri IPC — or wasm, over the File System
+//                                     Access API on web; see `lib/platform`)
+//                                       appends to the ledger file for this
+//                                                    session
+//                                                                     |
+//                                       backend.onRemoteUpdate(...)  <'
+//                                  (this call's result, or a ledger record
+//                                   merged in from another session/replica)
+//
+// Every change this mirror learns about that it didn't originate itself
+// arrives the same way: import the bytes `onRemoteUpdate` hands over.
+// Which platform backend is actually behind that call (Tauri IPC, wasm)
+// is `lib/platform`'s problem, not this module's — see
+// `platform/types.ts`'s `DocBackend` for the shared contract.
+//
+// There's no separate structural tree here either. `loroDoc.getMap("doc")`
+// *is* the ProseMirror document — the same container `loro-prosemirror`'s
+// default (unbound) `LoroSyncPlugin({ doc })` binds TipTap to — and the
+// heading outline is derived from it on read (`snapshotOutline`), the same
+// contract `dendroid_core::outline` implements on the Rust side. A heading
+// and everything nested under it (body content, and further nested
+// headings) live together in one `section` node — see that module's doc
+// comment for the shape and why; `section`, not `heading`, is what carries
+// the stable `id` these snapshots key rows by.
+
+import { LoroDoc, getType, isContainer, type ContainerID, type LoroList, type LoroMap, type LoroText } from "loro-crdt";
+import { createDocBackend } from "../platform";
+import type { DocBackend } from "../platform/types";
+import type { HeadingDto, OutlineEntry } from "./outline";
+
+const NO_BACKEND_WARNING =
+  "[crdt] No platform backend available — running an in-memory, unpersisted document " +
+  "(e.g. `vite dev` opened in a plain browser before `bun run build:wasm` has built the wasm " +
+  "package). Nothing here will be saved.";
+
+export class DendroidDocument {
+  readonly doc = new LoroDoc();
+  /** True once `open()` has run without a platform backend to talk to —
+   * see `NO_BACKEND_WARNING`. Editing still works against this local-only
+   * mirror (nothing persists), so the UI stays inspectable in a plain
+   * browser preview. */
+  isPreview = false;
+
+  private backend: DocBackend | null = null;
+  private stopLocalSubscription: (() => void) | null = null;
+  private listeners = new Set<() => void>();
+
+  /** Opens `workspaceRoot` against whichever platform backend
+   * `createDocBackend` picks: the backend replays its ledger, hands back
+   * a full snapshot to seed this mirror, and from then on this mirror
+   * stays current via `onRemoteUpdate`. Falls back to an unpersisted
+   * local-only document when there's no backend available to open a real
+   * workspace against. */
+  async open(workspaceRoot: string): Promise<void> {
+    const backend = await createDocBackend();
+    if (!backend) {
+      console.warn(NO_BACKEND_WARNING);
+      this.isPreview = true;
+      this.notify();
+      return;
+    }
+    this.backend = backend;
+
+    const snapshot = await backend.open(workspaceRoot);
+    this.doc.import(snapshot);
+    this.notify();
+
+    backend.onRemoteUpdate((bytes) => {
+      this.doc.import(bytes);
+      this.notify();
+    });
+
+    // This process/session is the sole ledger writer for whatever it
+    // touches — including edits made locally through this JS-side mirror
+    // (every TipTap edit, via loro-prosemirror) — so every local commit
+    // gets forwarded to the backend to persist.
+    //
+    // This fires *after* the commit this mirror's own `doc` already
+    // applied — loro-prosemirror writes straight into `this.doc`, so
+    // there's nothing to wait on the backend round trip for — so this also
+    // notifies listeners (the tree view's outline refresh) directly.
+    // `import_from_frontend` on the Rust side deliberately marks this
+    // session's frontend as already caught up before it reconciles
+    // backlinks (see `dendroid_core::doc`'s doc comment), so
+    // `onRemoteUpdate` above only fires for a *foreign* change or the rare
+    // local edit whose backlink reconciliation added something new — a
+    // plain local edit gets no echo at all, and without this call here the
+    // tree would just go stale until one arrived.
+    this.stopLocalSubscription = this.doc.subscribeLocalUpdates((bytes) => {
+      this.notify();
+      void backend.importUpdate(bytes).catch((err: unknown) => {
+        console.error("[crdt] failed to persist local update", err);
+      });
+    });
+  }
+
+  /** Reads the heading outline directly out of this mirror — the live UI
+   * uses this instead of the `doc_outline` Tauri command so a tree-view
+   * refresh doesn't mean a round trip on every keystroke. Must stay in
+   * lockstep with `dendroid_core::outline::outline`'s algorithm; see that
+   * module's doc comment for the encoding contract both depend on. */
+  snapshotOutline(): HeadingDto[] {
+    const root = this.doc.getMap("doc");
+    const children = getListValue(root, "children");
+    if (!children) return [];
+
+    const out: HeadingDto[] = [];
+    walkSections(children, null, 0, out);
+    return out;
+  }
+
+  /** Headings and `@`-links, interleaved in document order — what
+   * TreeView needs to render both surfaces (see `dendroid_core::outline::
+   * outline_with_links`, which this must stay in lockstep with the same
+   * way `snapshotOutline` already stays in lockstep with `outline::
+   * outline`). Unlike headings, `linkRef` nodes are inline content, so
+   * finding them means recursing into a section's own body content rather
+   * than just walking its direct children. */
+  snapshotOutlineWithLinks(): OutlineEntry[] {
+    const root = this.doc.getMap("doc");
+    const children = getListValue(root, "children");
+    if (!children) return [];
+
+    const out: OutlineEntry[] = [];
+    walkSectionsWithLinks(children, null, 0, out);
+    return out;
+  }
+
+  /** The section's own Loro container id — a section's whole subtree
+   * (its heading, body, and any nested subsections) lives inside this one
+   * container (see `section.ts`'s/`dendroid_core::outline`'s doc
+   * comments), so this is what an expanded `@`-link's preview binds a
+   * live embedded editor to (`lib/tiptap/embeddedEditor.ts`) instead of a
+   * rebuilt-DOM snapshot. `undefined` if `id` isn't a section in the live
+   * document right now (an orphaned/stale link, or one racing a deletion
+   * that hasn't reconciled yet) — callers fall back to the read-only
+   * preview in that case. */
+  getSectionContainerId(id: string): ContainerID | undefined {
+    const root = this.doc.getMap("doc");
+    const children = getListValue(root, "children");
+    return children ? findSectionContainerId(children, id) : undefined;
+  }
+
+  /** Fires after this mirror imports anything — its own local edits,
+   * another session's edits, or a merge discovered on disk. */
+  onUpdate(callback: () => void): () => void {
+    this.listeners.add(callback);
+    return () => this.listeners.delete(callback);
+  }
+
+  private notify(): void {
+    for (const listener of this.listeners) listener();
+  }
+
+  dispose(): void {
+    this.backend?.dispose();
+    this.backend = null;
+    this.stopLocalSubscription?.();
+    this.stopLocalSubscription = null;
+    this.listeners.clear();
+  }
+}
+
+function getListValue(map: LoroMap, key: string): LoroList | undefined {
+  const value = map.get(key);
+  return isContainer(value) && getType(value) === "List" ? (value as LoroList) : undefined;
+}
+
+function getMapValue(map: LoroMap, key: string): LoroMap | undefined {
+  const value = map.get(key);
+  return isContainer(value) && getType(value) === "Map" ? (value as LoroMap) : undefined;
+}
+
+/** Recurses through `children` (the doc's own top-level list, or a
+ * section's own children list), appending a `HeadingDto` for every
+ * `section` found — mirrors `dendroid_core::outline`'s `walk_sections`.
+ * `index` is naturally scoped per call (i.e. per parent), since each
+ * recursive call only ever sees one parent's direct children. */
+function walkSections(children: LoroList, parent: string | null, depth: number, out: HeadingDto[]): void {
+  let index = 0;
+  for (let i = 0; i < children.length; i++) {
+    const entry = children.get(i);
+    if (!isContainer(entry) || getType(entry) !== "Map") continue;
+    const node = entry as LoroMap;
+    if (node.get("nodeName") !== "section") continue;
+
+    const sectionChildren = getListValue(node, "children");
+    const heading = sectionChildren ? leadingHeading(sectionChildren) : undefined;
+    if (!sectionChildren || !heading) continue;
+
+    const attrs = getMapValue(node, "attributes");
+    const rawId = attrs?.get("id");
+    const id = typeof rawId === "string" ? rawId : `pos:${i}`;
+    const headingAttrs = getMapValue(heading, "attributes");
+    const rawLevel = headingAttrs?.get("level");
+    const level = typeof rawLevel === "number" ? Math.min(Math.max(Math.trunc(rawLevel), 1), 255) : 1;
+    const title = headingTitle(heading);
+
+    out.push({ id, parent, index, depth, level, title });
+    index += 1;
+
+    walkSections(sectionChildren, id, depth + 1, out);
+  }
+}
+
+/** Same walk as `walkSections`, but also finds every `linkRef` nested in
+ * each section's own body content (a paragraph, a list, ...) and files it
+ * right after the section that currently encloses it, one depth level
+ * deeper — mirrors `dendroid_core::outline`'s `walk_sections_with_links`. */
+function walkSectionsWithLinks(children: LoroList, parent: string | null, depth: number, out: OutlineEntry[]): void {
+  let index = 0;
+  for (let i = 0; i < children.length; i++) {
+    const entry = children.get(i);
+    if (!isContainer(entry) || getType(entry) !== "Map") continue;
+    const node = entry as LoroMap;
+    if (node.get("nodeName") !== "section") continue;
+
+    const sectionChildren = getListValue(node, "children");
+    const heading = sectionChildren ? leadingHeading(sectionChildren) : undefined;
+    if (!sectionChildren || !heading) continue;
+
+    const attrs = getMapValue(node, "attributes");
+    const rawId = attrs?.get("id");
+    const id = typeof rawId === "string" ? rawId : `pos:${i}`;
+    const headingAttrs = getMapValue(heading, "attributes");
+    const rawLevel = headingAttrs?.get("level");
+    const level = typeof rawLevel === "number" ? Math.min(Math.max(Math.trunc(rawLevel), 1), 255) : 1;
+    const title = headingTitle(heading);
+
+    out.push({ kind: "heading", heading: { id, parent, index, depth, level, title } });
+    index += 1;
+
+    // Body content, one level deeper: any `@`-link nested inside a body
+    // block (not itself a nested `section` — that's a child heading,
+    // walked by the recursive call below) files under this section's own
+    // id.
+    for (let j = 1; j < sectionChildren.length; j++) {
+      const bentry = sectionChildren.get(j);
+      if (!isContainer(bentry) || getType(bentry) !== "Map") continue;
+      const bnode = bentry as LoroMap;
+      if (bnode.get("nodeName") === "section") continue;
+      collectLinkEntries(bnode, id, depth + 1, out);
+    }
+
+    walkSectionsWithLinks(sectionChildren, id, depth + 1, out);
+  }
+}
+
+/** A section's own leading `heading` child (its title), if its `children`
+ * actually starts with one. */
+function leadingHeading(sectionChildren: LoroList): LoroMap | undefined {
+  const entry = sectionChildren.get(0);
+  if (!isContainer(entry) || getType(entry) !== "Map") return undefined;
+  const node = entry as LoroMap;
+  return node.get("nodeName") === "heading" ? node : undefined;
+}
+
+/** Finds the `section` whose own `id` attribute is `id`, searching
+ * `children` and every nested section inside it, depth-first — mirrors
+ * `dendroid_core::markdown`'s `find_section`. */
+function findSectionContainerId(children: LoroList, id: string): ContainerID | undefined {
+  for (let i = 0; i < children.length; i++) {
+    const entry = children.get(i);
+    if (!isContainer(entry) || getType(entry) !== "Map") continue;
+    const node = entry as LoroMap;
+    if (node.get("nodeName") !== "section") continue;
+
+    const attrs = getMapValue(node, "attributes");
+    if (attrs?.get("id") === id) return node.id;
+
+    const sectionChildren = getListValue(node, "children");
+    if (sectionChildren) {
+      const found = findSectionContainerId(sectionChildren, id);
+      if (found) return found;
+    }
+  }
+  return undefined;
+}
+
+/** Finds every `linkRef` nested anywhere inside `node` (`node` itself
+ * included) and appends a positioned entry for each, in document order —
+ * mirrors `dendroid_core::links::collect_link_entries`. */
+function collectLinkEntries(node: LoroMap, parent: string | null, depth: number, out: OutlineEntry[]): void {
+  if (node.get("nodeName") === "linkRef") {
+    const attrs = getMapValue(node, "attributes");
+    const rawId = attrs?.get("id");
+    const rawTarget = attrs?.get("targetId");
+    const rawStale = attrs?.get("staleTitle");
+    out.push({
+      kind: "link",
+      link: {
+        id: typeof rawId === "string" ? rawId : "",
+        targetId: typeof rawTarget === "string" ? rawTarget : null,
+        staleTitle: typeof rawStale === "string" ? rawStale : null,
+        parent,
+        depth,
+      },
+    });
+  }
+
+  const children = getListValue(node, "children");
+  if (!children) return;
+  for (let i = 0; i < children.length; i++) {
+    const entry = children.get(i);
+    if (!isContainer(entry) || getType(entry) !== "Map") continue;
+    collectLinkEntries(entry as LoroMap, parent, depth, out);
+  }
+}
+
+/** Concatenates a heading node's own inline text content — headings only
+ * contain inline content in practice, so no need to recurse into nested
+ * block nodes. */
+function headingTitle(node: LoroMap): string {
+  const children = getListValue(node, "children");
+  if (!children) return "";
+  let title = "";
+  for (let i = 0; i < children.length; i++) {
+    const entry = children.get(i);
+    if (isContainer(entry) && getType(entry) === "Text") title += (entry as LoroText).toString();
+  }
+  return title;
+}

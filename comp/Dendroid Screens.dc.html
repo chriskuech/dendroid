@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@100;200;300;400&amp;family=Public+Sans:ital,wght@0,400;0,500;1,400&amp;display=swap" rel="stylesheet">
+<style>
+  html, body { margin: 0; padding: 0; background: #060606; color: #ededed; -webkit-font-smoothing: antialiased; }
+  * { box-sizing: border-box; }
+  a { color: #34e0a1; text-decoration: none; border-bottom: 1px solid #1c5a44; }
+  a:hover { color: #7cf0c4; border-bottom-color: #34e0a1; }
+  ::selection { background: #34e0a1; color: #000000; }
+</style>
+</helmet>
+
+<div style="min-height:100vh;background:#060606;font-family:'IBM Plex Mono',ui-monospace,monospace;padding:72px 40px 140px">
+<div style="max-width:1360px;margin:0 auto;display:flex;flex-direction:column;gap:96px">
+
+<header style="display:flex;flex-direction:column;gap:20px;max-width:640px">
+  <div style="display:flex;align-items:center;gap:12px">
+    <svg viewBox="0 0 16 16" width="16" height="16" fill="#ededed" shape-rendering="crispEdges" style="display:block"><rect x="8" y="1" width="1" height="3"></rect><rect x="4" y="4" width="9" height="1"></rect><rect x="4" y="5" width="1" height="3"></rect><rect x="12" y="5" width="1" height="3"></rect><rect x="2" y="8" width="5" height="1"></rect><rect x="10" y="8" width="5" height="1"></rect><rect x="2" y="9" width="1" height="3"></rect><rect x="6" y="9" width="1" height="3"></rect><rect x="10" y="9" width="1" height="3"></rect><rect x="14" y="9" width="1" height="3"></rect></svg>
+    <span style="font-size:14px;font-weight:200;letter-spacing:0.28em;text-transform:uppercase;color:#ededed">Dendroid</span>
+  </div>
+  <h1 style="margin:0;font-size:11px;font-weight:400;letter-spacing:0.2em;text-transform:uppercase;color:#565656">Screens — Terminal dark</h1>
+  <p style="margin:0;font-size:13px;line-height:1.8;font-weight:300;color:#8f8f8f;text-wrap:pretty">Three surfaces at 1280 px wide with a bare viewport — no window frame, no toolbar — plus the tree at 420&nbsp;px. Editor is typography and markdown only for this round.</p>
+</header>
+
+<section data-screen-label="01 Editor" style="display:flex;flex-direction:column;gap:20px">
+  <div style="display:flex;align-items:baseline;gap:16px;border-top:1px solid #1a1a1a;padding-top:14px">
+    <span style="font-size:11px;letter-spacing:0.18em;color:#34e0a1">01</span>
+    <h2 style="margin:0;font-size:11px;font-weight:400;letter-spacing:0.18em;text-transform:uppercase;color:#8f8f8f">Editor — typography &amp; markdown</h2>
+    <button type="button" onClick="{{ toggleZen }}" style="margin-left:auto;font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:300;letter-spacing:0.06em;color:#8f8f8f;background:transparent;border:1px solid #2e2e2e;border-radius:0;padding:6px 12px;cursor:pointer" style-hover="color:#ededed;border-color:#565656">{{ zenLabel }}</button>
+  </div>
+
+  <div style="width:1280px;height:1080px;border:1px solid #2e2e2e;background:#000000;display:flex;flex-direction:column;overflow:hidden">
+    <div style="flex:1;display:flex;min-height:0">
+      <aside style="width:236px;flex:none;background:transparent;display:flex;flex-direction:column;opacity:{{ chromeOpacity }};transition:opacity 600ms cubic-bezier(0.2,0,0,1)">
+        <div style="height:44px;flex:none;display:flex;align-items:center;gap:14px;padding:0 12px">
+          <span style="font-size:10px;letter-spacing:0.18em;text-transform:uppercase;color:#2e2e2e">~/notes</span>
+          <div style="margin-left:auto;display:flex;gap:14px">
+            <svg viewBox="0 0 16 16" width="16" height="16" fill="#565656" shape-rendering="crispEdges" style="display:block;cursor:pointer" onClick="{{ openSearch }}"><rect x="5" y="3" width="4" height="1"></rect><rect x="5" y="10" width="4" height="1"></rect><rect x="3" y="5" width="1" height="4"></rect><rect x="10" y="5" width="1" height="4"></rect><rect x="4" y="4" width="1" height="1"></rect><rect x="9" y="4" width="1" height="1"></rect><rect x="4" y="9" width="1" height="1"></rect><rect x="9" y="9" width="1" height="1"></rect><rect x="11" y="11" width="1" height="1"></rect><rect x="12" y="12" width="1" height="1"></rect><rect x="13" y="13" width="1" height="1"></rect></svg>
+            <svg viewBox="0 0 16 16" width="16" height="16" fill="#565656" shape-rendering="crispEdges" style="display:block"><rect x="2" y="4" width="12" height="1"></rect><rect x="2" y="11" width="12" height="1"></rect><rect x="5" y="3" width="3" height="3"></rect><rect x="8" y="10" width="3" height="3"></rect></svg>
+          </div>
+        </div>
+        <div style="padding:8px 0;display:flex;flex-direction:column">
+          <div style="display:flex;align-items:center;gap:8px;height:26px;padding:0 12px" style-hover="background:#0b0b0b"><svg viewBox="0 0 16 16" width="16" height="16" fill="#565656" shape-rendering="crispEdges" style="display:block;flex:none"><rect x="3" y="6" width="1" height="1"></rect><rect x="4" y="7" width="1" height="1"></rect><rect x="5" y="8" width="1" height="1"></rect><rect x="6" y="9" width="1" height="1"></rect><rect x="7" y="10" width="1" height="1"></rect><rect x="8" y="9" width="1" height="1"></rect><rect x="9" y="8" width="1" height="1"></rect><rect x="10" y="7" width="1" height="1"></rect><rect x="11" y="6" width="1" height="1"></rect></svg><span style="font-size:12px;font-weight:300;color:#8f8f8f">Dendroid</span><svg viewBox="0 0 16 16" width="16" height="16" fill="#2e2e2e" shape-rendering="crispEdges" style="display:block;margin-left:auto;cursor:pointer" style-hover="fill:#8f8f8f"><rect x="4" y="4" width="1" height="1"></rect><rect x="5" y="5" width="1" height="1"></rect><rect x="6" y="6" width="1" height="1"></rect><rect x="7" y="7" width="2" height="2"></rect><rect x="9" y="9" width="1" height="1"></rect><rect x="10" y="10" width="1" height="1"></rect><rect x="11" y="11" width="1" height="1"></rect><rect x="11" y="4" width="1" height="1"></rect><rect x="10" y="5" width="1" height="1"></rect><rect x="9" y="6" width="1" height="1"></rect><rect x="6" y="9" width="1" height="1"></rect><rect x="5" y="10" width="1" height="1"></rect><rect x="4" y="11" width="1" height="1"></rect></svg></div>
+          <div style="display:flex;align-items:center;gap:8px;height:26px;padding:0 12px 0 28px;background:#131313;border-left:1px solid #34e0a1"><svg viewBox="0 0 16 16" width="16" height="16" fill="#34e0a1" shape-rendering="crispEdges" style="display:block;flex:none"><rect x="3" y="6" width="1" height="1"></rect><rect x="4" y="7" width="1" height="1"></rect><rect x="5" y="8" width="1" height="1"></rect><rect x="6" y="9" width="1" height="1"></rect><rect x="7" y="10" width="1" height="1"></rect><rect x="8" y="9" width="1" height="1"></rect><rect x="9" y="8" width="1" height="1"></rect><rect x="10" y="7" width="1" height="1"></rect><rect x="11" y="6" width="1" height="1"></rect></svg><span style="font-size:12px;font-weight:400;color:#34e0a1">Notes are a graph</span></div>
+          <div style="display:flex;align-items:center;gap:8px;height:26px;padding:0 12px 0 44px"><span style="width:16px;flex:none"></span><span style="font-size:12px;font-weight:300;color:#8f8f8f">Linking</span></div>
+          <div style="display:flex;align-items:center;gap:8px;height:26px;padding:0 12px 0 44px"><span style="width:16px;flex:none"></span><span style="font-size:12px;font-weight:300;color:#8f8f8f">Drilling down</span></div>
+          <div style="display:flex;align-items:center;gap:8px;height:26px;padding:0 12px 0 44px"><span style="width:16px;flex:none"></span><span style="font-size:12px;font-weight:300;color:#8f8f8f">Depth</span></div>
+          <div style="display:flex;align-items:center;gap:8px;height:26px;padding:0 12px 0 28px"><svg viewBox="0 0 16 16" width="16" height="16" fill="#565656" shape-rendering="crispEdges" style="display:block;flex:none"><rect x="6" y="3" width="1" height="1"></rect><rect x="7" y="4" width="1" height="1"></rect><rect x="8" y="5" width="1" height="1"></rect><rect x="9" y="6" width="1" height="1"></rect><rect x="10" y="7" width="1" height="1"></rect><rect x="9" y="8" width="1" height="1"></rect><rect x="8" y="9" width="1" height="1"></rect><rect x="7" y="10" width="1" height="1"></rect><rect x="6" y="11" width="1" height="1"></rect></svg><span style="font-size:12px;font-weight:300;color:#8f8f8f">Sync providers</span></div>
+          <div style="display:flex;align-items:center;gap:8px;height:26px;padding:0 12px 0 28px"><svg viewBox="0 0 16 16" width="16" height="16" fill="#565656" shape-rendering="crispEdges" style="display:block;flex:none"><rect x="6" y="3" width="1" height="1"></rect><rect x="7" y="4" width="1" height="1"></rect><rect x="8" y="5" width="1" height="1"></rect><rect x="9" y="6" width="1" height="1"></rect><rect x="10" y="7" width="1" height="1"></rect><rect x="9" y="8" width="1" height="1"></rect><rect x="8" y="9" width="1" height="1"></rect><rect x="7" y="10" width="1" height="1"></rect><rect x="6" y="11" width="1" height="1"></rect></svg><span style="font-size:12px;font-weight:300;color:#8f8f8f">Security</span></div>
+        </div>
+      </aside>
+      <main style="flex:1;min-width:0;overflow:hidden;padding:64px 0;display:flex;justify-content:center">
+        <div style="width:68ch;font-family:'Public Sans',system-ui,sans-serif">
+          <div style="display:flex;align-items:center;gap:10px;margin:0 0 28px;font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:#565656;opacity:{{ chromeOpacity }};transition:opacity 600ms cubic-bezier(0.2,0,0,1)">
+            <span>Dendroid</span><span style="color:#2e2e2e">/</span><span style="color:#8f8f8f">Notes are a graph</span>
+          </div>
+          <h1 style="margin:0 0 22px;font-size:30px;font-weight:500;line-height:1.25;letter-spacing:-0.01em;color:#ededed">Notes are a graph</h1>
+          <p style="margin:0 0 28px;font-size:16px;line-height:1.7;color:#ededed;text-wrap:pretty">Your notes are one Markdown graph rather than a collection of pages. A heading is a node, and the headings beneath it are its children, so <strong style="font-weight:500;color:#ededed">structure emerges from writing</strong> instead of from filing. You can <em>drill into any node</em> and treat it as the whole document.</p>
+          <h2 style="margin:0 0 14px;font-size:23px;font-weight:500;line-height:1.3;color:#ededed">Linking</h2>
+          <p style="margin:0 0 22px;font-size:16px;line-height:1.7;color:#ededed;text-wrap:pretty">Type <code style="font-family:'IBM Plex Mono',monospace;font-size:13.5px;color:#ededed;background:#131313;border:1px solid #202020;padding:1px 5px">@</code> to link any heading in the app — for example <a href="#" style="color:#34e0a1;text-decoration:none;border-bottom:1px solid #1c5a44">@Sync providers</a>. Typeahead completions are ordered by distance from the current block, not alphabetically.</p>
+          <ul style="margin:0 0 26px;padding-left:22px;font-size:16px;line-height:1.8;color:#ededed">
+            <li>Child headings are implicit links to their parent</li>
+            <li>Any node in the tree can become the editor root
+              <ul style="margin:6px 0 0;padding-left:22px;color:#8f8f8f">
+                <li>Reset returns the editor to the tree root</li>
+              </ul>
+            </li>
+            <li><del style="color:#565656">Folders, tags, notebooks</del></li>
+          </ul>
+          <h3 style="margin:0 0 12px;font-size:18px;font-weight:500;line-height:1.4;color:#ededed">Depth</h3>
+          <ol style="margin:0 0 26px;padding-left:22px;font-size:16px;line-height:1.8;color:#ededed">
+            <li>Set how many descendant levels render inline</li>
+            <li>Deeper headings collapse to a single line</li>
+          </ol>
+          <blockquote style="margin:0 0 26px;padding:2px 0 2px 20px;border-left:1px solid #2e2e2e;font-size:16px;line-height:1.7;color:#8f8f8f;font-style:italic">Structure should be a consequence of thinking, not a prerequisite for it.</blockquote>
+          <pre style="margin:0 0 26px;padding:16px 18px;background:#0b0b0b;border:1px solid #202020;overflow:auto"><code style="font-family:'IBM Plex Mono',monospace;font-size:13.5px;line-height:1.7;color:#8f8f8f">## Notes are a graph
+Type @ to link any heading.
+
+### Depth</code></pre>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;border:1px solid #202020;margin:0 0 26px;font-family:'IBM Plex Mono',monospace;font-size:12.5px">
+            <span style="padding:9px 12px;border-bottom:1px solid #202020;color:#565656;font-weight:400">Provider</span>
+            <span style="padding:9px 12px;border-bottom:1px solid #202020;border-left:1px solid #202020;color:#565656;font-weight:400">Writers</span>
+            <span style="padding:9px 12px;border-bottom:1px solid #202020;border-left:1px solid #202020;color:#565656;font-weight:400">Status</span>
+            <span style="padding:9px 12px;color:#ededed;font-weight:300">File</span>
+            <span style="padding:9px 12px;border-left:1px solid #202020;color:#8f8f8f;font-weight:300">many</span>
+            <span style="padding:9px 12px;border-left:1px solid #202020;color:#34e0a1;font-weight:300">shipping</span>
+            <span style="padding:9px 12px;border-top:1px solid #202020;color:#8f8f8f;font-weight:300">Vault</span>
+            <span style="padding:9px 12px;border-top:1px solid #202020;border-left:1px solid #202020;color:#8f8f8f;font-weight:300">many</span>
+            <span style="padding:9px 12px;border-top:1px solid #202020;border-left:1px solid #202020;color:#565656;font-weight:300">soon</span>
+          </div>
+          <div style="height:1px;background:#202020;margin:0 0 26px"></div>
+          <p style="margin:0;font-size:13px;line-height:1.7;color:#565656">Last edited 4 minutes ago · 1,204 words in this subtree</p>
+        </div>
+      </main>
+    </div>
+  </div>
+</section>
+
+<section data-screen-label="02 Account" style="display:flex;flex-direction:column;gap:20px">
+  <div style="display:flex;align-items:baseline;gap:16px;border-top:1px solid #1a1a1a;padding-top:14px">
+    <span style="font-size:11px;letter-spacing:0.18em;color:#34e0a1">02</span>
+    <h2 style="margin:0;font-size:11px;font-weight:400;letter-spacing:0.18em;text-transform:uppercase;color:#8f8f8f">Account</h2>
+  </div>
+
+  <div style="width:1280px;height:800px;border:1px solid #2e2e2e;background:#000000;display:flex;flex-direction:column;overflow:hidden">
+    <div style="flex:1;display:flex;min-height:0">
+      <nav style="width:212px;flex:none;border-right:1px solid #202020;background:#0b0b0b;padding:24px 0;display:flex;flex-direction:column;gap:1px">
+        <span style="font-size:10px;letter-spacing:0.18em;text-transform:uppercase;color:#565656;padding:0 20px 14px">Settings</span>
+        <span style="font-size:12px;font-weight:400;color:#ededed;padding:8px 20px;border-left:1px solid #34e0a1;background:#131313">Appearance</span>
+        <span style="font-size:12px;font-weight:300;color:#8f8f8f;padding:8px 20px;border-left:1px solid transparent" style-hover="color:#ededed">Editor</span>
+        <span style="font-size:12px;font-weight:300;color:#8f8f8f;padding:8px 20px;border-left:1px solid transparent" style-hover="color:#ededed">Workspace</span>
+        <span style="font-size:12px;font-weight:300;color:#8f8f8f;padding:8px 20px;border-left:1px solid transparent" style-hover="color:#ededed">Local MCP</span>
+        <span style="margin-top:auto;font-size:10px;letter-spacing:0.14em;color:#2e2e2e;padding:0 20px">v0.1.0</span>
+      </nav>
+
+      <main style="flex:1;min-width:0;overflow:auto;padding:48px 56px;display:flex;flex-direction:column;gap:48px">
+
+        <div style="display:flex;align-items:center;gap:16px">
+          <span style="font-size:20px;font-weight:200;letter-spacing:0.06em;color:#ededed">Account</span>
+          <svg viewBox="0 0 16 16" width="16" height="16" fill="#565656" shape-rendering="crispEdges" style="display:block;margin-left:auto;cursor:pointer" style-hover="fill:#ededed"><rect x="4" y="4" width="1" height="1"></rect><rect x="5" y="5" width="1" height="1"></rect><rect x="6" y="6" width="1" height="1"></rect><rect x="7" y="7" width="2" height="2"></rect><rect x="9" y="9" width="1" height="1"></rect><rect x="10" y="10" width="1" height="1"></rect><rect x="11" y="11" width="1" height="1"></rect><rect x="11" y="4" width="1" height="1"></rect><rect x="10" y="5" width="1" height="1"></rect><rect x="9" y="6" width="1" height="1"></rect><rect x="6" y="9" width="1" height="1"></rect><rect x="5" y="10" width="1" height="1"></rect><rect x="4" y="11" width="1" height="1"></rect></svg>
+          <span style="font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:#2e2e2e">esc</span>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:22px">
+          <span style="font-size:10px;letter-spacing:0.18em;text-transform:uppercase;color:#565656;border-bottom:1px solid #202020;padding-bottom:12px">Appearance</span>
+          <div style="display:flex;flex-direction:column;gap:12px">
+            <span style="font-size:12px;font-weight:300;color:#8f8f8f">Aesthetic</span>
+            <div style="display:flex;gap:1px;background:#202020;border:1px solid #202020;max-width:640px">
+              <div onClick="{{ pickTerminal }}" style="flex:1;background:#131313;border:1px solid #34e0a1;margin:-1px;padding:18px 20px;display:flex;flex-direction:column;gap:10px;cursor:pointer">
+                <div style="display:flex;align-items:center;gap:10px"><span style="width:6px;height:6px;background:#34e0a1"></span><span style="font-size:12px;font-weight:400;color:#ededed">Terminal</span></div>
+                <span style="font-size:11px;line-height:1.7;font-weight:300;color:#8f8f8f">True black, strict grayscale, one accent. Sleek and out of the way.</span>
+                <div style="display:flex;gap:4px;margin-top:4px"><span style="width:20px;height:8px;background:#000000;border:1px solid #2e2e2e"></span><span style="width:20px;height:8px;background:#8f8f8f"></span><span style="width:20px;height:8px;background:#ededed"></span><span style="width:20px;height:8px;background:#34e0a1"></span></div>
+              </div>
+              <div onClick="{{ pickParchment }}" style="flex:1;background:#000000;padding:18px 20px;display:flex;flex-direction:column;gap:10px;cursor:pointer" style-hover="background:#0b0b0b">
+                <div style="display:flex;align-items:center;gap:10px"><span style="width:6px;height:6px;border:1px solid #2e2e2e"></span><span style="font-size:12px;font-weight:300;color:#8f8f8f">Parchment</span></div>
+                <span style="font-size:11px;line-height:1.7;font-weight:300;color:#565656">Warm paper tones, looser measure, amber accent. Calm and meditative.</span>
+                <div style="display:flex;gap:4px;margin-top:4px"><span style="width:20px;height:8px;background:#f6f1e7"></span><span style="width:20px;height:8px;background:#14110d"></span><span style="width:20px;height:8px;background:#ece4d6"></span><span style="width:20px;height:8px;background:#d99a63"></span></div>
+              </div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:24px;max-width:640px">
+            <span style="font-size:12px;font-weight:300;color:#8f8f8f;width:140px">Color</span>
+            <div style="display:flex;border:1px solid #2e2e2e">
+              <span style="font-size:11px;font-weight:400;letter-spacing:0.08em;padding:7px 16px;background:#ededed;color:#000000">Dark</span>
+              <span style="font-size:11px;font-weight:300;letter-spacing:0.08em;padding:7px 16px;color:#8f8f8f;border-left:1px solid #2e2e2e" style-hover="color:#ededed">Light</span>
+              <span style="font-size:11px;font-weight:300;letter-spacing:0.08em;padding:7px 16px;color:#8f8f8f;border-left:1px solid #2e2e2e" style-hover="color:#ededed">System</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:22px">
+          <span style="font-size:10px;letter-spacing:0.18em;text-transform:uppercase;color:#565656;border-bottom:1px solid #202020;padding-bottom:12px">Editor</span>
+          <div style="display:flex;align-items:center;gap:24px;max-width:640px">
+            <span style="font-size:12px;font-weight:300;color:#8f8f8f;width:140px">Mode</span>
+            <div style="display:flex;border:1px solid #2e2e2e">
+              <span style="font-size:11px;font-weight:400;letter-spacing:0.08em;padding:7px 16px;background:#ededed;color:#000000">Zen</span>
+              <span style="font-size:11px;font-weight:300;letter-spacing:0.08em;padding:7px 16px;color:#8f8f8f;border-left:1px solid #2e2e2e" style-hover="color:#ededed">Overlay</span>
+            </div>
+            <span style="font-size:11px;font-weight:300;color:#565656">UI fades once the cursor is in the editor</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:24px;max-width:640px">
+            <span style="font-size:12px;font-weight:300;color:#8f8f8f;width:140px">Descendant depth</span>
+            <div style="display:flex;align-items:center;border:1px solid #2e2e2e">
+              <button type="button" onClick="{{ dec }}" style="display:flex;align-items:center;justify-content:center;width:30px;height:30px;background:transparent;border:none;color:#8f8f8f;cursor:pointer" style-hover="color:#ededed"><svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor" shape-rendering="crispEdges" style="display:block"><rect x="3" y="7" width="10" height="1"></rect></svg></button>
+              <span style="min-width:44px;text-align:center;font-size:13px;font-weight:400;color:#ededed;border-left:1px solid #2e2e2e;border-right:1px solid #2e2e2e;line-height:30px">{{ depth }}</span>
+              <button type="button" onClick="{{ inc }}" style="display:flex;align-items:center;justify-content:center;width:30px;height:30px;background:transparent;border:none;color:#8f8f8f;cursor:pointer" style-hover="color:#ededed"><svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor" shape-rendering="crispEdges" style="display:block"><rect x="3" y="7" width="10" height="1"></rect><rect x="7" y="3" width="1" height="10"></rect></svg></button>
+            </div>
+            <span style="font-size:11px;font-weight:300;color:#565656">levels rendered below the root</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:24px;max-width:640px">
+            <span style="font-size:12px;font-weight:300;color:#8f8f8f;width:140px">Use system font</span>
+            <div onClick="{{ toggleSysFont }}" style="width:34px;height:16px;border:1px solid {{ switchBorder }};background:#0b0b0b;position:relative;cursor:pointer;flex:none">
+              <div style="position:absolute;top:1px;height:12px;width:12px;background:{{ switchBorder }};left:{{ switchLeft }}px;transition:left 140ms cubic-bezier(0.2,0,0,1)"></div>
+            </div>
+            <span style="font-size:11px;font-weight:300;color:#565656">{{ fontLabel }}</span>
+          </div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:22px">
+          <span style="font-size:10px;letter-spacing:0.18em;text-transform:uppercase;color:#565656;border-bottom:1px solid #202020;padding-bottom:12px">Workspace</span>
+
+          <div style="display:flex;flex-direction:column;gap:12px">
+          <span style="font-size:11px;font-weight:400;letter-spacing:0.08em;text-transform:uppercase;color:#8f8f8f">Sync</span>
+          <div style="display:flex;flex-direction:column;border:1px solid #202020;max-width:640px">
+            <div style="display:flex;align-items:center;gap:14px;padding:14px 16px;border-bottom:1px solid #202020">
+              <span style="width:6px;height:6px;background:#34e0a1;flex:none"></span>
+              <div style="display:flex;flex-direction:column;gap:4px"><span style="font-size:12px;font-weight:400;color:#ededed">File</span><span style="font-size:11px;font-weight:300;color:#565656">Stored locally on disk. Store in a cloud-synced folder for free multi-device sync.</span></div>
+              <span style="margin-left:auto;font-size:11px;font-weight:300;color:#34e0a1">connected</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:14px;padding:12px 16px;border-bottom:1px solid #202020;background:#0b0b0b">
+              <span style="width:6px;height:6px;flex:none"></span>
+              <input type="text" value="~/Dropbox/notes" readonly="readonly" style="font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:300;color:#ededed;background:#000000;border:1px solid #2e2e2e;border-radius:0;padding:8px 12px;outline:none;flex:1" style-focus="border-color:#34e0a1">
+              <button type="button" style="font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:300;letter-spacing:0.06em;color:#8f8f8f;background:transparent;border:1px solid #2e2e2e;border-radius:0;padding:8px 14px;cursor:pointer" style-hover="color:#ededed;border-color:#565656">Choose…</button>
+            </div>
+            <div style="display:flex;align-items:center;gap:14px;padding:14px 16px;border-bottom:1px solid #202020">
+              <span style="width:6px;height:6px;border:1px solid #2e2e2e;flex:none"></span>
+              <div style="display:flex;flex-direction:column;gap:4px"><span style="font-size:12px;font-weight:300;color:#565656">Vault</span><span style="font-size:11px;font-weight:300;color:#2e2e2e">Sync with end-to-end encryption · $1/mo</span></div>
+              <span style="margin-left:auto;font-size:9px;font-weight:400;letter-spacing:0.14em;text-transform:uppercase;color:#565656;border:1px solid #2e2e2e;padding:3px 7px">Coming soon</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:14px;padding:14px 16px;border-bottom:1px solid #202020">
+              <span style="width:6px;height:6px;border:1px solid #2e2e2e;flex:none"></span>
+              <div style="display:flex;flex-direction:column;gap:4px"><span style="font-size:12px;font-weight:300;color:#565656">Cloud</span><span style="font-size:11px;font-weight:300;color:#2e2e2e">Login, web access, sharing, MCP · $1/mo, team pricing 3+</span></div>
+              <span style="margin-left:auto;font-size:9px;font-weight:400;letter-spacing:0.14em;text-transform:uppercase;color:#565656;border:1px solid #2e2e2e;padding:3px 7px">Coming soon</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:14px;padding:14px 16px;border-bottom:1px solid #202020">
+              <span style="width:6px;height:6px;border:1px solid #2e2e2e;flex:none"></span>
+              <div style="display:flex;flex-direction:column;gap:4px"><span style="font-size:12px;font-weight:300;color:#565656">Git</span><span style="font-size:11px;font-weight:300;color:#2e2e2e">Encrypted notes to any Git remote</span></div>
+              <span style="margin-left:auto;font-size:9px;font-weight:400;letter-spacing:0.14em;text-transform:uppercase;color:#565656;border:1px solid #2e2e2e;padding:3px 7px">Coming soon</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:14px;padding:14px 16px">
+              <span style="width:6px;height:6px;border:1px solid #2e2e2e;flex:none"></span>
+              <div style="display:flex;flex-direction:column;gap:4px"><span style="font-size:12px;font-weight:300;color:#565656">GitHub</span><span style="font-size:11px;font-weight:300;color:#2e2e2e">Git with OAuth login</span></div>
+              <span style="margin-left:auto;font-size:9px;font-weight:400;letter-spacing:0.14em;text-transform:uppercase;color:#565656;border:1px solid #2e2e2e;padding:3px 7px">Coming soon</span>
+            </div>
+          </div>
+          <span style="font-size:11px;line-height:1.7;font-weight:300;color:#565656;max-width:560px">Providers are mutually exclusive.</span>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:12px">
+          <span style="font-size:11px;font-weight:400;letter-spacing:0.08em;text-transform:uppercase;color:#8f8f8f">Encryption</span>
+          <div style="display:flex;gap:1px;background:#202020;border:1px solid #202020;max-width:640px">
+            <div style="flex:1;background:#000000;padding:20px;display:flex;flex-direction:column;gap:14px">
+              <span style="font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:#2e2e2e">No key set</span>
+              <span style="font-size:11px;line-height:1.7;font-weight:300;color:#565656">Notes are stored unencrypted on this device.</span>
+              <button type="button" style="display:flex;align-items:center;gap:10px;font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:300;letter-spacing:0.06em;color:#ededed;background:transparent;border:1px solid #2e2e2e;border-radius:0;padding:8px 14px;cursor:pointer;width:fit-content" style-hover="border-color:#565656"><svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor" shape-rendering="crispEdges" style="display:block"><rect x="2" y="2" width="4" height="1"></rect><rect x="2" y="5" width="4" height="1"></rect><rect x="2" y="3" width="1" height="2"></rect><rect x="5" y="3" width="1" height="2"></rect><rect x="10" y="2" width="4" height="1"></rect><rect x="10" y="5" width="4" height="1"></rect><rect x="10" y="3" width="1" height="2"></rect><rect x="13" y="3" width="1" height="2"></rect><rect x="2" y="10" width="4" height="1"></rect><rect x="2" y="13" width="4" height="1"></rect><rect x="2" y="11" width="1" height="2"></rect><rect x="5" y="11" width="1" height="2"></rect><rect x="8" y="2" width="1" height="1"></rect><rect x="8" y="4" width="1" height="1"></rect><rect x="7" y="7" width="1" height="1"></rect><rect x="9" y="8" width="1" height="1"></rect><rect x="12" y="7" width="1" height="1"></rect><rect x="2" y="8" width="1" height="1"></rect><rect x="4" y="8" width="1" height="1"></rect><rect x="10" y="10" width="1" height="1"></rect><rect x="12" y="12" width="1" height="1"></rect><rect x="8" y="12" width="1" height="1"></rect><rect x="14" y="14" width="1" height="1"></rect></svg>Scan key from another device</button>
+            </div>
+            <div style="flex:1;background:#000000;padding:20px;display:flex;flex-direction:column;gap:14px">
+              <div style="display:flex;align-items:center;gap:10px"><span style="width:6px;height:6px;background:#34e0a1"></span><span style="font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:#8f8f8f">Key set</span></div>
+              <div style="display:flex;flex-direction:column;gap:6px"><span style="font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:#565656">Public key</span><span style="font-size:12px;font-weight:300;color:#ededed;word-break:break-all">4f2a·9c11·b73e<br>·d0a8·6512</span></div>
+              <button type="button" onClick="{{ openModal }}" style="display:flex;align-items:center;gap:10px;font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:400;letter-spacing:0.06em;color:#000000;background:#34e0a1;border:1px solid #34e0a1;border-radius:0;padding:8px 14px;cursor:pointer;width:fit-content" style-hover="background:#7cf0c4;border-color:#7cf0c4">Show QR to pair</button>
+            </div>
+          </div>
+          </div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:22px">
+          <span style="font-size:10px;letter-spacing:0.18em;text-transform:uppercase;color:#565656;border-bottom:1px solid #202020;padding-bottom:12px">Local MCP</span>
+          <div style="display:flex;align-items:center;gap:24px;max-width:640px">
+            <span style="font-size:12px;font-weight:300;color:#8f8f8f;width:140px">Server</span>
+            <div onClick="{{ toggleMcp }}" style="width:34px;height:16px;border:1px solid {{ mcpColor }};background:#0b0b0b;position:relative;cursor:pointer;flex:none">
+              <div style="position:absolute;top:1px;height:12px;width:12px;background:{{ mcpColor }};left:{{ mcpLeft }}px;transition:left 140ms cubic-bezier(0.2,0,0,1)"></div>
+            </div>
+            <span style="font-size:11px;font-weight:300;color:#565656">{{ mcpLabel }}</span>
+          </div>
+          <div style="display:flex;gap:12px;max-width:640px">
+            <div style="flex:1;display:flex;flex-direction:column;gap:8px"><span style="font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:#565656">Host</span><input type="text" value="127.0.0.1" readonly="readonly" style="font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:300;color:#ededed;background:#0b0b0b;border:1px solid #2e2e2e;border-radius:0;padding:9px 12px;outline:none;width:100%" style-focus="border-color:#34e0a1"></div>
+            <div style="width:140px;display:flex;flex-direction:column;gap:8px"><span style="font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:#565656">Port</span><input type="text" value="7717" readonly="readonly" style="font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:300;color:#ededed;background:#0b0b0b;border:1px solid #2e2e2e;border-radius:0;padding:9px 12px;outline:none;width:100%" style-focus="border-color:#34e0a1"></div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px;max-width:640px">
+            <span style="font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:#565656">Client config</span>
+            <div style="display:flex;align-items:flex-start;gap:12px;background:#0b0b0b;border:1px solid #202020;padding:14px 16px">
+              <pre style="margin:0;font-family:'IBM Plex Mono',monospace;font-size:12px;line-height:1.7;font-weight:300;color:#8f8f8f;flex:1;overflow:auto">{ "dendroid": { "url": "http://127.0.0.1:7717/mcp" } }</pre>
+              <button type="button" style="font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:300;letter-spacing:0.06em;color:#8f8f8f;background:transparent;border:1px solid #2e2e2e;border-radius:0;padding:6px 12px;cursor:pointer;flex:none" style-hover="color:#ededed;border-color:#565656">Copy</button>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:14px;border:1px solid #4a231d;padding:14px 16px;max-width:640px">
+            <span style="font-size:11px;line-height:1.7;font-weight:300;color:#8f8f8f;flex:1">Removing the encryption key deletes every local log event that was written with it.</span>
+            <button type="button" style="font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:300;letter-spacing:0.06em;color:#f2705a;background:transparent;border:1px solid #4a231d;border-radius:0;padding:8px 14px;cursor:pointer;flex:none" style-hover="border-color:#f2705a">Remove key</button>
+          </div>
+        </div>
+
+      </main>
+    </div>
+
+    <div onClick="{{ closeModal }}" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.5);backdrop-filter:blur({{ backdropBlur }}px);-webkit-backdrop-filter:blur({{ backdropBlur }}px);opacity:{{ modalOpacity }};pointer-events:{{ modalPointer }};transition:opacity 200ms cubic-bezier(0.2,0,0,1),backdrop-filter 200ms cubic-bezier(0.2,0,0,1)">
+      <div style="width:360px;background:#0b0b0b;border:1px solid #2e2e2e;padding:28px;display:flex;flex-direction:column;gap:22px;align-items:center;filter:blur({{ contentBlur }}px);opacity:{{ modalOpacity }};transition:filter 240ms cubic-bezier(0.2,0,0,1) 40ms,opacity 240ms cubic-bezier(0.2,0,0,1) 40ms">
+        <span style="font-size:10px;letter-spacing:0.18em;text-transform:uppercase;color:#8f8f8f;align-self:flex-start">Pair a device</span>
+        <svg viewBox="0 0 16 16" width="192" height="192" fill="#ededed" shape-rendering="crispEdges" style="display:block"><rect x="2" y="2" width="4" height="1"></rect><rect x="2" y="5" width="4" height="1"></rect><rect x="2" y="3" width="1" height="2"></rect><rect x="5" y="3" width="1" height="2"></rect><rect x="10" y="2" width="4" height="1"></rect><rect x="10" y="5" width="4" height="1"></rect><rect x="10" y="3" width="1" height="2"></rect><rect x="13" y="3" width="1" height="2"></rect><rect x="2" y="10" width="4" height="1"></rect><rect x="2" y="13" width="4" height="1"></rect><rect x="2" y="11" width="1" height="2"></rect><rect x="5" y="11" width="1" height="2"></rect><rect x="8" y="2" width="1" height="1"></rect><rect x="8" y="4" width="1" height="1"></rect><rect x="7" y="6" width="1" height="1"></rect><rect x="9" y="7" width="1" height="1"></rect><rect x="12" y="7" width="1" height="1"></rect><rect x="2" y="8" width="1" height="1"></rect><rect x="4" y="8" width="1" height="1"></rect><rect x="6" y="8" width="1" height="1"></rect><rect x="8" y="9" width="1" height="1"></rect><rect x="10" y="10" width="1" height="1"></rect><rect x="12" y="10" width="1" height="1"></rect><rect x="8" y="12" width="1" height="1"></rect><rect x="11" y="12" width="1" height="1"></rect><rect x="13" y="13" width="1" height="1"></rect><rect x="9" y="13" width="1" height="1"></rect><rect x="7" y="11" width="1" height="1"></rect><rect x="14" y="8" width="1" height="1"></rect></svg>
+        <span style="font-size:11px;line-height:1.8;font-weight:300;color:#8f8f8f;text-align:center">Scan with Dendroid on the other device. The code carries the encryption key and nothing else.</span>
+        <span style="font-size:11px;font-weight:300;color:#565656">expires in 60s</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section data-screen-label="03 Tree" style="display:flex;flex-direction:column;gap:20px">
+  <div style="display:flex;align-items:baseline;gap:16px;border-top:1px solid #1a1a1a;padding-top:14px">
+    <span style="font-size:11px;letter-spacing:0.18em;color:#34e0a1">03</span>
+    <h2 style="margin:0;font-size:11px;font-weight:400;letter-spacing:0.18em;text-transform:uppercase;color:#8f8f8f">Tree — sidebar &amp; full-screen</h2>
+    <button type="button" onClick="{{ toggleDrawer }}" style="margin-left:auto;font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:300;letter-spacing:0.06em;color:#8f8f8f;background:transparent;border:1px solid #2e2e2e;border-radius:0;padding:6px 12px;cursor:pointer" style-hover="color:#ededed;border-color:#565656">{{ drawerLabel }}</button>
+  </div>
+
+  <div style="display:flex;gap:40px;align-items:flex-start;flex-wrap:wrap">
+
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <span style="font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:#565656">≥ 900 px — rows on the background, no panel · one close per root</span>
+      <div style="width:420px;height:640px;border:1px solid #2e2e2e;background:#000000;display:flex;flex-direction:column;overflow:hidden">
+        <div style="height:44px;flex:none;display:flex;align-items:center;gap:10px;padding:0 14px">
+          
+<svg viewBox="0 0 16 16" width="16" height="16" fill="#8f8f8f" shape-rendering="crispEdges" style="display:block;flex:none"><rect x="8" y="1" width="1" height="3"></rect><rect x="4" y="4" width="9" height="1"></rect><rect x="4" y="5" width="1" height="3"></rect><rect x="12" y="5" width="1" height="3"></rect><rect x="2" y="8" width="5" height="1"></rect><rect x="10" y="8" width="5" height="1"></rect><rect x="2" y="9" width="1" height="3"></rect><rect x="6" y="9" width="1" height="3"></rect><rect x="10" y="9" width="1" height="3"></rect><rect x="14" y="9" width="1" height="3"></rect></svg>
+          <span style="font-size:10px;letter-spacing:0.18em;text-transform:uppercase;color:#565656">Tree</span><svg viewBox="0 0 16 16" width="16" height="16" fill="#565656" shape-rendering="crispEdges" style="display:block;margin-left:auto;cursor:pointer" onClick="{{ openSearch }}"><rect x="5" y="3" width="4" height="1"></rect><rect x="5" y="10" width="4" height="1"></rect><rect x="3" y="5" width="1" height="4"></rect><rect x="10" y="5" width="1" height="4"></rect><rect x="4" y="4" width="1" height="1"></rect><rect x="9" y="4" width="1" height="1"></rect><rect x="4" y="9" width="1" height="1"></rect><rect x="9" y="9" width="1" height="1"></rect><rect x="11" y="11" width="1" height="1"></rect><rect x="12" y="12" width="1" height="1"></rect><rect x="13" y="13" width="1" height="1"></rect></svg>
+        </div>
+        <div style="flex:1;overflow:auto;padding:10px 0;display:flex;flex-direction:column">
+          <div style="display:flex;align-items:center;gap:8px;height:28px;padding:0 14px" style-hover="background:#131313">
+            <svg viewBox="0 0 16 16" width="16" height="16" fill="#8f8f8f" shape-rendering="crispEdges" style="display:block;flex:none"><rect x="3" y="6" width="1" height="1"></rect><rect x="4" y="7" width="1" height="1"></rect><rect x="5" y="8" width="1" height="1"></rect><rect x="6" y="9" width="1" height="1"></rect><rect x="7" y="10" width="1" height="1"></rect><rect x="8" y="9" width="1" height="1"></rect><rect x="9" y="8" width="1" height="1"></rect><rect x="10" y="7" width="1" height="1"></rect><rect x="11" y="6" width="1" height="1"></rect></svg>
+            <span style="font-size:12.5px;font-weight:300;color:#ededed">Dendroid</span>
+            <span style="margin-left:auto;font-size:10px;color:#2e2e2e">#</span>
+            <svg viewBox="0 0 16 16" width="16" height="16" fill="#565656" shape-rendering="crispEdges" style="display:block;cursor:pointer" style-hover="fill:#f2705a"><rect x="4" y="4" width="1" height="1"></rect><rect x="5" y="5" width="1" height="1"></rect><rect x="6" y="6" width="1" height="1"></rect><rect x="7" y="7" width="2" height="2"></rect><rect x="9" y="9" width="1" height="1"></rect><rect x="10" y="10" width="1" height="1"></rect><rect x="11" y="11" width="1" height="1"></rect><rect x="11" y="4" width="1" height="1"></rect><rect x="10" y="5" width="1" height="1"></rect><rect x="9" y="6" width="1" height="1"></rect><rect x="6" y="9" width="1" height="1"></rect><rect x="5" y="10" width="1" height="1"></rect><rect x="4" y="11" width="1" height="1"></rect></svg>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;height:28px;padding:0 14px 0 30px;background:#131313;border-left:1px solid #34e0a1">
+            <svg viewBox="0 0 16 16" width="16" height="16" fill="#34e0a1" shape-rendering="crispEdges" style="display:block;flex:none"><rect x="3" y="6" width="1" height="1"></rect><rect x="4" y="7" width="1" height="1"></rect><rect x="5" y="8" width="1" height="1"></rect><rect x="6" y="9" width="1" height="1"></rect><rect x="7" y="10" width="1" height="1"></rect><rect x="8" y="9" width="1" height="1"></rect><rect x="9" y="8" width="1" height="1"></rect><rect x="10" y="7" width="1" height="1"></rect><rect x="11" y="6" width="1" height="1"></rect></svg>
+            <span style="font-size:12.5px;font-weight:400;color:#34e0a1">Notes are a graph</span>
+            <div style="margin-left:auto;display:flex;gap:10px;align-items:center">
+              <svg viewBox="0 0 16 16" width="16" height="16" fill="#34e0a1" shape-rendering="crispEdges" style="display:block"><rect x="3" y="3" width="10" height="1"></rect><rect x="3" y="12" width="10" height="1"></rect><rect x="3" y="4" width="1" height="8"></rect><rect x="12" y="4" width="1" height="8"></rect><rect x="7" y="7" width="2" height="2"></rect></svg>
+              <svg viewBox="0 0 16 16" width="16" height="16" fill="#565656" shape-rendering="crispEdges" style="display:block;cursor:pointer" style-hover="fill:#ededed"><rect x="2" y="2" width="5" height="1"></rect><rect x="2" y="3" width="1" height="4"></rect><rect x="5" y="5" width="1" height="1"></rect><rect x="6" y="6" width="1" height="1"></rect><rect x="7" y="7" width="1" height="1"></rect><rect x="8" y="8" width="1" height="1"></rect><rect x="9" y="9" width="1" height="1"></rect><rect x="10" y="10" width="1" height="1"></rect><rect x="11" y="11" width="1" height="1"></rect><rect x="5" y="6" width="1" height="2"></rect><rect x="6" y="5" width="2" height="1"></rect></svg>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;height:28px;padding:0 14px 0 46px" style-hover="background:#131313"><span style="width:16px;flex:none"></span><span style="font-size:12.5px;font-weight:300;color:#8f8f8f">Linking</span><span style="margin-left:auto;font-size:10px;color:#2e2e2e">###</span></div>
+          <div style="display:flex;align-items:center;gap:8px;height:28px;padding:0 14px 0 46px" style-hover="background:#131313"><span style="width:16px;flex:none"></span><span style="font-size:12.5px;font-weight:300;color:#8f8f8f">Drilling down</span><span style="margin-left:auto;font-size:10px;color:#2e2e2e">###</span></div>
+          <div style="display:flex;align-items:center;gap:8px;height:28px;padding:0 14px 0 46px" style-hover="background:#131313"><span style="width:16px;flex:none"></span><span style="font-size:12.5px;font-weight:300;color:#8f8f8f">Depth</span><span style="margin-left:auto;font-size:10px;color:#2e2e2e">###</span></div>
+          <div style="display:flex;align-items:center;gap:8px;height:28px;padding:0 14px 0 30px" style-hover="background:#131313">
+            <svg viewBox="0 0 16 16" width="16" height="16" fill="#8f8f8f" shape-rendering="crispEdges" style="display:block;flex:none"><rect x="6" y="3" width="1" height="1"></rect><rect x="7" y="4" width="1" height="1"></rect><rect x="8" y="5" width="1" height="1"></rect><rect x="9" y="6" width="1" height="1"></rect><rect x="10" y="7" width="1" height="1"></rect><rect x="9" y="8" width="1" height="1"></rect><rect x="8" y="9" width="1" height="1"></rect><rect x="7" y="10" width="1" height="1"></rect><rect x="6" y="11" width="1" height="1"></rect></svg>
+            <span style="font-size:12.5px;font-weight:300;color:#ededed">Sync providers</span>
+            <span style="margin-left:auto;font-size:10px;color:#2e2e2e">##</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;height:28px;padding:0 14px 0 30px" style-hover="background:#131313">
+            <svg viewBox="0 0 16 16" width="16" height="16" fill="#8f8f8f" shape-rendering="crispEdges" style="display:block;flex:none"><rect x="6" y="3" width="1" height="1"></rect><rect x="7" y="4" width="1" height="1"></rect><rect x="8" y="5" width="1" height="1"></rect><rect x="9" y="6" width="1" height="1"></rect><rect x="10" y="7" width="1" height="1"></rect><rect x="9" y="8" width="1" height="1"></rect><rect x="8" y="9" width="1" height="1"></rect><rect x="7" y="10" width="1" height="1"></rect><rect x="6" y="11" width="1" height="1"></rect></svg>
+            <span style="font-size:12.5px;font-weight:300;color:#ededed">Security</span>
+            <span style="margin-left:auto;font-size:10px;color:#2e2e2e">##</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;height:28px;padding:0 14px 0 30px" style-hover="background:#131313">
+            <svg viewBox="0 0 16 16" width="16" height="16" fill="#8f8f8f" shape-rendering="crispEdges" style="display:block;flex:none"><rect x="6" y="3" width="1" height="1"></rect><rect x="7" y="4" width="1" height="1"></rect><rect x="8" y="5" width="1" height="1"></rect><rect x="9" y="6" width="1" height="1"></rect><rect x="10" y="7" width="1" height="1"></rect><rect x="9" y="8" width="1" height="1"></rect><rect x="8" y="9" width="1" height="1"></rect><rect x="7" y="10" width="1" height="1"></rect><rect x="6" y="11" width="1" height="1"></rect></svg>
+            <span style="font-size:12.5px;font-weight:300;color:#ededed">Services</span>
+            <span style="margin-left:auto;font-size:10px;color:#2e2e2e">##</span>
+          </div>
+          <div style="height:20px"></div>
+          <div style="display:flex;align-items:center;gap:8px;height:28px;padding:0 14px" style-hover="background:#131313">
+            <svg viewBox="0 0 16 16" width="16" height="16" fill="#8f8f8f" shape-rendering="crispEdges" style="display:block;flex:none"><rect x="3" y="6" width="1" height="1"></rect><rect x="4" y="7" width="1" height="1"></rect><rect x="5" y="8" width="1" height="1"></rect><rect x="6" y="9" width="1" height="1"></rect><rect x="7" y="10" width="1" height="1"></rect><rect x="8" y="9" width="1" height="1"></rect><rect x="9" y="8" width="1" height="1"></rect><rect x="10" y="7" width="1" height="1"></rect><rect x="11" y="6" width="1" height="1"></rect></svg>
+            <span style="font-size:12.5px;font-weight:300;color:#ededed">Work log</span>
+            <span style="margin-left:auto;font-size:10px;color:#2e2e2e">#</span>
+            <svg viewBox="0 0 16 16" width="16" height="16" fill="#565656" shape-rendering="crispEdges" style="display:block;cursor:pointer" style-hover="fill:#f2705a"><rect x="4" y="4" width="1" height="1"></rect><rect x="5" y="5" width="1" height="1"></rect><rect x="6" y="6" width="1" height="1"></rect><rect x="7" y="7" width="2" height="2"></rect><rect x="9" y="9" width="1" height="1"></rect><rect x="10" y="10" width="1" height="1"></rect><rect x="11" y="11" width="1" height="1"></rect><rect x="11" y="4" width="1" height="1"></rect><rect x="10" y="5" width="1" height="1"></rect><rect x="9" y="6" width="1" height="1"></rect><rect x="6" y="9" width="1" height="1"></rect><rect x="5" y="10" width="1" height="1"></rect><rect x="4" y="11" width="1" height="1"></rect></svg>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;height:28px;padding:0 14px 0 30px" style-hover="background:#131313"><span style="width:16px;flex:none"></span><span style="font-size:12.5px;font-weight:300;color:#8f8f8f">2026-08</span><span style="margin-left:auto;font-size:10px;color:#2e2e2e">##</span></div>
+          <div style="display:flex;align-items:center;gap:8px;height:28px;padding:0 14px 0 30px" style-hover="background:#131313"><span style="width:16px;flex:none"></span><span style="font-size:12.5px;font-weight:300;color:#8f8f8f">Open questions</span><span style="margin-left:auto;font-size:10px;color:#2e2e2e">##</span></div>
+        </div>
+        <div style="flex:none;display:flex;align-items:center;gap:16px;padding:0 14px;height:44px">
+          <span style="font-size:11px;font-weight:300;color:#565656;cursor:pointer" style-hover="color:#ededed">new tree</span>
+          <span style="font-size:11px;font-weight:300;color:#565656;cursor:pointer" style-hover="color:#ededed">open…</span>
+          <span style="margin-left:auto;font-size:10px;letter-spacing:0.14em;color:#2e2e2e">⌘T</span>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <span style="font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:#565656">&lt; 900 px — full-screen tree, deblurs in over the editor</span>
+      <div style="width:420px;height:760px;border:1px solid #2e2e2e;background:#000000;position:relative;overflow:hidden;display:flex;flex-direction:column">
+        <div style="height:48px;flex:none;display:flex;align-items:center;padding:0 20px;gap:14px">
+          <svg viewBox="0 0 16 16" width="16" height="16" fill="#8f8f8f" shape-rendering="crispEdges" style="display:block;cursor:pointer" onClick="{{ toggleDrawer }}"><rect x="8" y="1" width="1" height="3"></rect><rect x="4" y="4" width="9" height="1"></rect><rect x="4" y="5" width="1" height="3"></rect><rect x="12" y="5" width="1" height="3"></rect><rect x="2" y="8" width="5" height="1"></rect><rect x="10" y="8" width="5" height="1"></rect><rect x="2" y="9" width="1" height="3"></rect><rect x="6" y="9" width="1" height="3"></rect><rect x="10" y="9" width="1" height="3"></rect><rect x="14" y="9" width="1" height="3"></rect></svg>
+          <span style="font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:#2e2e2e">Dendroid / Notes are a graph</span>
+          <svg viewBox="0 0 16 16" width="16" height="16" fill="#565656" shape-rendering="crispEdges" style="display:block;margin-left:auto"><rect x="2" y="4" width="12" height="1"></rect><rect x="2" y="11" width="12" height="1"></rect><rect x="5" y="3" width="3" height="3"></rect><rect x="8" y="10" width="3" height="3"></rect></svg>
+        </div>
+        <div style="flex:1;min-height:0;padding:36px 28px;font-family:'Public Sans',system-ui,sans-serif;filter:blur({{ pageBlur }}px);transition:filter 200ms cubic-bezier(0.2,0,0,1)">
+          <h1 style="margin:0 0 18px;font-size:25px;font-weight:500;line-height:1.3;letter-spacing:-0.01em;color:#ededed">Notes are a graph</h1>
+          <p style="margin:0 0 20px;font-size:15px;line-height:1.7;color:#ededed;text-wrap:pretty">A heading is a node, and the headings beneath it are its children. Structure emerges from writing instead of from filing.</p>
+          <h2 style="margin:0 0 12px;font-size:19px;font-weight:500;line-height:1.35;color:#ededed">Linking</h2>
+          <p style="margin:0 0 20px;font-size:15px;line-height:1.7;color:#ededed;text-wrap:pretty">Type <code style="font-family:'IBM Plex Mono',monospace;font-size:13px;color:#ededed;background:#131313;border:1px solid #202020;padding:1px 5px">@</code> to reach any heading, like <a href="#" style="color:#34e0a1;text-decoration:none;border-bottom:1px solid #1c5a44">@Sync providers</a>.</p>
+          <blockquote style="margin:0;padding:2px 0 2px 18px;border-left:1px solid #2e2e2e;font-size:15px;line-height:1.7;color:#8f8f8f;font-style:italic">Structure should be a consequence of thinking.</blockquote>
+        </div>
+        <div style="position:absolute;inset:0;background:rgba(0,0,0,0.55);backdrop-filter:blur({{ drawerBackdrop }}px);-webkit-backdrop-filter:blur({{ drawerBackdrop }}px);opacity:{{ drawerOpacity }};pointer-events:{{ drawerPointer }};transition:opacity 200ms cubic-bezier(0.2,0,0,1),backdrop-filter 200ms cubic-bezier(0.2,0,0,1)"></div>
+        <div style="position:absolute;inset:0;background:#000000;display:flex;flex-direction:column;opacity:{{ drawerOpacity }};pointer-events:{{ drawerPointer }};filter:blur({{ drawerContentBlur }}px);transition:opacity 240ms cubic-bezier(0.2,0,0,1) 40ms,filter 240ms cubic-bezier(0.2,0,0,1) 40ms">
+          <div style="height:48px;flex:none;display:flex;align-items:center;gap:12px;padding:0 14px">
+            <svg viewBox="0 0 16 16" width="16" height="16" fill="#8f8f8f" shape-rendering="crispEdges" style="display:block;flex:none"><rect x="8" y="1" width="1" height="3"></rect><rect x="4" y="4" width="9" height="1"></rect><rect x="4" y="5" width="1" height="3"></rect><rect x="12" y="5" width="1" height="3"></rect><rect x="2" y="8" width="5" height="1"></rect><rect x="10" y="8" width="5" height="1"></rect><rect x="2" y="9" width="1" height="3"></rect><rect x="6" y="9" width="1" height="3"></rect><rect x="10" y="9" width="1" height="3"></rect><rect x="14" y="9" width="1" height="3"></rect></svg>
+            <span style="font-size:10px;letter-spacing:0.18em;text-transform:uppercase;color:#565656">Tree</span>
+            <svg viewBox="0 0 16 16" width="16" height="16" fill="#8f8f8f" shape-rendering="crispEdges" style="display:block;margin-left:auto;cursor:pointer" onClick="{{ toggleDrawer }}"><rect x="4" y="4" width="1" height="1"></rect><rect x="5" y="5" width="1" height="1"></rect><rect x="6" y="6" width="1" height="1"></rect><rect x="7" y="7" width="2" height="2"></rect><rect x="9" y="9" width="1" height="1"></rect><rect x="10" y="10" width="1" height="1"></rect><rect x="11" y="11" width="1" height="1"></rect><rect x="11" y="4" width="1" height="1"></rect><rect x="10" y="5" width="1" height="1"></rect><rect x="9" y="6" width="1" height="1"></rect><rect x="6" y="9" width="1" height="1"></rect><rect x="5" y="10" width="1" height="1"></rect><rect x="4" y="11" width="1" height="1"></rect></svg>
+          </div>
+          <div style="flex:1;overflow:auto;padding:10px 0;display:flex;flex-direction:column">
+            <div style="display:flex;align-items:center;gap:8px;height:32px;padding:0 14px"><svg viewBox="0 0 16 16" width="16" height="16" fill="#8f8f8f" shape-rendering="crispEdges" style="display:block;flex:none"><rect x="3" y="6" width="1" height="1"></rect><rect x="4" y="7" width="1" height="1"></rect><rect x="5" y="8" width="1" height="1"></rect><rect x="6" y="9" width="1" height="1"></rect><rect x="7" y="10" width="1" height="1"></rect><rect x="8" y="9" width="1" height="1"></rect><rect x="9" y="8" width="1" height="1"></rect><rect x="10" y="7" width="1" height="1"></rect><rect x="11" y="6" width="1" height="1"></rect></svg><span style="font-size:13px;font-weight:300;color:#ededed">Dendroid</span><svg viewBox="0 0 16 16" width="16" height="16" fill="#565656" shape-rendering="crispEdges" style="display:block;margin-left:auto;cursor:pointer" style-hover="fill:#f2705a"><rect x="4" y="4" width="1" height="1"></rect><rect x="5" y="5" width="1" height="1"></rect><rect x="6" y="6" width="1" height="1"></rect><rect x="7" y="7" width="2" height="2"></rect><rect x="9" y="9" width="1" height="1"></rect><rect x="10" y="10" width="1" height="1"></rect><rect x="11" y="11" width="1" height="1"></rect><rect x="11" y="4" width="1" height="1"></rect><rect x="10" y="5" width="1" height="1"></rect><rect x="9" y="6" width="1" height="1"></rect><rect x="6" y="9" width="1" height="1"></rect><rect x="5" y="10" width="1" height="1"></rect><rect x="4" y="11" width="1" height="1"></rect></svg></div>
+            <div style="display:flex;align-items:center;gap:8px;height:32px;padding:0 14px 0 30px;background:#131313;border-left:1px solid #34e0a1"><svg viewBox="0 0 16 16" width="16" height="16" fill="#34e0a1" shape-rendering="crispEdges" style="display:block;flex:none"><rect x="3" y="6" width="1" height="1"></rect><rect x="4" y="7" width="1" height="1"></rect><rect x="5" y="8" width="1" height="1"></rect><rect x="6" y="9" width="1" height="1"></rect><rect x="7" y="10" width="1" height="1"></rect><rect x="8" y="9" width="1" height="1"></rect><rect x="9" y="8" width="1" height="1"></rect><rect x="10" y="7" width="1" height="1"></rect><rect x="11" y="6" width="1" height="1"></rect></svg><span style="font-size:13px;font-weight:400;color:#34e0a1">Notes are a graph</span><svg viewBox="0 0 16 16" width="16" height="16" fill="#34e0a1" shape-rendering="crispEdges" style="display:block;margin-left:auto"><rect x="3" y="3" width="10" height="1"></rect><rect x="3" y="12" width="10" height="1"></rect><rect x="3" y="4" width="1" height="8"></rect><rect x="12" y="4" width="1" height="8"></rect><rect x="7" y="7" width="2" height="2"></rect></svg></div>
+            <div style="display:flex;align-items:center;gap:8px;height:32px;padding:0 14px 0 46px"><span style="width:16px;flex:none"></span><span style="font-size:13px;font-weight:300;color:#8f8f8f">Linking</span></div>
+            <div style="display:flex;align-items:center;gap:8px;height:32px;padding:0 14px 0 46px"><span style="width:16px;flex:none"></span><span style="font-size:13px;font-weight:300;color:#8f8f8f">Drilling down</span></div>
+            <div style="display:flex;align-items:center;gap:8px;height:32px;padding:0 14px 0 46px"><span style="width:16px;flex:none"></span><span style="font-size:13px;font-weight:300;color:#8f8f8f">Depth</span></div>
+            <div style="display:flex;align-items:center;gap:8px;height:32px;padding:0 14px 0 30px"><svg viewBox="0 0 16 16" width="16" height="16" fill="#8f8f8f" shape-rendering="crispEdges" style="display:block;flex:none"><rect x="6" y="3" width="1" height="1"></rect><rect x="7" y="4" width="1" height="1"></rect><rect x="8" y="5" width="1" height="1"></rect><rect x="9" y="6" width="1" height="1"></rect><rect x="10" y="7" width="1" height="1"></rect><rect x="9" y="8" width="1" height="1"></rect><rect x="8" y="9" width="1" height="1"></rect><rect x="7" y="10" width="1" height="1"></rect><rect x="6" y="11" width="1" height="1"></rect></svg><span style="font-size:13px;font-weight:300;color:#ededed">Sync providers</span></div>
+            <div style="display:flex;align-items:center;gap:8px;height:32px;padding:0 14px 0 30px"><svg viewBox="0 0 16 16" width="16" height="16" fill="#8f8f8f" shape-rendering="crispEdges" style="display:block;flex:none"><rect x="6" y="3" width="1" height="1"></rect><rect x="7" y="4" width="1" height="1"></rect><rect x="8" y="5" width="1" height="1"></rect><rect x="9" y="6" width="1" height="1"></rect><rect x="10" y="7" width="1" height="1"></rect><rect x="9" y="8" width="1" height="1"></rect><rect x="8" y="9" width="1" height="1"></rect><rect x="7" y="10" width="1" height="1"></rect><rect x="6" y="11" width="1" height="1"></rect></svg><span style="font-size:13px;font-weight:300;color:#ededed">Security</span></div>
+          </div>
+          <div style="flex:none;display:flex;align-items:center;gap:16px;padding:0 14px;height:52px">
+            <span style="font-size:12px;font-weight:300;color:#565656">new tree</span>
+            <span style="font-size:12px;font-weight:300;color:#565656">open…</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+  <p style="margin:0;max-width:620px;font-size:12px;line-height:1.8;font-weight:300;color:#565656;text-wrap:pretty">Below 900&nbsp;px the tree takes the whole viewport instead of splitting it: same component, 32&nbsp;px rows for touch, entering with the deblur motion over a blurred editor. Row controls are always visible here since there is no hover, and the tree glyph in the corner is the only persistent chrome — there is no window frame to hang a toolbar on.</p>
+</section>
+
+<section data-screen-label="04 Search" style="display:flex;flex-direction:column;gap:20px">
+  <div style="display:flex;align-items:baseline;gap:16px;border-top:1px solid #1a1a1a;padding-top:14px">
+    <span style="font-size:11px;letter-spacing:0.18em;color:#34e0a1">04</span>
+    <h2 style="margin:0;font-size:11px;font-weight:400;letter-spacing:0.18em;text-transform:uppercase;color:#8f8f8f">Search — ⌘K over the view</h2>
+    <button type="button" onClick="{{ toggleSearch }}" style="margin-left:auto;font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:300;letter-spacing:0.06em;color:#8f8f8f;background:transparent;border:1px solid #2e2e2e;border-radius:0;padding:6px 12px;cursor:pointer" style-hover="color:#ededed;border-color:#565656">{{ searchLabel }}</button>
+  </div>
+
+  <div style="width:1280px;height:720px;border:1px solid #2e2e2e;background:#000000;position:relative;overflow:hidden;display:flex">
+    <div style="flex:1;display:flex;justify-content:center;padding:64px 0;filter:blur({{ searchPageBlur }}px);transition:filter 200ms cubic-bezier(0.2,0,0,1);font-family:'Public Sans',system-ui,sans-serif">
+      <div style="width:68ch">
+        <h1 style="margin:0 0 22px;font-size:30px;font-weight:500;line-height:1.25;letter-spacing:-0.01em;color:#ededed">Notes are a graph</h1>
+        <p style="margin:0 0 24px;font-size:16px;line-height:1.7;color:#ededed;text-wrap:pretty">A heading is a node, and the headings beneath it are its children, so structure emerges from writing instead of from filing.</p>
+        <h2 style="margin:0 0 14px;font-size:23px;font-weight:500;line-height:1.3;color:#ededed">Linking</h2>
+        <p style="margin:0 0 24px;font-size:16px;line-height:1.7;color:#8f8f8f;text-wrap:pretty">Typeahead completions are ordered by distance from the current block, not alphabetically. Search follows the same rule.</p>
+        <p style="margin:0;font-size:16px;line-height:1.7;color:#8f8f8f;text-wrap:pretty">Every provider writes to the same transaction log, so sync stays a detail rather than a mode.</p>
+      </div>
+    </div>
+
+    <div onClick="{{ closeSearch }}" style="position:absolute;inset:0;background:rgba(0,0,0,0.5);backdrop-filter:blur({{ searchBackdrop }}px);-webkit-backdrop-filter:blur({{ searchBackdrop }}px);opacity:{{ searchOpacity }};pointer-events:{{ searchPointer }};transition:opacity 200ms cubic-bezier(0.2,0,0,1),backdrop-filter 200ms cubic-bezier(0.2,0,0,1)"></div>
+
+    <div style="position:absolute;left:50%;top:88px;width:660px;margin-left:-330px;background:#0b0b0b;border:1px solid #2e2e2e;display:flex;flex-direction:column;opacity:{{ searchOpacity }};pointer-events:{{ searchPointer }};filter:blur({{ searchContentBlur }}px);transition:opacity 240ms cubic-bezier(0.2,0,0,1) 40ms,filter 240ms cubic-bezier(0.2,0,0,1) 40ms">
+      <div style="height:56px;flex:none;display:flex;align-items:center;gap:14px;padding:0 18px;border-bottom:1px solid #202020">
+        <svg viewBox="0 0 16 16" width="16" height="16" fill="#565656" shape-rendering="crispEdges" style="display:block;flex:none"><rect x="5" y="3" width="4" height="1"></rect><rect x="5" y="10" width="4" height="1"></rect><rect x="3" y="5" width="1" height="4"></rect><rect x="10" y="5" width="1" height="4"></rect><rect x="4" y="4" width="1" height="1"></rect><rect x="9" y="4" width="1" height="1"></rect><rect x="4" y="9" width="1" height="1"></rect><rect x="9" y="9" width="1" height="1"></rect><rect x="11" y="11" width="1" height="1"></rect><rect x="12" y="12" width="1" height="1"></rect><rect x="13" y="13" width="1" height="1"></rect></svg>
+        <span style="font-size:15px;font-weight:300;color:#ededed">sync</span>
+        <span style="width:1px;height:17px;background:#34e0a1"></span>
+        <span style="margin-left:auto;font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:#2e2e2e">esc</span>
+      </div>
+
+      <div style="display:flex;flex-direction:column;padding:14px 0 6px">
+        <span style="font-size:10px;letter-spacing:0.18em;text-transform:uppercase;color:#2e2e2e;padding:0 18px 10px">In this view — Notes are a graph</span>
+        <div style="display:flex;align-items:center;gap:14px;height:38px;padding:0 18px;background:#131313;border-left:1px solid #34e0a1">
+          <span style="font-size:10px;color:#565656;width:26px;flex:none">##</span>
+          <span style="font-size:13px;font-weight:400;color:#34e0a1">Sync providers</span>
+          <span style="font-size:12px;font-weight:300;color:#565656">Generic interface for reading and writing the log</span>
+          <span style="margin-left:auto;font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:#565656">in view</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:14px;height:38px;padding:0 18px" style-hover="background:#131313">
+          <span style="font-size:10px;color:#565656;width:26px;flex:none">###</span>
+          <span style="font-size:13px;font-weight:300;color:#ededed">File</span>
+          <span style="font-size:12px;font-weight:300;color:#565656">Stored locally on disk. Store in a cloud-synced folder for free multi-device sync.</span>
+          <span style="margin-left:auto;font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:#2e2e2e">in view</span>
+        </div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;padding:8px 0 6px;border-top:1px solid #202020">
+        <span style="font-size:10px;letter-spacing:0.18em;text-transform:uppercase;color:#2e2e2e;padding:12px 18px 10px">Other headings — nearest first</span>
+        <div style="display:flex;align-items:center;gap:14px;height:38px;padding:0 18px" style-hover="background:#131313">
+          <span style="font-size:10px;color:#565656;width:26px;flex:none">##</span>
+          <span style="font-size:13px;font-weight:300;color:#ededed">Sync</span>
+          <span style="font-size:12px;font-weight:300;color:#565656">Dendroid / App / UX / Account</span>
+          <span style="margin-left:auto;font-size:11px;font-weight:300;color:#565656">2 hops</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:14px;height:38px;padding:0 18px" style-hover="background:#131313">
+          <span style="font-size:10px;color:#565656;width:26px;flex:none">###</span>
+          <span style="font-size:13px;font-weight:300;color:#ededed">Future Providers</span>
+          <span style="font-size:12px;font-weight:300;color:#565656">Dendroid / App / UX / Account / Sync</span>
+          <span style="margin-left:auto;font-size:11px;font-weight:300;color:#565656">3 hops</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:14px;height:38px;padding:0 18px" style-hover="background:#131313">
+          <span style="font-size:10px;color:#565656;width:26px;flex:none">#</span>
+          <span style="font-size:13px;font-weight:300;color:#ededed">Services</span>
+          <span style="font-size:12px;font-weight:300;color:#565656">Dendroid</span>
+          <span style="margin-left:auto;font-size:11px;font-weight:300;color:#565656">4 hops</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:14px;height:38px;padding:0 18px" style-hover="background:#131313">
+          <span style="font-size:10px;color:#565656;width:26px;flex:none">##</span>
+          <span style="font-size:13px;font-weight:300;color:#8f8f8f">Sync notes to Dropbox</span>
+          <span style="font-size:12px;font-weight:300;color:#565656">Work log / 2026-08</span>
+          <span style="margin-left:auto;font-size:11px;font-weight:300;color:#565656">other tree</span>
+        </div>
+      </div>
+
+      <div style="height:40px;flex:none;display:flex;align-items:center;gap:20px;padding:0 18px;border-top:1px solid #202020;font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:#2e2e2e">
+        <span>↑↓ move</span><span>↵ open</span><span>⌘↵ set as root</span><span>⌥↵ insert @-link</span>
+      </div>
+    </div>
+  </div>
+  <p style="margin:0;max-width:660px;font-size:12px;line-height:1.8;font-weight:300;color:#565656;text-wrap:pretty">Matches inside the current view come first and keep their accent, because acting on them does not move you. Everything else is sorted by hops through the graph — the same distance metric the <span style="color:#8f8f8f">@</span> typeahead uses — with other trees last.</p>
+</section>
+
+<section data-screen-label="05 Confirm" style="display:flex;flex-direction:column;gap:20px">
+  <div style="display:flex;align-items:baseline;gap:16px;border-top:1px solid #1a1a1a;padding-top:14px">
+    <span style="font-size:11px;letter-spacing:0.18em;color:#34e0a1">05</span>
+    <h2 style="margin:0;font-size:11px;font-weight:400;letter-spacing:0.18em;text-transform:uppercase;color:#8f8f8f">Confirmation</h2>
+    <button type="button" onClick="{{ toggleConfirm }}" style="margin-left:auto;font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:300;letter-spacing:0.06em;color:#8f8f8f;background:transparent;border:1px solid #2e2e2e;border-radius:0;padding:6px 12px;cursor:pointer" style-hover="color:#ededed;border-color:#565656">{{ confirmLabel }}</button>
+  </div>
+
+  <div style="width:820px;height:460px;border:1px solid #2e2e2e;background:#000000;position:relative;overflow:hidden">
+    <div style="padding:40px 44px;display:flex;flex-direction:column;gap:22px;filter:blur({{ confirmPageBlur }}px);transition:filter 200ms cubic-bezier(0.2,0,0,1)">
+      <span style="font-size:10px;letter-spacing:0.18em;text-transform:uppercase;color:#565656;border-bottom:1px solid #202020;padding-bottom:12px">Encryption</span>
+      <div style="display:flex;flex-direction:column;gap:6px"><span style="font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:#565656">Public key</span><span style="font-size:12px;font-weight:300;color:#ededed">4f2a·9c11·b73e·d0a8·6512</span></div>
+      <div style="display:flex;align-items:center;gap:14px;border:1px solid #4a231d;padding:14px 16px;max-width:520px">
+        <span style="font-size:11px;line-height:1.7;font-weight:300;color:#8f8f8f;flex:1">Removing the encryption key deletes every local log event that was written with it.</span>
+        <button type="button" onClick="{{ toggleConfirm }}" style="font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:300;letter-spacing:0.06em;color:#f2705a;background:transparent;border:1px solid #4a231d;border-radius:0;padding:8px 14px;cursor:pointer;flex:none" style-hover="border-color:#f2705a">Remove key</button>
+      </div>
+    </div>
+
+    <div onClick="{{ closeConfirm }}" style="position:absolute;inset:0;background:rgba(0,0,0,0.55);backdrop-filter:blur({{ confirmBackdrop }}px);-webkit-backdrop-filter:blur({{ confirmBackdrop }}px);opacity:{{ confirmOpacity }};pointer-events:{{ confirmPointer }};transition:opacity 200ms cubic-bezier(0.2,0,0,1),backdrop-filter 200ms cubic-bezier(0.2,0,0,1)"></div>
+
+    <div style="position:absolute;left:50%;top:50%;width:420px;transform:translate(-50%,-50%);background:#0b0b0b;border:1px solid #4a231d;padding:26px 28px;display:flex;flex-direction:column;gap:20px;opacity:{{ confirmOpacity }};pointer-events:{{ confirmPointer }};filter:blur({{ confirmContentBlur }}px);transition:opacity 240ms cubic-bezier(0.2,0,0,1) 40ms,filter 240ms cubic-bezier(0.2,0,0,1) 40ms">
+      <div style="display:flex;align-items:center;gap:12px">
+        <svg viewBox="0 0 16 16" width="16" height="16" fill="#f2705a" shape-rendering="crispEdges" style="display:block;flex:none"><rect x="7" y="3" width="2" height="1"></rect><rect x="6" y="4" width="1" height="1"></rect><rect x="9" y="4" width="1" height="1"></rect><rect x="6" y="5" width="1" height="2"></rect><rect x="9" y="5" width="1" height="2"></rect><rect x="4" y="7" width="8" height="1"></rect><rect x="4" y="13" width="8" height="1"></rect><rect x="4" y="8" width="1" height="5"></rect><rect x="11" y="8" width="1" height="5"></rect><rect x="7" y="9" width="2" height="2"></rect></svg>
+        <span style="font-size:11px;letter-spacing:0.18em;text-transform:uppercase;color:#f2705a">Remove key</span>
+        <span style="margin-left:auto;font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:#2e2e2e">esc</span>
+      </div>
+      <p style="margin:0;font-size:12px;line-height:1.85;font-weight:300;color:#8f8f8f;text-wrap:pretty">Every log event written with this key becomes unreadable on this device. Dendroid cannot recover it, and no copy is held anywhere else.</p>
+      <div style="display:flex;flex-direction:column;gap:1px;background:#202020;border:1px solid #202020">
+        <div style="display:flex;align-items:baseline;gap:12px;background:#000000;padding:10px 12px"><span style="font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:#565656;width:88px;flex:none">Key</span><span style="font-size:12px;font-weight:300;color:#ededed">4f2a·9c11·b73e</span></div>
+        <div style="display:flex;align-items:baseline;gap:12px;background:#000000;padding:10px 12px"><span style="font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:#565656;width:88px;flex:none">Events</span><span style="font-size:12px;font-weight:300;color:#ededed">18,402 encrypted</span></div>
+        <div style="display:flex;align-items:baseline;gap:12px;background:#000000;padding:10px 12px"><span style="font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:#565656;width:88px;flex:none">Trees</span><span style="font-size:12px;font-weight:300;color:#ededed">Dendroid, Work log</span></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <button type="button" onClick="{{ closeConfirm }}" style="font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:300;letter-spacing:0.06em;color:#8f8f8f;background:transparent;border:1px solid #2e2e2e;border-radius:0;padding:8px 16px;cursor:pointer" style-hover="color:#ededed;border-color:#565656">Cancel</button>
+        <button type="button" style="font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:400;letter-spacing:0.06em;color:#f2705a;background:transparent;border:1px solid #f2705a;border-radius:0;padding:8px 16px;cursor:pointer" style-hover="color:#000000;background:#f2705a">Remove key</button>
+        <span style="margin-left:auto;font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:#2e2e2e">⌘↵</span>
+      </div>
+    </div>
+  </div>
+  <p style="margin:0;max-width:660px;font-size:12px;line-height:1.8;font-weight:300;color:#565656;text-wrap:pretty">The same deblur motion carries the confirmation, with a danger hairline instead of the neutral one. It states what is lost in counted terms, keeps the destructive verb on the destructive button, and never pre-focuses it — Cancel takes the return key.</p>
+</section>
+
+<footer style="border-top:1px solid #1a1a1a;padding-top:24px;display:flex;justify-content:space-between;font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:#565656">
+  <span>Dendroid — dendroid.app</span>
+  <span>Screens v0.1</span>
+</footer>
+
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;zenMode&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Editor&quot;},&quot;drawerOpen&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Tree&quot;},&quot;depth&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:3,&quot;min&quot;:1,&quot;max&quot;:9,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Editor&quot;}}">
+class Component extends DCLogic {
+  state = { zen: false, drawer: true, modal: false, depth: 3, sysFont: false, mcp: true, search: true, confirm: true };
+
+  renderVals() {
+    const s = this.state;
+    const drawerOpen = this.props.drawerOpen ?? s.drawer;
+    return {
+      chromeOpacity: (this.props.zenMode ?? s.zen) ? 0 : 1,
+      zenLabel: (this.props.zenMode ?? s.zen) ? 'Wake chrome' : 'Preview zen fade',
+      toggleZen: () => this.setState(p => ({ zen: !p.zen })),
+
+      drawerLabel: drawerOpen ? 'Close tree' : 'Open tree',
+      toggleDrawer: () => this.setState(p => ({ drawer: !p.drawer })),
+      drawerOpacity: drawerOpen ? 1 : 0,
+      drawerPointer: drawerOpen ? 'auto' : 'none',
+      drawerBackdrop: drawerOpen ? 12 : 0,
+      drawerContentBlur: drawerOpen ? 0 : 10,
+      pageBlur: drawerOpen ? 2 : 0,
+
+      openModal: () => this.setState({ modal: true }),
+      closeModal: () => this.setState({ modal: false }),
+      modalOpacity: s.modal ? 1 : 0,
+      modalPointer: s.modal ? 'auto' : 'none',
+      backdropBlur: s.modal ? 14 : 0,
+      contentBlur: s.modal ? 0 : 10,
+
+      depth: this.props.depth ?? s.depth,
+      inc: () => this.setState(p => ({ depth: Math.min(9, p.depth + 1) })),
+      dec: () => this.setState(p => ({ depth: Math.max(1, p.depth - 1) })),
+
+      switchLeft: s.sysFont ? 19 : 1,
+      switchBorder: s.sysFont ? '#34e0a1' : '#2e2e2e',
+      fontLabel: s.sysFont ? 'System UI font' : 'Public Sans',
+      toggleSysFont: () => this.setState(p => ({ sysFont: !p.sysFont })),
+
+      openSearch: () => this.setState({ search: true }),
+      closeSearch: () => this.setState({ search: false }),
+      toggleSearch: () => this.setState(p => ({ search: !p.search })),
+      searchLabel: s.search ? 'Close search' : 'Open search',
+      searchOpacity: s.search ? 1 : 0,
+      searchPointer: s.search ? 'auto' : 'none',
+      searchBackdrop: s.search ? 14 : 0,
+      searchContentBlur: s.search ? 0 : 10,
+      searchPageBlur: s.search ? 2 : 0,
+
+      closeConfirm: () => this.setState({ confirm: false }),
+      toggleConfirm: () => this.setState(p => ({ confirm: !p.confirm })),
+      confirmLabel: s.confirm ? 'Close dialog' : 'Open dialog',
+      confirmOpacity: s.confirm ? 1 : 0,
+      confirmPointer: s.confirm ? 'auto' : 'none',
+      confirmBackdrop: s.confirm ? 14 : 0,
+      confirmContentBlur: s.confirm ? 0 : 10,
+      confirmPageBlur: s.confirm ? 2 : 0,
+
+      mcpLeft: s.mcp ? 19 : 1,
+      mcpColor: s.mcp ? '#34e0a1' : '#2e2e2e',
+      mcpLabel: s.mcp ? 'running' : 'stopped',
+      toggleMcp: () => this.setState(p => ({ mcp: !p.mcp }))
+    };
+  }
+}
+</script>
+</body>
+</html>

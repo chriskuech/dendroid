@@ -1,0 +1,48 @@
+/* The `@`-link typeahead popup — mounted/positioned by `@tiptap/suggestion`
+ * (see `lib/tiptap/linkRef.ts`). Styled like a compact version of
+ * `.tree-row`/`.card` (workspace.css/ui.css) rather than introducing a new
+ * visual language for it. */
+
+.link-typeahead {
+  min-width: 220px;
+  max-width: 320px;
+  max-height: 260px;
+  overflow-y: auto;
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  z-index: 100;
+}
+
+.link-typeahead__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+
+.link-typeahead__row.is-selected {
+  background: var(--raised);
+}
+
+.link-typeahead__level {
+  flex: none;
+  font-family: var(--font-brand);
+  font-size: 10px;
+  color: var(--line-strong);
+}
+
+.link-typeahead__title {
+  font-size: 12.5px;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.link-typeahead__empty {
+  padding: 10px;
+  font-size: 11px;
+  color: var(--text-3);
+}

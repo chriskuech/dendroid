@@ -1,0 +1,33 @@
+[package]
+name = "dendroid-web"
+version = "0.1.0"
+description = "Wasm bindings for dendroid"
+edition = "2021"
+
+[lib]
+name = "dendroid_web"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+dendroid-core = { path = "../src-core" }
+base64 = "0.23"
+js-sys = "0.3"
+serde-wasm-bindgen = "0.6"
+wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4"
+
+[dependencies.web-sys]
+version = "0.3"
+features = [
+  "Window",
+  "Navigator",
+  "StorageManager",
+  "FileSystemDirectoryHandle",
+  "FileSystemFileHandle",
+  "FileSystemGetFileOptions",
+  "FileSystemGetDirectoryOptions",
+  "FileSystemCreateWritableOptions",
+  "FileSystemWritableFileStream",
+  "File",
+  "Blob",
+]

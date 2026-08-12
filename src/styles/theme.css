@@ -1,0 +1,128 @@
+/*
+ * Dendroid theme tokens.
+ *
+ * Two aesthetics (terminal / parchment) x two modes (dark / light) = four
+ * palettes, one token structure. See comp/Dendroid Design System.dc.html
+ * section 03 for the source values — do not hand-tune a color here without
+ * updating that reference too.
+ *
+ * The active palette is selected by [data-aesthetic] and [data-mode]
+ * attributes on <html>, set by ThemeEffect (see src/lib/theme.ts).
+ */
+
+:root {
+  --font-brand: "IBM Plex Mono", ui-monospace, "SF Mono", monospace;
+  --font-editor: "Public Sans", system-ui, sans-serif;
+}
+
+/* "Use system font" setting: swap the editor font for the OS UI font.
+ * [data-system-font] is set on <html> by useTheme (src/lib/useTheme.ts). */
+:root[data-system-font] {
+  --font-editor: system-ui, sans-serif;
+}
+
+:root[data-aesthetic="terminal"][data-mode="dark"] {
+  --bg: #000000;
+  --surface: #0b0b0b;
+  --raised: #131313;
+  --line: #202020;
+  --line-strong: #2e2e2e;
+  --text-3: #565656;
+  --text-2: #8f8f8f;
+  --text: #ededed;
+  --accent: #34e0a1;
+  --accent-strong: #7cf0c4;
+  --accent-on: #000000;
+  --danger: #f2705a;
+}
+
+:root[data-aesthetic="terminal"][data-mode="light"] {
+  --bg: #ffffff;
+  --surface: #f7f7f7;
+  --raised: #ffffff;
+  --line: #e6e6e6;
+  --line-strong: #d0d0d0;
+  --text-3: #9b9b9b;
+  --text-2: #666666;
+  --text: #0b0b0b;
+  --accent: #00a878;
+  --accent-strong: #00c48d;
+  --accent-on: #ffffff;
+  --danger: #d4453a;
+}
+
+:root[data-aesthetic="parchment"][data-mode="light"] {
+  --bg: #f6f1e7;
+  --surface: #fffdf6;
+  --raised: #fffdf6;
+  --line: #e2dac9;
+  --line-strong: #cfc4ae;
+  --text-3: #a0968a;
+  --text-2: #6e6558;
+  --text: #1d1813;
+  --accent: #a8622f;
+  --accent-strong: #c17840;
+  --accent-on: #fffdf6;
+  --danger: #9b3a2e;
+}
+
+:root[data-aesthetic="parchment"][data-mode="dark"] {
+  --bg: #14110d;
+  --surface: #1b1712;
+  --raised: #221d17;
+  --line: #2b251d;
+  --line-strong: #3a3227;
+  --text-3: #6b6154;
+  --text-2: #9a8f7f;
+  --text: #ece4d6;
+  --accent: #d99a63;
+  --accent-strong: #e6b284;
+  --accent-on: #14110d;
+  --danger: #e2705c;
+}
+
+:root {
+  --danger-dim: color-mix(in srgb, var(--danger) 28%, transparent);
+  --accent-dim: color-mix(in srgb, var(--accent) 16%, transparent);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-brand);
+  -webkit-font-smoothing: antialiased;
+  transition: background 140ms cubic-bezier(0.2, 0, 0, 1), color 140ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px solid var(--accent-dim);
+}
+
+a:hover {
+  color: var(--accent-strong);
+  border-bottom-color: var(--accent);
+}
+
+::selection {
+  background: var(--accent);
+  color: var(--accent-on);
+}
+
+button,
+input {
+  font-family: var(--font-brand);
+}

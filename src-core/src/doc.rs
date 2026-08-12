@@ -1,0 +1,260 @@
+//! Ties the CRDT, the transaction log (`ledger`), and a frontend-broadcast
+//! checkpoint together into one handle a host (Tauri, a future CLI/MCP
+//! server, tests, the web/wasm build) can drive. Generic over
+//! `LedgerStorage` so the same logic works whether the ledger lives in real
+//! files (native — see `crate::native`) or the browser's Origin Private
+//! File System (web — see `dendroid-web`).
+//!
+//! `loro::VersionVector` never leaves this module — callers only see plain
+//! ids, byte blobs, and DTOs, so hosts don't need `loro` as a direct
+//! dependency at all.
+//!
+//! There's deliberately no *user-facing* structural mutation API here (no
+//! create/rename/move/delete-node methods) — the document *is* what
+//! `loro-prosemirror` edits directly in the frontend, and structure is
+//! derived from it on read (see `outline`), not stored separately. Every
+//! change reaches this type the same way, through `import_from_frontend`
+//! (this session's own frontend mirror), `import_foreign_update` (a
+//! genuinely external source), or `poll_external` (tailing the ledger).
+//!
+//! One narrow exception: after either of those imports something, this
+//! type also runs `links::reconcile_backlinks` — derived-consistency
+//! upkeep (closer to a database trigger than a structural API) that keeps
+//! every `@`-link pointed at a heading that still exists, reparenting onto
+//! the nearest surviving ancestor when its target got deleted. See
+//! `links` for why that lives outside the same-choke-point rule rather
+//! than breaking it.
+//!
+//! A second, one-time exception: `open` runs `migrate::migrate_flat_to_
+//! sections` before anything else touches the freshly-replayed doc, for a
+//! workspace whose ledger still predates the current nested-`section`
+//! shape (see `crate::migrate`). Also not a user-facing structural API —
+//! nothing calls it after startup, and it's a no-op the moment a workspace
+//! is already on the current shape.
+
+use loro::{ExportMode, LoroDoc, VersionVector};
+
+use crate::error::Result;
+use crate::ledger::{LedgerCursor, LedgerWriter};
+use crate::links;
+use crate::markdown::{self, ApplyMode};
+use crate::migrate;
+use crate::outline::{self, HeadingDto, OutlineEntry};
+use crate::storage::LedgerStorage;
+
+pub struct DendroidDocument<S: LedgerStorage> {
+    doc: LoroDoc,
+    ledger: LedgerWriter<S>,
+    cursor: LedgerCursor,
+    /// What the frontend mirror has already been sent, so
+    /// `export_updates_for_frontend` only ships the delta.
+    frontend_vv: VersionVector,
+    /// The outline as of the last time backlink reconciliation ran —
+    /// `links::reconcile_backlinks` diffs against this to notice which
+    /// heading ids just disappeared. Seeded once after the initial ledger
+    /// replay in `open`.
+    last_outline: Vec<HeadingDto>,
+}
+
+impl<S: LedgerStorage> DendroidDocument<S> {
+    /// Opens (or creates) a workspace backed by `storage`: replays every
+    /// existing ledger file into a fresh in-memory `LoroDoc` and opens this
+    /// session's own ledger file for subsequent appends. A brand-new
+    /// workspace's doc starts empty — there's nothing to bootstrap, since
+    /// `loro-prosemirror` initializes its own root container lazily on
+    /// first sync from the editor.
+    pub async fn open(storage: S, session_id: impl Into<String>) -> Result<Self> {
+        let doc = LoroDoc::new();
+
+        let mut cursor = LedgerCursor::new();
+        for update in cursor.poll(&storage).await? {
+            doc.import(&update)?;
+        }
+
+        let ledger = LedgerWriter::open(storage, session_id).await?;
+
+        let mut this = Self { doc, ledger, cursor, frontend_vv: VersionVector::default(), last_outline: Vec::new() };
+        this.migrate_legacy_shape().await?;
+        this.last_outline = outline::outline(&this.doc)?;
+
+        Ok(this)
+    }
+
+    /// One-time upgrade for a workspace whose ledger still encodes the old
+    /// flat document shape (every heading a top-level sibling, hierarchy
+    /// inferred by comparing levels) into the current nested-`section`
+    /// shape `outline`/`markdown` now expect — see `crate::migrate`. A
+    /// no-op, checked on every open but cheap when there's nothing to do,
+    /// for any workspace already migrated or newly created. Recorded as an
+    /// ordinary ledger append, the same way `reconcile_and_append` records
+    /// its own derived-consistency rewrites, so every replica converges on
+    /// the same migrated shape the next time it syncs.
+    async fn migrate_legacy_shape(&mut self) -> Result<()> {
+        if !migrate::needs_migration(&self.doc)? {
+            return Ok(());
+        }
+        let before = self.doc.oplog_vv();
+        migrate::migrate_flat_to_sections(&self.doc)?;
+        self.doc.commit();
+        let delta = self.doc.export(ExportMode::updates(&before))?;
+        self.ledger.append(&delta).await
+    }
+
+    /// This session's current ledger file name (e.g.
+    /// `2026-08-11.<uuid>.log`) — for tests/diagnostics, not identity.
+    pub fn ledger_name(&self) -> String {
+        self.ledger.name()
+    }
+
+    /// Derives the current heading outline by walking the document — see
+    /// `outline::outline` for the encoding this depends on.
+    pub fn outline(&self) -> Result<Vec<HeadingDto>> {
+        outline::outline(&self.doc)
+    }
+
+    /// Headings and `@`-links, interleaved — what the tree view needs to
+    /// render both. See `outline::outline_with_links`.
+    pub fn outline_with_links(&self) -> Result<Vec<OutlineEntry>> {
+        outline::outline_with_links(&self.doc)
+    }
+
+    /// Every `@`-link in the document, flat — mainly for tests and
+    /// diagnostics; the live UI reads `outline_with_links` instead. See
+    /// `links::find_link_refs`.
+    pub fn links(&self) -> Result<Vec<links::LinkRefDto>> {
+        links::find_link_refs(&self.doc)
+    }
+
+    /// Merge an update from a genuinely external source — another
+    /// session's own edits arriving other than through `poll_external`
+    /// (tests exercise this directly; nothing in this crate's own runtime
+    /// path currently does). The frontend mirror hasn't seen this, so it
+    /// stays eligible for the next `export_updates_for_frontend` call.
+    pub async fn import_foreign_update(&mut self, bytes: &[u8]) -> Result<()> {
+        self.import_and_ledger(bytes).await?;
+        self.reconcile_and_append().await
+    }
+
+    /// Merge an update produced by *this session's own* frontend mirror
+    /// (any local edit made through TipTap, via `doc.subscribeLocalUpdates`
+    /// — what `doc_import_update` wraps). This process is the sole owner of
+    /// the ledger file for this session, so even JS-originated edits get
+    /// appended through this path.
+    ///
+    /// Unlike `import_foreign_update`, this marks the frontend as already
+    /// caught up through `bytes` *before* reconciling — the frontend is
+    /// where `bytes` came from, so echoing it straight back would violate
+    /// `DocBackend.onRemoteUpdate`'s contract ("never for updates this same
+    /// document produced locally", `lib/platform/types.ts`) and, worse,
+    /// send `loro-prosemirror` down its non-local path: it can't tell an
+    /// echo from a real remote change, so it tears down and rebuilds the
+    /// whole ProseMirror document from the Loro map on every keystroke,
+    /// racing whatever the user is still mid-typing (e.g. a heading whose
+    /// stable id lands a transaction later — see `HeadingWithId`). A
+    /// subsequent `export_updates_for_frontend` call still reports whatever
+    /// this import's own backlink reconciliation added on top, since the
+    /// frontend never saw that part.
+    pub async fn import_from_frontend(&mut self, bytes: &[u8]) -> Result<()> {
+        self.import_and_ledger(bytes).await?;
+        self.frontend_vv = self.doc.oplog_vv();
+        self.reconcile_and_append().await
+    }
+
+    /// Shared read-import-then-append-the-delta-to-the-ledger step behind
+    /// both `import_foreign_update` and `import_from_frontend` — they only
+    /// differ in what happens to `frontend_vv` afterward.
+    async fn import_and_ledger(&mut self, bytes: &[u8]) -> Result<()> {
+        let before = self.doc.oplog_vv();
+        self.doc.import(bytes)?;
+        let delta = self.doc.export(ExportMode::updates(&before))?;
+        self.ledger.append(&delta).await
+    }
+
+    /// Tail the ledger for records this process hasn't seen yet — written
+    /// by another session of this app, or by another replica of the
+    /// workspace entirely (e.g. a second device synced via iCloud Drive).
+    /// Returns whether anything new was merged (including this session's
+    /// own reconciliation of it, if any).
+    pub async fn poll_external(&mut self) -> Result<bool> {
+        let updates = self.cursor.poll(self.ledger.storage()).await?;
+        if updates.is_empty() {
+            return Ok(false);
+        }
+        for update in &updates {
+            self.doc.import(update)?;
+        }
+        self.reconcile_and_append().await?;
+        Ok(true)
+    }
+
+    /// Runs `links::reconcile_backlinks` against whatever just got
+    /// imported, appends its rewrite (if any) to this session's own ledger
+    /// file the same way any other local mutation is recorded, and updates
+    /// `last_outline` for next time. Every replica that observes the same
+    /// deletion resolves it independently and identically, so there's no
+    /// need for a single "leader" replica to own this — Loro's CRDT merge
+    /// makes the equivalent writes converge regardless of who made them.
+    async fn reconcile_and_append(&mut self) -> Result<()> {
+        let before = self.doc.oplog_vv();
+        let changed = links::reconcile_backlinks(&self.doc, &self.last_outline)?;
+        if changed {
+            let delta = self.doc.export(ExportMode::updates(&before))?;
+            self.ledger.append(&delta).await?;
+        }
+        self.last_outline = outline::outline(&self.doc)?;
+        Ok(())
+    }
+
+    /// Markdown for a slice of the document — see `markdown::resolve_slice`
+    /// for exactly what "slice" means. What MCP's `getTree` wraps.
+    pub fn get_tree(&self, root_id: Option<&str>, depth: u32, expand_links: bool, link_depth: u32) -> Result<String> {
+        markdown::resolve_slice(&self.doc, root_id, depth, expand_links, link_depth)
+    }
+
+    /// Parses `content` and appends it inside `target_id`'s section — see
+    /// `markdown::apply_markdown`. What MCP's `insert` wraps.
+    pub async fn insert(&mut self, target_id: &str, content: &str) -> Result<()> {
+        self.apply_markdown_and_append(target_id, content, ApplyMode::Insert).await
+    }
+
+    /// Parses `content` and replaces everything inside `target_id`'s
+    /// section with it — see `markdown::apply_markdown`. What MCP's
+    /// `replaceContent` wraps.
+    pub async fn replace_content(&mut self, target_id: &str, content: &str) -> Result<()> {
+        self.apply_markdown_and_append(target_id, content, ApplyMode::Replace).await
+    }
+
+    async fn apply_markdown_and_append(&mut self, target_id: &str, content: &str, mode: ApplyMode) -> Result<()> {
+        let before = self.doc.oplog_vv();
+        markdown::apply_markdown(&self.doc, target_id, content, mode)?;
+        let delta = self.doc.export(ExportMode::updates(&before))?;
+        self.ledger.append(&delta).await?;
+        // A `Replace` can delete headings (and anything that linked to
+        // them) in the same edit — reconcile immediately rather than
+        // waiting for the next import, the same way any other mutation
+        // that can remove headings does.
+        self.reconcile_and_append().await
+    }
+
+    /// Full snapshot for bootstrapping a brand-new frontend mirror.
+    /// Resets the frontend checkpoint, so subsequent
+    /// `export_updates_for_frontend` calls only ship what's new since now.
+    pub fn export_snapshot_for_bootstrap(&mut self) -> Result<Vec<u8>> {
+        let bytes = self.doc.export(ExportMode::Snapshot)?;
+        self.frontend_vv = self.doc.oplog_vv();
+        Ok(bytes)
+    }
+
+    /// Whatever has changed (from any source — an imported foreign update,
+    /// or a `poll_external` merge) since the frontend mirror last heard
+    /// from us. `None` means nothing to send.
+    pub fn export_updates_for_frontend(&mut self) -> Result<Option<Vec<u8>>> {
+        let now = self.doc.oplog_vv();
+        if now == self.frontend_vv {
+            return Ok(None);
+        }
+        let bytes = self.doc.export(ExportMode::updates(&self.frontend_vv))?;
+        self.frontend_vv = now;
+        Ok(Some(bytes))
+    }
+}

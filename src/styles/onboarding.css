@@ -1,0 +1,82 @@
+.onboarding {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+}
+
+.onboarding__panel {
+  width: 100%;
+  max-width: 560px;
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+}
+
+.onboarding__brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--text);
+}
+
+.onboarding__wordmark {
+  font-size: 14px;
+  font-weight: 200;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+}
+
+.onboarding__heading {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.onboarding__title {
+  font-size: 20px;
+  font-weight: 200;
+  letter-spacing: 0.02em;
+  color: var(--text);
+}
+
+.onboarding__subtitle {
+  font-size: 13px;
+  line-height: 1.8;
+  font-weight: 300;
+  color: var(--text-2);
+  max-width: 46ch;
+}
+
+.onboarding__step {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.onboarding__label {
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+
+.onboarding__provider-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 1px;
+  background: var(--line);
+  border: 1px solid var(--line);
+  max-width: none;
+}
+
+.onboarding__footer {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.onboarding__footer-spacer {
+  flex: 1;
+}
