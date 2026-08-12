@@ -38,8 +38,9 @@ jobs:
           set -euo pipefail
           latest=$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | head -n1)
           if [ -z "$latest" ]; then
-            # No releases yet — start from the version already in the tree.
-            version=$(node -p "require('./package.json').version")
+            # No releases yet — the first release is v0.0.0, and the minor
+            # bump below carries it forward from there (0.1.0, 0.2.0, ...).
+            version="0.0.0"
           else
             IFS=. read -r major minor _patch <<< "${latest#v}"
             version="${major}.$((minor + 1)).0"
