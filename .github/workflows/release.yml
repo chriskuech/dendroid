@@ -1,0 +1,209 @@
+name: release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+# Never run two releases at once, and never cancel one midway: the version
+# for a run is derived from the newest published tag, which only exists
+# once that run's `publish` job has finished.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  prepare:
+    name: version + draft release
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
+      release_id: ${{ steps.draft.outputs.release_id }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Tags are what the version is computed from.
+          fetch-depth: 0
+
+      - name: Compute next version
+        id: version
+        run: |
+          set -euo pipefail
+          latest=$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | head -n1)
+          if [ -z "$latest" ]; then
+            # No releases yet — start from the version already in the tree.
+            version=$(node -p "require('./package.json').version")
+          else
+            IFS=. read -r major minor _patch <<< "${latest#v}"
+            version="${major}.$((minor + 1)).0"
+          fi
+          echo "previous tag: ${latest:-<none>}"
+          echo "next version: $version"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=v$version" >> "$GITHUB_OUTPUT"
+
+      # Created as a draft so that a half-uploaded release is never visible,
+      # and so the git tag is only cut once every target has built — `publish`
+      # flips it live at the end.
+      - name: Create draft release
+        id: draft
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          set -euo pipefail
+          gh release create "$TAG" \
+            --draft \
+            --target "$GITHUB_SHA" \
+            --title "$TAG" \
+            --generate-notes
+          release_id=$(gh release view "$TAG" --json databaseId --jq .databaseId)
+          echo "release_id=$release_id" >> "$GITHUB_OUTPUT"
+
+  desktop:
+    name: ${{ matrix.label }}
+    needs: prepare
+    strategy:
+      # One target failing shouldn't discard the others' artifacts — the
+      # release stays a draft anyway, so a partial result is inspectable.
+      fail-fast: false
+      matrix:
+        include:
+          - label: macos-arm64
+            platform: macos-latest
+            target: aarch64-apple-darwin
+            args: --target aarch64-apple-darwin
+          - label: macos-x86_64
+            platform: macos-latest
+            target: x86_64-apple-darwin
+            args: --target x86_64-apple-darwin
+          - label: linux-x86_64
+            # Pinned: the image's glibc is the floor for who can run the
+            # resulting .deb/.AppImage, so it shouldn't move on its own.
+            platform: ubuntu-24.04
+            target: x86_64-unknown-linux-gnu
+            args: ""
+          - label: windows-x86_64
+            platform: windows-latest
+            target: x86_64-pc-windows-msvc
+            args: ""
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Linux system dependencies
+        if: matrix.platform == 'ubuntu-24.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            libxdo-dev \
+            libssl-dev \
+            patchelf \
+            build-essential \
+            file \
+            wget
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          # wasm32 is for `src-web`, which the frontend build needs on
+          # every host regardless of what the desktop bundle targets.
+          targets: ${{ matrix.target }}, wasm32-unknown-unknown
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: wasm-pack
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install JS dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Stamp version
+        shell: bash
+        run: node scripts/set-version.mjs "${{ needs.prepare.outputs.version }}"
+
+      # Runs `beforeBuildCommand` (`bun run build`, which covers the wasm
+      # and frontend bundle) itself, then bundles and uploads every
+      # installer for this host to the draft release.
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          releaseId: ${{ needs.prepare.outputs.release_id }}
+          args: ${{ matrix.args }}
+
+  web:
+    name: web
+    needs: prepare
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: web
+
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: wasm-pack
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install JS dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Stamp version
+        run: node scripts/set-version.mjs "${{ needs.prepare.outputs.version }}"
+
+      - name: Build
+        run: bun run build
+
+      # A plain static bundle: unzip it behind any web server. The wasm
+      # backend needs a secure context (https or localhost) for OPFS.
+      - name: Package
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: (cd dist && zip -qr "../dendroid-web-${VERSION}.zip" .)
+
+      - name: Upload to draft release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.prepare.outputs.tag }}
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: gh release upload "$TAG" "dendroid-web-${VERSION}.zip" --clobber
+
+  publish:
+    name: publish release
+    # Only runs if every target above succeeded; otherwise the draft is
+    # left in place to inspect and the tag is never cut.
+    needs: [prepare, desktop, web]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ needs.prepare.outputs.tag }}
+        run: gh release edit "$TAG" --draft=false --latest

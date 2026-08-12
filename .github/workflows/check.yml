@@ -1,0 +1,81 @@
+name: check
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: check-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  check:
+    name: build, typecheck, lint, test
+    # Pinned rather than `-latest` so that the image rolling forward is a
+    # deliberate change, and so this matches the Linux release runner.
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      # `src-tauri` links against the system webview; without these the
+      # workspace build fails before it reaches any of our own code.
+      - name: Install Linux system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            libxdo-dev \
+            libssl-dev \
+            patchelf \
+            build-essential \
+            file \
+            wget
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+          # `src-web` is compiled to wasm by `build:wasm`.
+          targets: wasm32-unknown-unknown
+
+      - uses: Swatinem/rust-cache@v2
+
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: wasm-pack
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install JS dependencies
+        run: bun install --frozen-lockfile
+
+      # One command covers three checks: `prebuild` runs `build:wasm`
+      # (wasm-pack over `src-web`), then `build` runs `tsc` (typecheck)
+      # and `vite build` (bundle). It also has to run *before* cargo,
+      # because `tauri::generate_context!` embeds `dist/` at compile
+      # time and `src/lib/platform/wasm.ts` types against `src-web/pkg`.
+      - name: Build frontend (wasm + typecheck + bundle)
+        run: bun run build
+
+      - name: Verify section-structure invariants
+        run: bun run scripts/verify-section-structure.ts
+
+      # Not `-D warnings`: the tree currently has a handful of pre-existing
+      # clippy warnings, so gating on them would fail every PR until they
+      # are cleaned up. Errors still fail the job. Add
+      # `-- -D warnings` here once the tree is clean.
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets
+
+      - name: Test
+        run: cargo test --workspace
