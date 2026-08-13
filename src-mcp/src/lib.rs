@@ -15,6 +15,12 @@
 //! operating on the same `NativeDocument` session the GUI itself has open
 //! rather than a second independent one — so an MCP client's edits show up
 //! live in the editor the same way a remote ledger merge would.
+//!
+//! Each `#[tool]` here is one "skill" Settings' "Skills" section can list
+//! (`tool_catalog`) and individually turn off (`new`'s `disabled_tools`) —
+//! both the ACP chat drawer, which connects to this same server as an ACP
+//! `mcpServers` entry (see `src-tauri/src/acp.rs`), and any other MCP
+//! client only ever see and can call whatever's currently enabled.
 
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -140,8 +146,28 @@ pub struct DendroidMcpServer {
 
 #[tool_router]
 impl DendroidMcpServer {
-    pub fn new(doc: Arc<Mutex<NativeDocument>>, sql: Arc<Mutex<NativeSqlWorkspace>>) -> Self {
-        Self { doc, sql, tool_router: Self::tool_router() }
+    /// `disabled_tools` names tools (see `tool_catalog`) that Settings'
+    /// "Skills" section has turned off — routed through `ToolRouter`'s own
+    /// `disable_route` rather than filtered by hand here, so the same
+    /// enforcement rmcp already gives `list_tools`/`call_tool` (hidden from
+    /// the tool list, rejected with "tool not found" if called anyway)
+    /// covers a disabled skill with no extra code in this file.
+    pub fn new(doc: Arc<Mutex<NativeDocument>>, sql: Arc<Mutex<NativeSqlWorkspace>>, disabled_tools: &[String]) -> Self {
+        let mut tool_router = Self::tool_router();
+        for name in disabled_tools {
+            tool_router.disable_route(name.clone());
+        }
+        Self { doc, sql, tool_router }
+    }
+
+    /// The full catalog of tools this server can expose — every one of
+    /// them, regardless of `disabled_tools`, since this doesn't depend on
+    /// an instance at all. Settings' "Skills" section calls this (via
+    /// `mcp_list_skills`) to render name/description + an enable/disable
+    /// switch for each, independent of whether "Local MCP" is even
+    /// running.
+    pub fn tool_catalog() -> Vec<rmcp::model::Tool> {
+        Self::tool_router().list_all()
     }
 
     #[tool(name = "getOutline", description = "Returns just the document's headings (with their stable ids), as JSON.")]
@@ -221,7 +247,14 @@ impl DendroidMcpServer {
     }
 }
 
-#[tool_handler]
+// `router = self.tool_router` — without it, `#[tool_handler]` defaults to
+// generating `list_tools`/`call_tool`/`get_tool` against a *fresh*
+// `Self::tool_router()` call (a brand-new, nothing-disabled router) rather
+// than this instance's own `self.tool_router`, silently ignoring every
+// `disable_route` call `new` made. That default is meant for the common
+// case of a server with no per-instance router state at all; this one has
+// exactly that, via `disabled_tools`, so it has to be named explicitly.
+#[tool_handler(router = self.tool_router)]
 impl ServerHandler for DendroidMcpServer {
     fn get_info(&self) -> ServerInfo {
         ServerInfo::new(ServerCapabilities::builder().enable_tools().build())
@@ -254,10 +287,14 @@ pub async fn serve_on(
     sql: Arc<Mutex<NativeSqlWorkspace>>,
     listener: tokio::net::TcpListener,
     cancellation_token: CancellationToken,
+    disabled_tools: Vec<String>,
 ) -> std::io::Result<()> {
     let config = StreamableHttpServerConfig::default().with_cancellation_token(cancellation_token.clone());
-    let service: StreamableHttpService<DendroidMcpServer, LocalSessionManager> =
-        StreamableHttpService::new(move || Ok(DendroidMcpServer::new(doc.clone(), sql.clone())), Default::default(), config);
+    let service: StreamableHttpService<DendroidMcpServer, LocalSessionManager> = StreamableHttpService::new(
+        move || Ok(DendroidMcpServer::new(doc.clone(), sql.clone(), &disabled_tools)),
+        Default::default(),
+        config,
+    );
     let router = axum::Router::new().nest_service("/mcp", service);
 
     axum::serve(listener, router).with_graceful_shutdown(async move { cancellation_token.cancelled_owned().await }).await
@@ -270,7 +307,8 @@ pub async fn serve(
     sql: Arc<Mutex<NativeSqlWorkspace>>,
     addr: SocketAddr,
     cancellation_token: CancellationToken,
+    disabled_tools: Vec<String>,
 ) -> std::io::Result<()> {
     let listener = bind(addr).await?;
-    serve_on(doc, sql, listener, cancellation_token).await
+    serve_on(doc, sql, listener, cancellation_token, disabled_tools).await
 }

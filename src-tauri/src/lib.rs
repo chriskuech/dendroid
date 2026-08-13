@@ -273,6 +273,7 @@ pub fn run() {
             commands::db_history,
             commands::db_revert_to,
             mcp::mcp_set_config,
+            mcp::mcp_list_skills,
             acp::acp_start,
             acp::acp_stop,
             acp::acp_send_prompt,

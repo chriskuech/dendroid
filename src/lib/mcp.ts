@@ -1,7 +1,10 @@
 // Starts/stops/restarts the in-process local MCP server (`src-tauri`'s
 // `mcp` module) to match Settings' "Local MCP" section — that UI has
 // existed since before there was a server behind it (see
-// `SettingsPage.tsx`); this is what actually wires the toggle up.
+// `SettingsPage.tsx`); this is what actually wires the toggle up. Also
+// lists the server's tool catalog ("skills" in Settings' terms) so the
+// "Skills" section can show what's available to view/enable/disable —
+// see `listMcpSkills`.
 //
 // A no-op outside Tauri (the web/wasm preview build has nothing to spawn a
 // server process in) — same guard `dialog.ts`'s `pickFolder` uses.
@@ -16,8 +19,31 @@ export async function applyMcpConfig(mcp: McpSettings): Promise<void> {
   if (!hasTauri()) return;
   try {
     const { invoke } = await import("@tauri-apps/api/core");
-    await invoke("mcp_set_config", { enabled: mcp.enabled, host: mcp.host, port: mcp.port });
+    await invoke("mcp_set_config", { enabled: mcp.enabled, host: mcp.host, port: mcp.port, disabledSkills: mcp.disabledSkills });
   } catch (err) {
     console.error("[mcp] failed to apply config", err);
+  }
+}
+
+/** One tool the local MCP server (`src-mcp`) can expose — a "skill" in
+ * Settings' terms. See `mcp_list_skills` (`src-tauri/src/mcp.rs`). */
+export interface McpSkill {
+  name: string;
+  description: string;
+}
+
+/** The full skill catalog, regardless of "Local MCP" being enabled or
+ * which are currently in `McpSettings.disabledSkills` — Settings' "Skills"
+ * section uses this to render every skill with a view of its description
+ * and an enable/disable switch, browsable even before the server's ever
+ * been turned on. Empty outside Tauri, same guard `applyMcpConfig` uses. */
+export async function listMcpSkills(): Promise<McpSkill[]> {
+  if (!hasTauri()) return [];
+  try {
+    const { invoke } = await import("@tauri-apps/api/core");
+    return await invoke<McpSkill[]>("mcp_list_skills");
+  } catch (err) {
+    console.error("[mcp] failed to list skills", err);
+    return [];
   }
 }

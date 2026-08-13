@@ -1,8 +1,11 @@
+import type { CSSProperties } from "react";
+
 interface SwitchProps {
   checked: boolean;
   onChange: (checked: boolean) => void;
   disabled?: boolean;
   "aria-label"?: string;
+  style?: CSSProperties;
 }
 
 export function Switch({ checked, onChange, disabled, ...rest }: SwitchProps) {

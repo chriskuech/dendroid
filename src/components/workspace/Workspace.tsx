@@ -345,7 +345,13 @@ export function Workspace({ rootPath }: WorkspaceProps) {
       >
         <AgentIcon size={16} />
       </button>
-      <AgentPanel cwd={rootPath} agentSettings={settings.agent} open={agentOpen} onClose={() => setAgentOpen(false)} />
+      <AgentPanel
+        cwd={rootPath}
+        agentSettings={settings.agent}
+        mcpSettings={settings.mcp}
+        open={agentOpen}
+        onClose={() => setAgentOpen(false)}
+      />
     </div>
   );
 }
