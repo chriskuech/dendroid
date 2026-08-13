@@ -186,6 +186,28 @@ export function QrKeyIcon(props: IconProps) {
   );
 }
 
+/** Three-node mini-graph — comp/Dendroid Design System.dc.html section 02,
+ * labeled "graph". Reserved for the mindmap tab (see comp/whitepaper.md's
+ * "Graph" section) — a node at top connected by pixel-stepped diagonals to
+ * two nodes at bottom-left/bottom-right. */
+export function GraphIcon(props: IconProps) {
+  return (
+    <PixelIcon {...props}>
+      <rect x={7} y={2} width={2} height={2} />
+      <rect x={2} y={8} width={2} height={2} />
+      <rect x={12} y={8} width={2} height={2} />
+      <rect x={7} y={4} width={1} height={1} />
+      <rect x={6} y={5} width={1} height={1} />
+      <rect x={5} y={6} width={1} height={1} />
+      <rect x={4} y={7} width={1} height={1} />
+      <rect x={8} y={4} width={1} height={1} />
+      <rect x={9} y={5} width={1} height={1} />
+      <rect x={10} y={6} width={1} height={1} />
+      <rect x={11} y={7} width={1} height={1} />
+    </PixelIcon>
+  );
+}
+
 export function SettingsIcon(props: IconProps) {
   return (
     <PixelIcon {...props}>
