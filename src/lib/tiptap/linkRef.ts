@@ -235,7 +235,7 @@ export const LinkRef = Node.create<LinkRefOptions>({
   },
 });
 
-interface DecorationOpts {
+export interface DecorationOpts {
   getOutline: () => HeadingDto[];
   previewDepth: number;
   onNavigate: (id: string) => void;
@@ -283,7 +283,15 @@ function expandDecorationPlugin(opts: DecorationOpts): Plugin<ExpandState> {
   });
 }
 
-function buildDecorations(doc: ProseMirrorNode, expanded: ReadonlySet<string>, opts: DecorationOpts): DecorationSet {
+/** Exported for `linkRef.test.ts` to exercise directly — specifically the
+ * `allowExpand` gate below, which is the one thing standing between an
+ * `@`-link cycle (A embeds B, B embeds A) and recursively mounting live
+ * editors forever (see this file's own header comment, and
+ * `embeddedEditor.ts`'s). Building a `DecorationSet` needs no live
+ * `EditorView` — `Decoration.widget`'s callback is stored, not invoked,
+ * until something actually renders into a view — so this is testable
+ * headlessly against a plain `prosemirror-model` doc. */
+export function buildDecorations(doc: ProseMirrorNode, expanded: ReadonlySet<string>, opts: DecorationOpts): DecorationSet {
   const decorations: Decoration[] = [];
   const outline = opts.getOutline();
   const allowExpand = opts.allowExpand !== false;

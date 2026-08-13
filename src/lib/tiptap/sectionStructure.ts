@@ -95,7 +95,9 @@ export const SectionStructure = Extension.create({
 
 /** Exported for `scripts/verify-section-structure.ts` (a headless,
  * DOM-free sanity check against raw `prosemirror-model`/`-state` — see
- * that script) to exercise directly, without needing a full `Editor`. */
+ * that script) and `sectionStructure.test.ts` (the same scenarios, as real
+ * `bun run test` assertions) to exercise directly, without needing a full
+ * `Editor`. */
 export type StructuralFix =
   | { kind: "demote"; from: number; to: number }
   | { kind: "promote"; from: number; to: number; insertAt: number };
