@@ -8,11 +8,12 @@
 // the UI stays inspectable without a native backend — but nothing persists
 // across reloads in that mode.
 
-import type { AppSettings, Workspace } from "./types";
+import type { AppSettings, ChatThread, Workspace } from "./types";
 
 const STORE_FILE = "settings.json";
 const WORKSPACE_KEY = "workspace";
 const APP_SETTINGS_KEY = "appSettings";
+const THREADS_KEY = "chatThreads";
 
 interface KVStore {
   get<T>(key: string): Promise<T | undefined>;
@@ -68,5 +69,24 @@ export async function loadAppSettings(): Promise<Partial<AppSettings> | null> {
 export async function saveAppSettings(settings: AppSettings): Promise<void> {
   const store = await getStore();
   await store.set(APP_SETTINGS_KEY, settings);
+  await store.save();
+}
+
+/** The full list of saved chat threads (`lib/types.ts`'s `ChatThread`) —
+ * see `lib/threads.ts` for the CRUD built on top of this. One flat list
+ * rather than partitioned per workspace, same simplification `workspace`/
+ * `appSettings` above already make: dendroid only ever has one active
+ * workspace at a time, so there's nowhere else for "which workspace" to
+ * live yet. Defaults to `[]` rather than `null` (unlike `loadWorkspace`)
+ * since callers always want a list to render, never a "nothing saved yet"
+ * branch of their own. */
+export async function loadThreads(): Promise<ChatThread[]> {
+  const store = await getStore();
+  return (await store.get<ChatThread[]>(THREADS_KEY)) ?? [];
+}
+
+export async function saveThreads(threads: ChatThread[]): Promise<void> {
+  const store = await getStore();
+  await store.set(THREADS_KEY, threads);
   await store.save();
 }

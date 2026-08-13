@@ -110,6 +110,26 @@ export function ChevronIcon(props: IconProps) {
   );
 }
 
+/** Left-pointing disclosure chevron — the mirror image of `ChevronIcon`,
+ * used as-is (not via a CSS rotation) since `ChevronIcon` itself gets
+ * rotated for its own expanded state and stacking two transforms isn't
+ * worth it for one more icon. The chat drawer's "back to threads" button
+ * (`components/agent/ThreadChat.tsx`). */
+export function BackIcon(props: IconProps) {
+  return (
+    <PixelIcon {...props}>
+      <rect x={9} y={4} width={1} height={1} />
+      <rect x={8} y={5} width={1} height={1} />
+      <rect x={7} y={6} width={1} height={1} />
+      <rect x={6} y={7} width={1} height={1} />
+      <rect x={6} y={8} width={1} height={1} />
+      <rect x={7} y={9} width={1} height={1} />
+      <rect x={8} y={10} width={1} height={1} />
+      <rect x={9} y={11} width={1} height={1} />
+    </PixelIcon>
+  );
+}
+
 /** Box around a node — "set root" from comp/Dendroid Design System.dc.html
  * section 02. Doubles as the current-root indicator (the boxed tree row,
  * the editor's end-of-heading toggle) since it's literally a box around a
@@ -292,6 +312,76 @@ export function AgentIcon(props: IconProps) {
       <rect x={6} y={6} width={1} height={1} />
       <rect x={8} y={6} width={1} height={1} />
       <rect x={10} y={6} width={1} height={1} />
+    </PixelIcon>
+  );
+}
+
+/** A clock face — deliberately the same shape as `HistoryIcon` (both read
+ * as "a clock"), just under its own name so a "cron thread" row in
+ * `components/agent/AgentPanel.tsx` doesn't render a component literally
+ * named after the History feature. See `ChatThread`'s doc comment
+ * (`lib/types.ts`) for what a cron thread is. */
+export function CronIcon(props: IconProps) {
+  return (
+    <PixelIcon {...props}>
+      <rect x={6} y={2} width={4} height={1} />
+      <rect x={4} y={3} width={2} height={1} />
+      <rect x={10} y={3} width={2} height={1} />
+      <rect x={3} y={4} width={1} height={1} />
+      <rect x={12} y={4} width={1} height={1} />
+      <rect x={2} y={5} width={1} height={6} />
+      <rect x={13} y={5} width={1} height={6} />
+      <rect x={3} y={11} width={1} height={1} />
+      <rect x={12} y={11} width={1} height={1} />
+      <rect x={4} y={12} width={2} height={1} />
+      <rect x={10} y={12} width={2} height={1} />
+      <rect x={6} y={13} width={4} height={1} />
+      {/* Hands, meeting at center: minute hand up, hour hand right. */}
+      <rect x={7} y={5} width={1} height={3} />
+      <rect x={8} y={7} width={3} height={1} />
+    </PixelIcon>
+  );
+}
+
+/** A lambda (λ) glyph — event-handler/function iconography, borrowed here
+ * for "trigger" threads (fire the configured skill whenever a row is
+ * inserted/updated/deleted on a watched table; see `ChatThread`'s doc
+ * comment in `lib/types.ts`). A long left leg reaching the baseline, a
+ * shorter right leg crossing over it partway down, both stepped 1px per
+ * row like `GraphIcon`'s diagonals. */
+export function TriggerIcon(props: IconProps) {
+  return (
+    <PixelIcon {...props}>
+      <rect x={7} y={2} width={1} height={3} />
+      <rect x={6} y={5} width={1} height={1} />
+      <rect x={6} y={6} width={1} height={1} />
+      <rect x={5} y={7} width={1} height={1} />
+      <rect x={5} y={8} width={1} height={1} />
+      <rect x={4} y={9} width={1} height={1} />
+      <rect x={4} y={10} width={1} height={1} />
+      <rect x={3} y={11} width={1} height={1} />
+      <rect x={3} y={12} width={1} height={2} />
+      <rect x={8} y={5} width={1} height={1} />
+      <rect x={9} y={6} width={1} height={1} />
+      <rect x={9} y={7} width={1} height={1} />
+      <rect x={10} y={8} width={1} height={1} />
+      <rect x={10} y={9} width={1} height={1} />
+      <rect x={11} y={10} width={1} height={2} />
+    </PixelIcon>
+  );
+}
+
+/** A right-pointing triangle — "run now", the manual stand-in for a
+ * cron/trigger thread's automatic firing (see `ChatThread`'s doc comment
+ * in `lib/types.ts`). */
+export function PlayIcon(props: IconProps) {
+  return (
+    <PixelIcon {...props}>
+      <rect x={5} y={3} width={1} height={10} />
+      <rect x={6} y={4} width={1} height={8} />
+      <rect x={7} y={5} width={1} height={6} />
+      <rect x={8} y={6} width={1} height={4} />
+      <rect x={9} y={7} width={1} height={2} />
     </PixelIcon>
   );
 }

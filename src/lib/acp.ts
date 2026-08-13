@@ -4,6 +4,12 @@
 // Client Protocol to it over stdio. A no-op (or throwing) outside Tauri,
 // same as lib/mcp.ts: there's nothing able to spawn a subprocess in the
 // web/wasm preview build, so this feature simply isn't available there.
+//
+// Every export here takes a `threadId` (a lib/types.ts `ChatThread.id`) —
+// a window can hold several chat threads open against the agent at once
+// (see AgentPanel.tsx and src-tauri/src/state.rs's `acp_key`), each with
+// its own independent agent process and ACP session, so nothing here is
+// "the" session anymore the way it was before multi-thread support.
 
 import type { AgentSettings } from "./types";
 
@@ -27,13 +33,18 @@ export class AgentUnavailableError extends Error {
  * TypeScript schema change to reach the UI. */
 export type AcpUpdate = { sessionUpdate?: string; [key: string]: unknown };
 
-/** Mirrors `src-tauri/src/acp.rs`'s `AcpEventPayload` — the `kind` tag and
- * field names are exactly what that `#[serde(tag = "kind", rename_all =
- * "camelCase")]` enum serializes to. */
+/** Mirrors `src-tauri/src/acp.rs`'s `AcpEventEnvelope` — `threadId` plus
+ * whatever `AcpEventPayload`'s `#[serde(tag = "kind", rename_all =
+ * "camelCase")]` enum serializes to, flattened onto the same object. */
 export type AcpBridgeEvent =
-  | { kind: "update"; payload: AcpUpdate }
-  | { kind: "permissionRequest"; requestId: unknown; params: { toolCall?: Record<string, unknown>; options?: AcpPermissionOption[]; [key: string]: unknown } }
-  | { kind: "closed"; error?: string | null };
+  | { kind: "update"; threadId: string; payload: AcpUpdate }
+  | {
+      kind: "permissionRequest";
+      threadId: string;
+      requestId: unknown;
+      params: { toolCall?: Record<string, unknown>; options?: AcpPermissionOption[]; [key: string]: unknown };
+    }
+  | { kind: "closed"; threadId: string; error?: string | null };
 
 export interface AcpPermissionOption {
   optionId: string;
@@ -46,8 +57,8 @@ function splitArgs(args: string): string[] {
 }
 
 /** Spawns `agent.command` (with `agent.args`, working directory `cwd`),
- * completes the ACP handshake, and opens a session — everything this
- * window's chat drawer needs before it can send a prompt. Throws
+ * completes the ACP handshake, and opens a session for `threadId` —
+ * everything that thread needs before it can send a prompt. Throws
  * `AgentUnavailableError` outside Tauri, or whatever error the Rust side
  * reports (bad command, agent crashed during handshake, …).
  *
@@ -59,53 +70,55 @@ function splitArgs(args: string): string[] {
  * `acp_start`. Whichever skills Settings' "Skills" section has enabled are
  * then just whatever the agent sees when it lists that server's tools —
  * nothing here re-applies that filtering. */
-export async function startAgent(cwd: string, agent: AgentSettings, mcpUrl: string | null): Promise<void> {
+export async function startAgent(threadId: string, cwd: string, agent: AgentSettings, mcpUrl: string | null): Promise<void> {
   if (!hasTauri()) throw new AgentUnavailableError();
   const { invoke } = await import("@tauri-apps/api/core");
-  await invoke("acp_start", { command: agent.command, args: splitArgs(agent.args), cwd, mcpUrl });
+  await invoke("acp_start", { threadId, command: agent.command, args: splitArgs(agent.args), cwd, mcpUrl });
 }
 
-/** Kills this window's agent process, if any. Safe to call when nothing is
+/** Kills `threadId`'s agent process, if any. Safe to call when nothing is
  * connected. No-op outside Tauri. */
-export async function stopAgent(): Promise<void> {
+export async function stopAgent(threadId: string): Promise<void> {
   if (!hasTauri()) return;
   const { invoke } = await import("@tauri-apps/api/core");
-  await invoke("acp_stop");
+  await invoke("acp_stop", { threadId });
 }
 
-/** Sends one user turn as plain text and resolves once the agent's turn
- * fully ends — the turn's actual content streams separately, as `"update"`
- * events via `onAgentEvent`, for as long as this call is pending. */
-export async function sendPrompt(text: string): Promise<{ stopReason?: string }> {
+/** Sends one user turn as plain text on `threadId`'s session and resolves
+ * once the agent's turn fully ends — the turn's actual content streams
+ * separately, as `"update"` events via `onAgentEvent`, for as long as this
+ * call is pending. */
+export async function sendPrompt(threadId: string, text: string): Promise<{ stopReason?: string }> {
   if (!hasTauri()) throw new AgentUnavailableError();
   const { invoke } = await import("@tauri-apps/api/core");
-  return invoke("acp_send_prompt", { text });
+  return invoke("acp_send_prompt", { threadId, text });
 }
 
-/** Asks the agent to stop the current turn early — the in-flight
+/** Asks `threadId`'s agent to stop its current turn early — the in-flight
  * `sendPrompt()` call is expected to resolve shortly after, typically with
  * `stopReason: "cancelled"`. */
-export async function cancelPrompt(): Promise<void> {
+export async function cancelPrompt(threadId: string): Promise<void> {
   if (!hasTauri()) return;
   const { invoke } = await import("@tauri-apps/api/core");
-  await invoke("acp_cancel");
+  await invoke("acp_cancel", { threadId });
 }
 
 /** Answers a pending permission request from a `"permissionRequest"` event
- * — `requestId` must be that event's own `requestId`, `outcome` the ACP
- * `RequestPermissionOutcome` (e.g. `{outcome: "selected", optionId: "..."}`
- * or `{outcome: "cancelled"}`). */
-export async function respondPermission(requestId: unknown, outcome: Record<string, unknown>): Promise<void> {
+ * on `threadId` — `requestId` must be that event's own `requestId`,
+ * `outcome` the ACP `RequestPermissionOutcome` (e.g. `{outcome: "selected",
+ * optionId: "..."}` or `{outcome: "cancelled"}`). */
+export async function respondPermission(threadId: string, requestId: unknown, outcome: Record<string, unknown>): Promise<void> {
   if (!hasTauri()) return;
   const { invoke } = await import("@tauri-apps/api/core");
-  await invoke("acp_respond_permission", { requestId, outcome });
+  await invoke("acp_respond_permission", { threadId, requestId, outcome });
 }
 
-/** Subscribes to this window's agent session events, forwarded 1:1 from the
- * Rust side's `acp://event` (see `src-tauri/src/acp.rs`). No-op outside
- * Tauri. Returns an unsubscribe function — same contract every other
- * `listen`-wrapping helper in this app follows (see App.tsx's menu
- * listeners). */
+/** Subscribes to this window's agent session events, across every thread it
+ * has open — forwarded 1:1 from the Rust side's `acp://event` (see
+ * `src-tauri/src/acp.rs`), each carrying its own `threadId` for the handler
+ * to route by. No-op outside Tauri. Returns an unsubscribe function — same
+ * contract every other `listen`-wrapping helper in this app follows (see
+ * App.tsx's menu listeners). */
 export function onAgentEvent(handler: (event: AcpBridgeEvent) => void): () => void {
   if (!hasTauri()) return () => {};
   let unlisten: (() => void) | undefined;
