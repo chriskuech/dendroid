@@ -35,6 +35,7 @@
 use loro::{ExportMode, LoroDoc, VersionVector};
 
 use crate::error::Result;
+use crate::history::{self, HistoryEntryDto};
 use crate::ledger::{LedgerCursor, LedgerWriter};
 use crate::links;
 use crate::markdown::{self, ApplyMode};
@@ -65,6 +66,14 @@ impl<S: LedgerStorage> DendroidDocument<S> {
     /// first sync from the editor.
     pub async fn open(storage: S, session_id: impl Into<String>) -> Result<Self> {
         let doc = LoroDoc::new();
+        // Off by default in Loro. Needed for `history` to show real
+        // timestamps on whatever this process itself commits locally
+        // (`migrate_legacy_shape`, `apply_markdown_and_append`, `revert_to`
+        // below) — most local edits actually commit on the frontend's own
+        // mirror instead (see `lib/crdt/document.ts`, which sets this same
+        // flag on its own `LoroDoc` for the same reason), but MCP-driven
+        // edits and rollbacks commit right here.
+        doc.set_record_timestamp(true);
 
         let mut cursor = LedgerCursor::new();
         for update in cursor.poll(&storage).await? {
@@ -233,6 +242,34 @@ impl<S: LedgerStorage> DendroidDocument<S> {
         // them) in the same edit — reconcile immediately rather than
         // waiting for the next import, the same way any other mutation
         // that can remove headings does.
+        self.reconcile_and_append().await
+    }
+
+    /// Every change in this document's history, most recent first — what a
+    /// history panel lists, each with a `token` `revert_to` (below) accepts
+    /// to roll the document back to right after that change. See
+    /// `history::history`.
+    pub fn history(&self) -> Result<Vec<HistoryEntryDto>> {
+        history::history(&self.doc)
+    }
+
+    /// Rolls the document back to `token` (from a previous `history` call).
+    /// See `history::revert_to` for why this is `LoroDoc::revert_to`
+    /// (applies the reverse diff as a new local change) rather than
+    /// `checkout` (a read-only, detached time-travel view) — the short
+    /// version is that a rollback needs to be an ordinary change any
+    /// replica can merge and converge on, not a rewrite of history.
+    /// Ledgered and reconciled exactly like `apply_markdown_and_append`:
+    /// nothing here is a special case for other replicas that later import
+    /// this same append.
+    pub async fn revert_to(&mut self, token: &str) -> Result<()> {
+        let before = self.doc.oplog_vv();
+        history::revert_to(&self.doc, token)?;
+        let delta = self.doc.export(ExportMode::updates(&before))?;
+        self.ledger.append(&delta).await?;
+        // A rollback can resurrect or delete headings same as any other
+        // mutation that touches document structure — reconcile immediately
+        // rather than waiting for the next import.
         self.reconcile_and_append().await
     }
 

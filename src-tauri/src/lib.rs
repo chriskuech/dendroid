@@ -245,6 +245,8 @@ pub fn run() {
             commands::doc_get_tree,
             commands::doc_insert,
             commands::doc_replace_content,
+            commands::doc_history,
+            commands::doc_revert_to,
             mcp::mcp_set_config,
         ])
         .run(tauri::generate_context!())

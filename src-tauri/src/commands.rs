@@ -18,7 +18,7 @@
 //! instead of one for command responses and another for background sync.
 
 use base64::{engine::general_purpose::STANDARD, Engine as _};
-use dendroid_core::HeadingDto;
+use dendroid_core::{HeadingDto, HistoryEntryDto};
 use serde::Serialize;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -183,6 +183,36 @@ pub async fn doc_insert(window: Window, state: State<'_, AppDocState>, target_id
 
     let mut doc = doc_handle.lock().await;
     doc.insert(&target_id, &content).await.map_err(|e| e.to_string())?;
+    let delta = doc.export_updates_for_frontend().map_err(|e| e.to_string())?;
+    drop(doc);
+
+    if let Some(bytes) = delta {
+        emit_update(window.app_handle(), &label, bytes);
+    }
+    Ok(())
+}
+
+/// Every change in this session's document history, most recent first —
+/// see `dendroid_core::history::history`. What the History panel lists.
+#[tauri::command(rename_all = "camelCase")]
+pub async fn doc_history(window: Window, state: State<'_, AppDocState>) -> Result<Vec<HistoryEntryDto>, String> {
+    let doc = session_doc(&state, window.label()).await?;
+    let doc = doc.lock().await;
+    doc.history().map_err(|e| e.to_string())
+}
+
+/// Rolls the document back to `token` (a `HistoryEntryDto.token` from a
+/// previous `doc_history` call) — see `dendroid_core::history::revert_to`.
+/// Same broadcast shape as `doc_insert`/`doc_replace_content`: the frontend
+/// mirror doesn't apply the rollback itself, it just picks up the delta
+/// this emits over `crdt://update` like any other backend-driven change.
+#[tauri::command(rename_all = "camelCase")]
+pub async fn doc_revert_to(window: Window, state: State<'_, AppDocState>, token: String) -> Result<(), String> {
+    let label = window.label().to_string();
+    let doc_handle = session_doc(&state, &label).await?;
+
+    let mut doc = doc_handle.lock().await;
+    doc.revert_to(&token).await.map_err(|e| e.to_string())?;
     let delta = doc.export_updates_for_frontend().map_err(|e| e.to_string())?;
     drop(doc);
 

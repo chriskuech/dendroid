@@ -8,6 +8,9 @@
  * it's talking to — see `index.ts`'s `createDocBackend` for how one gets
  * picked.
  */
+
+import type { HistoryEntryDto } from "../crdt/history";
+
 export interface DocBackend {
   /**
    * Opens (or creates) a workspace and returns the initial Loro snapshot
@@ -32,6 +35,17 @@ export interface DocBackend {
    * to support more than one.
    */
   onRemoteUpdate(callback: (bytes: Uint8Array) => void): void;
+
+  /** Every change in this document's history, most recent first — see
+   * `HistoryEntryDto`. */
+  history(): Promise<HistoryEntryDto[]>;
+
+  /** Rolls the document back to `token` (a `HistoryEntryDto.token` from a
+   * previous `history()` call). The resulting change reaches this mirror
+   * the same way any other backend-driven change does — through
+   * `onRemoteUpdate` — so there's nothing to apply here directly; this
+   * just resolves once the backend has recorded the rollback. */
+  revertTo(token: string): Promise<void>;
 
   /** Releases whatever this backend is holding (listeners, timers, wasm memory). */
   dispose(): void;

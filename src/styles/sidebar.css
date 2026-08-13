@@ -66,11 +66,13 @@
   min-width: 0;
 }
 
-/* TreeView and MindMapView each size themselves for standalone use (fixed
- * width + their own right border) — inside this shell `.sidebar` and
- * `.sidebar__content` already own that, so drop the duplicate. */
+/* TreeView, MindMapView, and HistoryView each size themselves for
+ * standalone use (fixed width + their own right border) — inside this
+ * shell `.sidebar` and `.sidebar__content` already own that, so drop the
+ * duplicate. */
 .sidebar__content > .tree-view,
-.sidebar__content > .mindmap-view {
+.sidebar__content > .mindmap-view,
+.sidebar__content > .history-view {
   width: auto;
   border-right: none;
   flex: 1;

@@ -101,6 +101,26 @@ impl WebDocument {
         let headings = self.inner.outline().map_err(to_js)?;
         serde_wasm_bindgen::to_value(&headings).map_err(|e| JsValue::from_str(&e.to_string()))
     }
+
+    /// Every change in this document's history, most recent first — same
+    /// contract as the Tauri `doc_history` command. See
+    /// `dendroid_core::history::history`.
+    #[wasm_bindgen(js_name = history)]
+    pub fn history(&self) -> Result<JsValue, JsValue> {
+        let entries = self.inner.history().map_err(to_js)?;
+        serde_wasm_bindgen::to_value(&entries).map_err(|e| JsValue::from_str(&e.to_string()))
+    }
+
+    /// Rolls the document back to `token` (a history entry's own `token`
+    /// field) — same contract as the Tauri `doc_revert_to` command. Unlike
+    /// Tauri, there's no separate broadcast channel here: the caller reads
+    /// the resulting delta back out via `exportUpdatesForFrontend` (see
+    /// `lib/platform/wasm.ts`'s `revertTo`), same as it already does after
+    /// `pollExternal`.
+    #[wasm_bindgen(js_name = revertTo)]
+    pub async fn revert_to(&mut self, token: String) -> Result<(), JsValue> {
+        self.inner.revert_to(&token).await.map_err(to_js)
+    }
 }
 
 fn to_js(e: dendroid_core::DendroidError) -> JsValue {

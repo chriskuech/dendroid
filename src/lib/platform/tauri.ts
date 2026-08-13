@@ -6,6 +6,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { base64ToBytes, bytesToBase64 } from "../crdt/base64";
+import type { HistoryEntryDto } from "../crdt/history";
 import type { DocBackend } from "./types";
 
 const UPDATE_EVENT = "crdt://update";
@@ -34,6 +35,14 @@ export class TauriDocBackend implements DocBackend {
     void listen<UpdatePayload>(UPDATE_EVENT, (event) => callback(base64ToBytes(event.payload.updateB64))).then((unlisten) => {
       this.unlisten = unlisten;
     });
+  }
+
+  history(): Promise<HistoryEntryDto[]> {
+    return invoke<HistoryEntryDto[]>("doc_history");
+  }
+
+  async revertTo(token: string): Promise<void> {
+    await invoke("doc_revert_to", { token });
   }
 
   dispose(): void {

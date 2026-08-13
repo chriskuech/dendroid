@@ -35,6 +35,7 @@
 import { LoroDoc, getType, isContainer, type ContainerID, type LoroList, type LoroMap, type LoroText } from "loro-crdt";
 import { createDocBackend } from "../platform";
 import type { DocBackend } from "../platform/types";
+import type { HistoryEntryDto } from "./history";
 import type { HeadingDto, OutlineEntry } from "./outline";
 
 const NO_BACKEND_WARNING =
@@ -53,6 +54,16 @@ export class DendroidDocument {
   private backend: DocBackend | null = null;
   private stopLocalSubscription: (() => void) | null = null;
   private listeners = new Set<() => void>();
+
+  constructor() {
+    // Off by default in Loro. This mirror is where a local edit actually
+    // commits (loro-prosemirror writes straight into `this.doc`, see
+    // `open()` below), so it's the one place that needs to opt in for
+    // `history()` entries from ordinary typing to carry a real timestamp —
+    // see `dendroid_core::doc::DendroidDocument::open` for the Rust-side
+    // half of this (its own local commits: MCP edits, migrations, rollbacks).
+    this.doc.setRecordTimestamp(true);
+  }
 
   /** Opens `workspaceRoot` against whichever platform backend
    * `createDocBackend` picks: the backend replays its ledger, hands back
@@ -148,6 +159,26 @@ export class DendroidDocument {
     const root = this.doc.getMap("doc");
     const children = getListValue(root, "children");
     return children ? findSectionContainerId(children, id) : undefined;
+  }
+
+  /** Every change in this document's history, most recent first — see
+   * `HistoryEntryDto`. Empty when running without a platform backend
+   * (`isPreview`): there's no ledger for anything to have been recorded
+   * into. */
+  history(): Promise<HistoryEntryDto[]> {
+    if (!this.backend) return Promise.resolve([]);
+    return this.backend.history();
+  }
+
+  /** Rolls the document back to `token` (from a previous `history()`
+   * call). The backend appends the rollback to the ledger and reports the
+   * resulting delta back through `onRemoteUpdate` (registered in `open()`
+   * above), which imports it into this mirror and notifies listeners —
+   * the same path any other backend-driven change already takes, so
+   * there's nothing further to do here once the backend call resolves. */
+  async revertTo(token: string): Promise<void> {
+    if (!this.backend) throw new Error("[crdt] revertTo called without a platform backend — nothing to roll back");
+    await this.backend.revertTo(token);
   }
 
   /** Fires after this mirror imports anything — its own local edits,

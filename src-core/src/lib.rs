@@ -21,6 +21,7 @@
 
 pub mod doc;
 pub mod error;
+pub mod history;
 pub mod ledger;
 pub mod links;
 mod loro_walk;
@@ -33,6 +34,7 @@ pub mod storage;
 
 pub use doc::DendroidDocument;
 pub use error::{DendroidError, Result};
+pub use history::HistoryEntryDto;
 pub use ledger::new_session_id;
 pub use links::{LinkEntryDto, LinkRefDto};
 pub use markdown::ApplyMode;

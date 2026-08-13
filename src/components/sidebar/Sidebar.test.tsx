@@ -16,6 +16,7 @@ function baseProps(overrides: Partial<React.ComponentProps<typeof Sidebar>> = {}
   return {
     view: "tree" as const,
     onViewChange: vi.fn(),
+    crdt: null,
     entries: [] as OutlineEntry[],
     collapsedIds: new Set<string>(),
     expandedLinkIds: new Set<string>(),
@@ -57,6 +58,19 @@ describe("Sidebar", () => {
     render(<Sidebar {...baseProps({ view: "mindmap", onViewChange })} />);
     await user.click(screen.getByRole("tab", { name: /^tree$/i }));
     expect(onViewChange).toHaveBeenCalledWith("tree");
+  });
+
+  it("clicking the history rail button switches to the history view", async () => {
+    const user = userEvent.setup();
+    const onViewChange = vi.fn();
+    render(<Sidebar {...baseProps({ onViewChange })} />);
+    await user.click(screen.getByRole("tab", { name: /^history$/i }));
+    expect(onViewChange).toHaveBeenCalledWith("history");
+  });
+
+  it("renders nothing for the history view when crdt isn't open yet", () => {
+    render(<Sidebar {...baseProps({ view: "history", crdt: null })} />);
+    expect(document.querySelector(".history-view")).not.toBeInTheDocument();
   });
 
   it("marks the active rail tab via aria-selected", () => {

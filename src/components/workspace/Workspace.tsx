@@ -219,6 +219,7 @@ export function Workspace({ rootPath }: WorkspaceProps) {
       ) : (
         <Sidebar
           {...treeViewProps}
+          crdt={crdtRef.current}
           view={sidebarView}
           onViewChange={setSidebarView}
           faded={chromeFaded}
@@ -269,6 +270,7 @@ export function Workspace({ rootPath }: WorkspaceProps) {
           />
           <Sidebar
             {...treeViewProps}
+            crdt={crdtRef.current}
             view={sidebarView}
             onViewChange={setSidebarView}
             onClose={() => setDrawerOpen(false)}
