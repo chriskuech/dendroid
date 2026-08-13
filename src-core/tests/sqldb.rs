@@ -42,7 +42,7 @@ fn exec_creates_a_table_and_rows_are_queryable() {
     assert_eq!(tables[0].name, "todos");
     assert_eq!(tables[0].columns.iter().map(|c| c.name.as_str()).collect::<Vec<_>>(), ["title", "done"]);
 
-    let rows = sql.table_rows(&id, "todos", 10, 0).unwrap();
+    let rows = sql.table_rows(&id, "todos", 10, 0, None, false).unwrap();
     assert_eq!(rows.total_rows, 2);
     assert_eq!(rows.rows.len(), 2);
     assert_eq!(rows.rows[0].values, vec![json!("Write tests"), json!(0)]);
@@ -52,12 +52,53 @@ fn exec_creates_a_table_and_rows_are_queryable() {
     // the `rowid` `table_rows` handed back.
     let target_rowid = rows.rows[0].rowid;
     block_on(sql.exec(&id, "UPDATE todos SET done = 1 WHERE rowid = ?1", vec![json!(target_rowid)], false)).unwrap();
-    let after_update = sql.table_rows(&id, "todos", 10, 0).unwrap();
+    let after_update = sql.table_rows(&id, "todos", 10, 0, None, false).unwrap();
     assert_eq!(after_update.rows[0].values, vec![json!("Write tests"), json!(1)]);
 
     block_on(sql.exec(&id, "DELETE FROM todos WHERE rowid = ?1", vec![json!(target_rowid)], false)).unwrap();
-    let after_delete = sql.table_rows(&id, "todos", 10, 0).unwrap();
+    let after_delete = sql.table_rows(&id, "todos", 10, 0, None, false).unwrap();
     assert_eq!(after_delete.total_rows, 1);
+}
+
+#[test]
+fn table_rows_can_be_sorted_by_a_real_column_in_either_direction() {
+    let root = tmp_workspace("sqldb-sort");
+    let mut sql = block_on(open_native_sql(&root, "session-a")).unwrap();
+    let id = block_on(sql.create_database("Tasks")).unwrap();
+
+    block_on(sql.exec(&id, "CREATE TABLE todos (title TEXT NOT NULL)", vec![], false)).unwrap();
+    block_on(sql.exec(&id, "INSERT INTO todos (title) VALUES ('Charlie')", vec![], false)).unwrap();
+    block_on(sql.exec(&id, "INSERT INTO todos (title) VALUES ('Alice')", vec![], false)).unwrap();
+    block_on(sql.exec(&id, "INSERT INTO todos (title) VALUES ('Bob')", vec![], false)).unwrap();
+
+    let asc = sql.table_rows(&id, "todos", 10, 0, Some("title"), false).unwrap();
+    assert_eq!(asc.rows.iter().map(|r| r.values[0].clone()).collect::<Vec<_>>(), vec![json!("Alice"), json!("Bob"), json!("Charlie")]);
+
+    let desc = sql.table_rows(&id, "todos", 10, 0, Some("title"), true).unwrap();
+    assert_eq!(desc.rows.iter().map(|r| r.values[0].clone()).collect::<Vec<_>>(), vec![json!("Charlie"), json!("Bob"), json!("Alice")]);
+
+    // An unknown column name is rejected rather than spliced into the SQL
+    // text — see `table_rows`'s doc comment.
+    assert!(sql.table_rows(&id, "todos", 10, 0, Some("nope; DROP TABLE todos"), false).is_err());
+}
+
+#[test]
+fn query_runs_a_read_only_statement_without_ledgering_it() {
+    let root = tmp_workspace("sqldb-query");
+    let mut sql = block_on(open_native_sql(&root, "session-a")).unwrap();
+    let id = block_on(sql.create_database("Tasks")).unwrap();
+    block_on(sql.exec(&id, "CREATE TABLE todos (title TEXT NOT NULL)", vec![], false)).unwrap();
+    block_on(sql.exec(&id, "INSERT INTO todos (title) VALUES ('Write tests')", vec![], false)).unwrap();
+
+    let result = sql.query(&id, "SELECT title, length(title) AS len FROM todos WHERE title LIKE 'Write%'").unwrap();
+    assert_eq!(result.columns, vec!["title", "len"]);
+    assert_eq!(result.rows, vec![vec![json!("Write tests"), json!(11)]]);
+
+    // A mutating statement is rejected — it must go through `exec` so it's
+    // ledgered, not run directly here.
+    let write_result = sql.query(&id, "DELETE FROM todos");
+    assert!(write_result.is_err());
+    assert_eq!(sql.table_rows(&id, "todos", 10, 0, None, false).unwrap().total_rows, 1, "the rejected DELETE must not have run");
 }
 
 #[test]
@@ -69,7 +110,7 @@ fn batch_exec_runs_a_multi_statement_script() {
     let script = "CREATE TABLE a (x INTEGER); INSERT INTO a (x) VALUES (1); INSERT INTO a (x) VALUES (2);";
     block_on(sql.exec(&id, script, vec![], true)).unwrap();
 
-    let rows = sql.table_rows(&id, "a", 10, 0).unwrap();
+    let rows = sql.table_rows(&id, "a", 10, 0, None, false).unwrap();
     assert_eq!(rows.total_rows, 2);
 }
 
@@ -103,17 +144,17 @@ fn history_lists_most_recent_first_and_revert_truncates_the_timeline() {
     let token = checkpoint[0].token.clone();
 
     block_on(sql.exec(&id, "INSERT INTO t (v) VALUES ('two')", vec![], false)).unwrap();
-    assert_eq!(sql.table_rows(&id, "t", 10, 0).unwrap().total_rows, 2);
+    assert_eq!(sql.table_rows(&id, "t", 10, 0, None, false).unwrap().total_rows, 2);
 
     block_on(sql.revert_to(&id, &token)).unwrap();
-    let rows_after_revert = sql.table_rows(&id, "t", 10, 0).unwrap();
+    let rows_after_revert = sql.table_rows(&id, "t", 10, 0, None, false).unwrap();
     assert_eq!(rows_after_revert.total_rows, 1, "revert should undo the second insert");
     assert_eq!(rows_after_revert.rows[0].values, vec![json!("one")]);
 
     // Nothing is erased from the log — a later exec still lands, extending
     // the (now-shorter) timeline exactly like a fresh forward edit would.
     block_on(sql.exec(&id, "INSERT INTO t (v) VALUES ('three')", vec![], false)).unwrap();
-    let rows_after_new_insert = sql.table_rows(&id, "t", 10, 0).unwrap();
+    let rows_after_new_insert = sql.table_rows(&id, "t", 10, 0, None, false).unwrap();
     assert_eq!(rows_after_new_insert.total_rows, 2);
     assert!(rows_after_new_insert.rows.iter().any(|r| r.values == vec![json!("three")]));
     assert!(!rows_after_new_insert.rows.iter().any(|r| r.values == vec![json!("two")]));
@@ -121,7 +162,7 @@ fn history_lists_most_recent_first_and_revert_truncates_the_timeline() {
     // And it's durable: reopening from disk (fresh session, fresh process)
     // must reflect the reverted-then-extended state.
     let reopened = block_on(open_native_sql(&root, "session-b")).unwrap();
-    let reopened_rows = reopened.table_rows(&id, "t", 10, 0).unwrap();
+    let reopened_rows = reopened.table_rows(&id, "t", 10, 0, None, false).unwrap();
     assert_eq!(reopened_rows.total_rows, 2);
     assert!(!reopened_rows.rows.iter().any(|r| r.values == vec![json!("two")]));
 }
@@ -143,14 +184,14 @@ fn concurrent_sessions_merge_via_poll_external() {
     block_on(b.exec(&id, "INSERT INTO t (v) VALUES ('from-b')", vec![], false)).unwrap();
 
     // Neither has seen the other's write yet.
-    assert_eq!(a.table_rows(&id, "t", 10, 0).unwrap().total_rows, 1);
-    assert_eq!(b.table_rows(&id, "t", 10, 0).unwrap().total_rows, 1);
+    assert_eq!(a.table_rows(&id, "t", 10, 0, None, false).unwrap().total_rows, 1);
+    assert_eq!(b.table_rows(&id, "t", 10, 0, None, false).unwrap().total_rows, 1);
 
     assert!(block_on(a.poll_external()).unwrap(), "a should observe b's ledger file");
     assert!(block_on(b.poll_external()).unwrap(), "b should observe a's ledger file");
 
-    let a_values: Vec<_> = a.table_rows(&id, "t", 10, 0).unwrap().rows.into_iter().map(|r| r.values).collect();
-    let b_values: Vec<_> = b.table_rows(&id, "t", 10, 0).unwrap().rows.into_iter().map(|r| r.values).collect();
+    let a_values: Vec<_> = a.table_rows(&id, "t", 10, 0, None, false).unwrap().rows.into_iter().map(|r| r.values).collect();
+    let b_values: Vec<_> = b.table_rows(&id, "t", 10, 0, None, false).unwrap().rows.into_iter().map(|r| r.values).collect();
     assert_eq!(a_values.len(), 2);
     assert!(a_values.contains(&vec![json!("from-a")]) && a_values.contains(&vec![json!("from-b")]));
     assert!(a_values.iter().all(|v| b_values.contains(v)));

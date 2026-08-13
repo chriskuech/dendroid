@@ -150,6 +150,18 @@ pub struct TableRowDto {
     pub values: Vec<JsonValue>,
 }
 
+/// The result of an arbitrary read-only statement run through `query` —
+/// the SQL editor's "run as a query" path. Unlike `TableRowsDto`, there's
+/// no `rowid` (an arbitrary `SELECT` may not even name a single table,
+/// let alone expose its rowid) and no pagination (a query editor result
+/// set is whatever the statement itself returned, once).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct QueryResultDto {
+    pub columns: Vec<String>,
+    pub rows: Vec<Vec<JsonValue>>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DbHistoryEntryDto {
@@ -456,14 +468,31 @@ impl<S: LedgerStorage> SqlWorkspace<S> {
         names.into_iter().map(|name| Ok(TableDto { columns: table_columns(&handle.conn, &name)?, name })).collect()
     }
 
-    /// A page of `table`'s rows in `id`, `rowid`-ordered, plus the total
-    /// row count (for pagination) and column metadata. `rowid` is
-    /// SQLite's own implicit row id — used here as the row identity the
-    /// table UI's edit/delete actions address, rather than assuming any
-    /// user column is unique. A `WITHOUT ROWID` table has none, so it's
-    /// browsable (`list_tables`) but not addressable through this call —
-    /// same limitation basic spreadsheet-style table UIs commonly accept.
-    pub fn table_rows(&self, id: &str, table: &str, limit: u32, offset: u32) -> Result<TableRowsDto> {
+    /// A page of `table`'s rows in `id`, plus the total row count (for
+    /// pagination) and column metadata. Ordered by `rowid` unless
+    /// `order_by` names a real column of `table` (or the literal
+    /// `"rowid"`), in which case that column is used instead —
+    /// `order_desc` picks the direction. `order_by` is checked against
+    /// `table`'s own column list rather than spliced straight into the
+    /// SQL text, since a column name can't be bound as a statement param
+    /// (same reasoning as `quote_ident`'s doc comment) and this is the
+    /// one place a caller-supplied identifier reaches this module.
+    ///
+    /// `rowid` is SQLite's own implicit row id — used here as the row
+    /// identity the table UI's edit/delete actions address, rather than
+    /// assuming any user column is unique. A `WITHOUT ROWID` table has
+    /// none, so it's browsable (`list_tables`) but not addressable
+    /// through this call — same limitation basic spreadsheet-style table
+    /// UIs commonly accept.
+    pub fn table_rows(
+        &self,
+        id: &str,
+        table: &str,
+        limit: u32,
+        offset: u32,
+        order_by: Option<&str>,
+        order_desc: bool,
+    ) -> Result<TableRowsDto> {
         let handle = self.dbs.get(id).ok_or_else(|| DendroidError::DbNotFound(id.to_string()))?;
         if !table_exists(&handle.conn, table)? {
             return Err(DendroidError::TableNotFound(table.to_string()));
@@ -471,12 +500,19 @@ impl<S: LedgerStorage> SqlWorkspace<S> {
         let quoted = quote_ident(table);
         let columns = table_columns(&handle.conn, table)?;
 
+        let order_col = match order_by {
+            Some(col) if col == "rowid" || columns.iter().any(|c| c.name == col) => quote_ident(col),
+            Some(col) => return Err(DendroidError::Sql(format!("unknown column {col:?}"))),
+            None => quote_ident("rowid"),
+        };
+        let dir = if order_desc { "DESC" } else { "ASC" };
+
         let total_rows: u64 = handle
             .conn
             .query_row(&format!("SELECT COUNT(*) FROM {quoted}"), [], |row| row.get::<_, i64>(0))
             .map_err(sql_err)? as u64;
 
-        let sql = format!("SELECT rowid, * FROM {quoted} ORDER BY rowid LIMIT ?1 OFFSET ?2");
+        let sql = format!("SELECT rowid, * FROM {quoted} ORDER BY {order_col} {dir} LIMIT ?1 OFFSET ?2");
         let mut stmt = handle.conn.prepare(&sql).map_err(sql_err)?;
         let col_count = columns.len();
         let rows: Vec<TableRowDto> = stmt
@@ -493,6 +529,42 @@ impl<S: LedgerStorage> SqlWorkspace<S> {
             .map_err(sql_err)?;
 
         Ok(TableRowsDto { columns, rows, total_rows })
+    }
+
+    /// Runs a single read-only statement against `id` and returns whatever
+    /// it selected — the SQL editor's "run as a query" path for a `SELECT`/
+    /// `PRAGMA`/`EXPLAIN`/... typed into the console, as opposed to `exec`'s
+    /// path for anything that mutates. Deliberately *not* ledgered: a read
+    /// has no effect to replay, and unlike `exec` it doesn't go through
+    /// `DbHandle::apply_exec` at all, so nothing here touches `timeline`.
+    ///
+    /// Rejects (via `stmt.readonly()`, SQLite's own "does this statement
+    /// write to the database file" check) anything that isn't actually
+    /// read-only — the caller should fall back to `exec` for those. That
+    /// guard exists because this method runs the statement directly
+    /// against the live connection without recording it anywhere: letting
+    /// a write through here would silently bypass the ledger the same way
+    /// a raw `rusqlite` call from outside this module would.
+    pub fn query(&self, id: &str, sql: &str) -> Result<QueryResultDto> {
+        let handle = self.dbs.get(id).ok_or_else(|| DendroidError::DbNotFound(id.to_string()))?;
+        let mut stmt = handle.conn.prepare(sql).map_err(sql_err)?;
+        if !stmt.readonly() {
+            return Err(DendroidError::Sql("statement is not read-only — run it from the SQL editor's exec path instead".to_string()));
+        }
+        let columns: Vec<String> = stmt.column_names().into_iter().map(str::to_string).collect();
+        let col_count = columns.len();
+        let rows: Vec<Vec<JsonValue>> = stmt
+            .query_map([], |row| {
+                let mut values = Vec::with_capacity(col_count);
+                for i in 0..col_count {
+                    values.push(sql_to_json(row.get_ref(i)?));
+                }
+                Ok(values)
+            })
+            .map_err(sql_err)?
+            .collect::<rusqlite::Result<_>>()
+            .map_err(sql_err)?;
+        Ok(QueryResultDto { columns, rows })
     }
 
     /// `id`'s currently-live timeline, most recent first — what a history
