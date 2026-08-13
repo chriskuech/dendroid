@@ -1,0 +1,244 @@
+/* The agent chat drawer — see components/agent/AgentPanel.tsx. Always an
+ * overlay (unlike the left Sidebar, which becomes a persistent column at
+ * >=900px) — it's supplementary chrome the user opens deliberately, not
+ * primary navigation, so there's no wide-layout variant that pushes the
+ * editor to make room for it. */
+
+.agent-toggle {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  color: var(--text-2);
+  cursor: pointer;
+}
+
+.agent-toggle:hover {
+  color: var(--text);
+}
+
+.agent-toggle.is-active {
+  color: var(--accent);
+}
+
+.agent-panel__backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.agent-panel {
+  position: fixed;
+  inset: 0 0 0 auto;
+  z-index: 6;
+  width: min(320px, 100vw);
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  border-left: 1px solid var(--line);
+  box-shadow: -12px 0 32px rgba(0, 0, 0, 0.3);
+}
+
+.agent-panel__header {
+  height: 44px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--line);
+  color: var(--text-2);
+}
+
+.agent-panel__title {
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.agent-panel__status {
+  margin-left: auto;
+  font-size: 10px;
+  color: var(--text-3);
+}
+
+.agent-panel__status--error {
+  color: var(--danger);
+}
+
+.agent-panel__close {
+  display: flex;
+  padding: 0;
+  background: transparent;
+  border: none;
+  color: var(--text-2);
+  cursor: pointer;
+}
+
+.agent-panel__close:hover {
+  color: var(--text);
+}
+
+.agent-panel__timeline {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  overflow-y: auto;
+}
+
+.agent-panel__empty {
+  margin: auto 0;
+  font-size: 11px;
+  color: var(--text-3);
+  text-align: center;
+  padding: 0 20px;
+}
+
+.agent-message {
+  max-width: 90%;
+  padding: 8px 10px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.agent-message--user {
+  align-self: flex-end;
+  background: var(--accent-dim);
+  color: var(--text);
+  border: 1px solid var(--line);
+}
+
+.agent-message--agent {
+  align-self: flex-start;
+  background: var(--raised);
+  border: 1px solid var(--line);
+  color: var(--text);
+}
+
+.agent-message--thought {
+  align-self: flex-start;
+  color: var(--text-2);
+  font-style: italic;
+}
+
+.agent-message--system {
+  align-self: center;
+  color: var(--text-3);
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  text-align: center;
+  background: none;
+  border: none;
+  padding: 0;
+}
+
+.agent-message.is-streaming::after {
+  content: "▌";
+  margin-left: 2px;
+  color: var(--accent);
+  animation: agent-cursor-blink 1s step-end infinite;
+}
+
+@keyframes agent-cursor-blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+.agent-tool-call {
+  align-self: flex-start;
+  max-width: 90%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  font-size: 11px;
+  color: var(--text-2);
+  background: var(--raised);
+  border: 1px dashed var(--line-strong);
+}
+
+.agent-tool-call__dot {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--line-strong);
+}
+
+.agent-tool-call__dot--pending,
+.agent-tool-call__dot--in_progress {
+  background: var(--accent);
+}
+
+.agent-tool-call__dot--failed {
+  background: var(--danger);
+}
+
+.agent-permission {
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  font-size: 12px;
+  background: var(--raised);
+  border: 1px solid var(--accent);
+}
+
+.agent-permission__actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.agent-panel__composer {
+  flex: none;
+  display: flex;
+  gap: 8px;
+  padding: 10px;
+  border-top: 1px solid var(--line);
+}
+
+.agent-panel__input {
+  flex: 1;
+  resize: none;
+  min-height: 32px;
+  max-height: 120px;
+  padding: 7px 8px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  color: var(--text);
+  font-family: var(--font-brand);
+  font-size: 12.5px;
+}
+
+.agent-panel__input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.agent-panel__configure {
+  margin: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 20px;
+  text-align: center;
+  color: var(--text-2);
+  font-size: 12px;
+}

@@ -272,6 +272,30 @@ export function TrashIcon(props: IconProps) {
   );
 }
 
+/** A speech bubble — three dots standing in for message text, a small
+ * stepped tail bottom-left — the agent chat drawer's toggle button and
+ * message rail (see `components/agent/AgentPanel.tsx`). Corners nicked by
+ * one pixel each, the same "reads as rounded" trick `DatabaseIcon` uses. */
+export function AgentIcon(props: IconProps) {
+  return (
+    <PixelIcon {...props}>
+      <rect x={4} y={2} width={8} height={1} />
+      <rect x={3} y={3} width={1} height={1} />
+      <rect x={12} y={3} width={1} height={1} />
+      <rect x={2} y={4} width={1} height={5} />
+      <rect x={13} y={4} width={1} height={5} />
+      <rect x={3} y={9} width={1} height={1} />
+      <rect x={12} y={9} width={1} height={1} />
+      <rect x={4} y={10} width={8} height={1} />
+      <rect x={5} y={11} width={2} height={1} />
+      <rect x={4} y={12} width={2} height={1} />
+      <rect x={6} y={6} width={1} height={1} />
+      <rect x={8} y={6} width={1} height={1} />
+      <rect x={10} y={6} width={1} height={1} />
+    </PixelIcon>
+  );
+}
+
 export function SettingsIcon(props: IconProps) {
   return (
     <PixelIcon {...props}>

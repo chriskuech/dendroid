@@ -32,6 +32,22 @@ export interface McpSettings {
   port: number;
 }
 
+/** Configures the agent the chat drawer spawns — see `lib/acp.ts` and
+ * `components/agent/AgentPanel.tsx`. Any Agent Client Protocol (ACP) agent
+ * works: `command` is launched as a subprocess and spoken to over stdio, no
+ * different from pointing an ACP-aware editor at the same binary. Unlike
+ * `McpSettings` there's no "enabled" toggle — an empty `command` alone
+ * means "not configured yet" (the drawer shows a prompt to set one). */
+export interface AgentSettings {
+  /** Path to (or bare name on `PATH` of) an ACP-speaking agent binary. */
+  command: string;
+  /** Extra arguments passed to `command`, as one space-separated string
+   * (split on whitespace before reaching the Rust side — see
+   * `lib/acp.ts`'s `startAgent`), so the settings field can just be a
+   * plain text input rather than a dynamic list. */
+  args: string;
+}
+
 export interface AppSettings {
   aesthetic: Aesthetic;
   colorMode: ColorMode;
@@ -43,6 +59,7 @@ export interface AppSettings {
    * editor — see `lib/typewriterSound.ts` and Editor.tsx's `onKeyDownCapture`. */
   auralFeedback: boolean;
   mcp: McpSettings;
+  agent: AgentSettings;
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -56,6 +73,10 @@ export const DEFAULT_SETTINGS: AppSettings = {
     enabled: false,
     host: "127.0.0.1",
     port: 7717,
+  },
+  agent: {
+    command: "",
+    args: "",
   },
 };
 

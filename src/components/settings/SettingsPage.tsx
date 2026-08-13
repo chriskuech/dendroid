@@ -15,6 +15,7 @@ const SECTIONS = [
   { id: "editor", label: "Editor" },
   { id: "workspace", label: "Workspace" },
   { id: "mcp", label: "Local MCP" },
+  { id: "agent", label: "Agent" },
 ] as const;
 
 type SectionId = (typeof SECTIONS)[number]["id"];
@@ -322,6 +323,37 @@ export function SettingsPage({ onClose }: { onClose: () => void }) {
               Remove key
             </Button>
           </div>
+        </div>
+
+        <div
+          id="agent"
+          className="settings__section"
+          ref={(el) => {
+            if (el) sectionRefs.current.agent = el;
+          }}
+        >
+          <span className="settings__section-title">Agent</span>
+          <div className="field">
+            <span className="field__label">Command</span>
+            <input
+              className="field-input"
+              value={settings.agent.command}
+              placeholder="e.g. claude-code-acp"
+              onChange={(e) => updateSettings({ agent: { ...settings.agent, command: e.target.value } })}
+            />
+          </div>
+          <div className="field">
+            <span className="field__label">Arguments</span>
+            <input
+              className="field-input"
+              value={settings.agent.args}
+              placeholder="space-separated, optional"
+              onChange={(e) => updateSettings({ agent: { ...settings.agent, args: e.target.value } })}
+            />
+          </div>
+          <span className="settings__block-hint">
+            Any Agent Client Protocol (ACP) agent — launched over stdio the first time the chat drawer connects.
+          </span>
         </div>
       </main>
     </div>

@@ -22,7 +22,8 @@ import type { OutlineEntry } from "../../lib/crdt/outline";
 import { getDatabase, onDatabasesChanged, type DatabaseDto } from "../../lib/db";
 import { applyMcpConfig } from "../../lib/mcp";
 import { Sidebar, type SidebarView } from "../sidebar/Sidebar";
-import { LogoIcon } from "../icons";
+import { AgentPanel } from "../agent/AgentPanel";
+import { AgentIcon, LogoIcon } from "../icons";
 import { Editor, type EditorHandle } from "../editor/Editor";
 import { DatabaseView } from "../database/DatabaseView";
 import "../../styles/workspace.css";
@@ -65,6 +66,11 @@ export function Workspace({ rootPath }: WorkspaceProps) {
   // rendering a `DatabaseView` for a database that no longer exists.
   const [selectedDatabaseId, setSelectedDatabaseId] = useState<string | null>(null);
   const [selectedDatabase, setSelectedDatabase] = useState<DatabaseDto | null>(null);
+  // Whether the right-side agent chat drawer is open — see
+  // components/agent/AgentPanel.tsx. Unlike `drawerView`/`sidebarView`,
+  // there's no wide/narrow split for this one: it's always an overlay (see
+  // styles/agent.css), so a single boolean is all either layout needs.
+  const [agentOpen, setAgentOpen] = useState(false);
 
   useEffect(() => {
     if (!selectedDatabaseId) {
@@ -325,6 +331,21 @@ export function Workspace({ rootPath }: WorkspaceProps) {
           />
         </>
       )}
+
+      <button
+        type="button"
+        className={`agent-toggle${agentOpen ? " is-active" : ""}`}
+        onClick={() => setAgentOpen((v) => !v)}
+        aria-label={agentOpen ? "Close agent chat" : "Open agent chat"}
+        style={{
+          opacity: chromeFaded ? 0 : 1,
+          pointerEvents: chromeFaded ? "none" : "auto",
+          transition: `opacity ${chromeTransitionMs}ms cubic-bezier(0.2, 0, 0, 1)`,
+        }}
+      >
+        <AgentIcon size={16} />
+      </button>
+      <AgentPanel cwd={rootPath} agentSettings={settings.agent} open={agentOpen} onClose={() => setAgentOpen(false)} />
     </div>
   );
 }
