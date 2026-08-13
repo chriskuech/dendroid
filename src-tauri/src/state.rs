@@ -4,7 +4,7 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 use tokio_util::sync::CancellationToken;
 
-use dendroid_core::native::NativeDocument;
+use dendroid_core::native::{NativeDocument, NativeSqlWorkspace};
 
 pub struct Session {
     /// `Arc`-wrapped (not just owned) so the MCP server — see `crate::mcp`
@@ -13,6 +13,11 @@ pub struct Session {
     /// ledger-poll thread already share, rather than opening a second,
     /// independent replica.
     pub doc: Arc<Mutex<NativeDocument>>,
+    /// This window's SQLite databases — a separate store from `doc` (see
+    /// `dendroid_core::sqldb`'s module doc comment for why), opened
+    /// alongside it in `commands::workspace_open` and torn down the same
+    /// way (`lib.rs`'s `on_window_event`).
+    pub sql: Arc<Mutex<NativeSqlWorkspace>>,
 }
 
 /// A running `dendroid-mcp` server this process started — just enough to

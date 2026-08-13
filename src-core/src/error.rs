@@ -37,6 +37,15 @@ pub enum DendroidError {
 
     #[error("history error: {0}")]
     History(String),
+
+    #[error("database {0:?} not found")]
+    DbNotFound(String),
+
+    #[error("table {0:?} not found")]
+    TableNotFound(String),
+
+    #[error("sql error: {0}")]
+    Sql(String),
 }
 
 pub type Result<T> = std::result::Result<T, DendroidError>;

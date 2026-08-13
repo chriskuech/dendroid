@@ -14,10 +14,12 @@ import type { OutlineEntry } from "../../lib/crdt/outline";
 import { TreeView } from "../tree/TreeView";
 import { MindMapView } from "../mindmap/MindMapView";
 import { HistoryView } from "../history/HistoryView";
-import { CloseIcon, GraphIcon, HistoryIcon, LogoIcon } from "../icons";
+import { DatabaseHistoryView } from "../history/DatabaseHistoryView";
+import { DatabaseListView } from "../database/DatabaseListView";
+import { CloseIcon, DatabaseIcon, GraphIcon, HistoryIcon, LogoIcon } from "../icons";
 import "../../styles/sidebar.css";
 
-export type SidebarView = "tree" | "mindmap" | "history";
+export type SidebarView = "tree" | "mindmap" | "history" | "database";
 
 interface SidebarProps {
   view: SidebarView;
@@ -35,6 +37,13 @@ interface SidebarProps {
   onToggleCollapse: (id: string) => void;
   onToggleLinkExpand: (id: string) => void;
   onReroot: (id: string) => void;
+  /** The database currently open in the main area, if any (see
+   * Workspace.tsx). Drives two things here: the database list's active
+   * row, and — while set — swaps the "history" tab from the markdown
+   * tree's history to this database's own, the same way the main area
+   * itself swaps from the Editor to a `DatabaseView`. */
+  selectedDatabaseId: string | null;
+  onSelectDatabase: (id: string) => void;
   /** Same "faded chrome" wiring TreeView used to apply to itself — see
    * Workspace.tsx's `chromeFaded`/`chromeTransitionMs`. Only meaningful for
    * the persistent (>=900px) sidebar; ignored once `drawerStyle` is given. */
@@ -61,6 +70,8 @@ export function Sidebar({
   onToggleCollapse,
   onToggleLinkExpand,
   onReroot,
+  selectedDatabaseId,
+  onSelectDatabase,
   faded = false,
   transitionMs = 120,
   onClose,
@@ -105,6 +116,16 @@ export function Sidebar({
         >
           <HistoryIcon size={16} />
         </button>
+        <button
+          type="button"
+          role="tab"
+          className={`sidebar__rail-btn${view === "database" ? " is-active" : ""}`}
+          aria-label="Databases"
+          aria-selected={view === "database"}
+          onClick={() => onViewChange("database")}
+        >
+          <DatabaseIcon size={16} />
+        </button>
       </div>
       <div className="sidebar__content">
         {view === "tree" ? (
@@ -121,6 +142,10 @@ export function Sidebar({
           />
         ) : view === "mindmap" ? (
           <MindMapView entries={entries} onSelectHeading={onSelectHeading} />
+        ) : view === "database" ? (
+          <DatabaseListView selectedId={selectedDatabaseId} onSelect={onSelectDatabase} />
+        ) : selectedDatabaseId ? (
+          <DatabaseHistoryView databaseId={selectedDatabaseId} />
         ) : crdt ? (
           <HistoryView crdt={crdt} />
         ) : null}

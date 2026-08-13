@@ -36,7 +36,7 @@ use loro::{ExportMode, LoroDoc, VersionVector};
 
 use crate::error::Result;
 use crate::history::{self, HistoryEntryDto};
-use crate::ledger::{LedgerCursor, LedgerWriter};
+use crate::ledger::{LedgerCursor, LedgerWriter, LoroUpdate};
 use crate::links;
 use crate::markdown::{self, ApplyMode};
 use crate::migrate;
@@ -75,9 +75,14 @@ impl<S: LedgerStorage> DendroidDocument<S> {
         // edits and rollbacks commit right here.
         doc.set_record_timestamp(true);
 
-        let mut cursor = LedgerCursor::new();
-        for update in cursor.poll(&storage).await? {
-            doc.import(&update)?;
+        let mut cursor: LedgerCursor<LoroUpdate> = LedgerCursor::new();
+        for record in cursor.poll(&storage).await? {
+            match record.payload.decode() {
+                Ok(bytes) => {
+                    doc.import(&bytes)?;
+                }
+                Err(e) => eprintln!("[ledger] bad record during replay: {e}"),
+            }
         }
 
         let ledger = LedgerWriter::open(storage, session_id).await?;
@@ -106,7 +111,20 @@ impl<S: LedgerStorage> DendroidDocument<S> {
         migrate::migrate_flat_to_sections(&self.doc)?;
         self.doc.commit();
         let delta = self.doc.export(ExportMode::updates(&before))?;
-        self.ledger.append(&delta).await
+        self.append_delta(&delta).await
+    }
+
+    /// Appends `delta` (Loro update bytes) to this session's ledger file,
+    /// unless it's empty — an empty delta means nothing actually changed
+    /// (e.g. `import_and_ledger` importing bytes this doc already had). The
+    /// old hand-written `LedgerWriter::append` used to skip those
+    /// implicitly; now that `LedgerWriter` is generic over the payload,
+    /// that Loro-specific "nothing to log" rule lives here instead.
+    async fn append_delta(&mut self, delta: &[u8]) -> Result<()> {
+        if delta.is_empty() {
+            return Ok(());
+        }
+        self.ledger.append(LoroUpdate::new(delta)).await
     }
 
     /// This session's current ledger file name (e.g.
@@ -176,7 +194,7 @@ impl<S: LedgerStorage> DendroidDocument<S> {
         let before = self.doc.oplog_vv();
         self.doc.import(bytes)?;
         let delta = self.doc.export(ExportMode::updates(&before))?;
-        self.ledger.append(&delta).await
+        self.append_delta(&delta).await
     }
 
     /// Tail the ledger for records this process hasn't seen yet — written
@@ -189,8 +207,13 @@ impl<S: LedgerStorage> DendroidDocument<S> {
         if updates.is_empty() {
             return Ok(false);
         }
-        for update in &updates {
-            self.doc.import(update)?;
+        for record in &updates {
+            match record.payload.decode() {
+                Ok(bytes) => {
+                    self.doc.import(&bytes)?;
+                }
+                Err(e) => eprintln!("[ledger] bad record during poll: {e}"),
+            }
         }
         self.reconcile_and_append().await?;
         Ok(true)
@@ -208,7 +231,7 @@ impl<S: LedgerStorage> DendroidDocument<S> {
         let changed = links::reconcile_backlinks(&self.doc, &self.last_outline)?;
         if changed {
             let delta = self.doc.export(ExportMode::updates(&before))?;
-            self.ledger.append(&delta).await?;
+            self.append_delta(&delta).await?;
         }
         self.last_outline = outline::outline(&self.doc)?;
         Ok(())
@@ -237,7 +260,7 @@ impl<S: LedgerStorage> DendroidDocument<S> {
         let before = self.doc.oplog_vv();
         markdown::apply_markdown(&self.doc, target_id, content, mode)?;
         let delta = self.doc.export(ExportMode::updates(&before))?;
-        self.ledger.append(&delta).await?;
+        self.append_delta(&delta).await?;
         // A `Replace` can delete headings (and anything that linked to
         // them) in the same edit — reconcile immediately rather than
         // waiting for the next import, the same way any other mutation
@@ -266,7 +289,7 @@ impl<S: LedgerStorage> DendroidDocument<S> {
         let before = self.doc.oplog_vv();
         history::revert_to(&self.doc, token)?;
         let delta = self.doc.export(ExportMode::updates(&before))?;
-        self.ledger.append(&delta).await?;
+        self.append_delta(&delta).await?;
         // A rollback can resurrect or delete headings same as any other
         // mutation that touches document structure — reconcile immediately
         // rather than waiting for the next import.

@@ -18,6 +18,13 @@ chrono = { version = "0.4", default-features = false, features = ["clock", "std"
 thiserror = "2.0"
 pulldown-cmark = { version = "0.13.4", default-features = false }
 
+# SQLite database support (`sqldb`) is native-only — `bundled` compiles
+# SQLite's C source in, so it needs a C toolchain, which the wasm32 target
+# this crate also builds for doesn't have. See `sqldb`'s module doc for the
+# rest of that scope decision.
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+rusqlite = { version = "0.40", features = ["bundled"] }
+
 [dev-dependencies]
 # Blocks on the async `DendroidDocument`/`LedgerStorage` API from plain
 # `#[test]` fns without pulling in a full async runtime — `NativeLedgerStorage`

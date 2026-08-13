@@ -19,7 +19,7 @@
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-use dendroid_core::native::NativeDocument;
+use dendroid_core::native::{NativeDocument, NativeSqlWorkspace};
 use rmcp::handler::server::router::tool::ToolRouter;
 use rmcp::handler::server::wrapper::Parameters;
 use rmcp::model::{Implementation, ServerCapabilities, ServerInfo};
@@ -28,6 +28,7 @@ use rmcp::transport::streamable_http_server::{StreamableHttpServerConfig, Stream
 use rmcp::{tool, tool_handler, tool_router, ErrorData, ServerHandler};
 use schemars::JsonSchema;
 use serde::Deserialize;
+use serde_json::Value as JsonValue;
 use tokio::sync::Mutex;
 use tokio_util::sync::CancellationToken;
 
@@ -68,13 +69,62 @@ pub struct ContentParams {
     pub content: String,
 }
 
-/// The MCP-facing surface — one `NativeDocument` shared with whatever else
-/// (Tauri commands, the ledger-poll thread) is driving the same session,
-/// guarded by a plain `tokio::sync::Mutex` since every tool call here is
-/// already async end to end.
+#[derive(Debug, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct DbCreateParams {
+    /// Display name for the new database.
+    pub name: String,
+}
+
+fn default_batch() -> bool {
+    false
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct DbExecParams {
+    /// The database id (see `dbList`).
+    pub id: String,
+    /// One SQL statement, or (if `batch`) a `;`-separated script.
+    pub sql: String,
+    /// Positional `?1`/`?2`/... parameters for a non-batch statement.
+    #[serde(default)]
+    pub params: Vec<JsonValue>,
+    /// Run `sql` as a multi-statement script via `execute_batch` (no bound
+    /// params) instead of a single parameterized statement.
+    #[serde(default = "default_batch")]
+    pub batch: bool,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct DbIdParams {
+    pub id: String,
+}
+
+fn default_row_limit() -> u32 {
+    50
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct DbTableRowsParams {
+    pub id: String,
+    pub table: String,
+    #[serde(default = "default_row_limit")]
+    pub limit: u32,
+    #[serde(default)]
+    pub offset: u32,
+}
+
+/// The MCP-facing surface — one `NativeDocument`/`NativeSqlWorkspace` pair
+/// shared with whatever else (Tauri commands, the ledger-poll thread) is
+/// driving the same session, each guarded by a plain `tokio::sync::Mutex`
+/// since every tool call here is already async end to end.
 #[derive(Clone)]
 pub struct DendroidMcpServer {
     doc: Arc<Mutex<NativeDocument>>,
+    sql: Arc<Mutex<NativeSqlWorkspace>>,
     // Read by the `#[tool_handler]`-generated `ServerHandler` methods
     // below, not by anything in this file directly — dead-code analysis
     // doesn't see through that, same as upstream rmcp's own tests.
@@ -84,8 +134,8 @@ pub struct DendroidMcpServer {
 
 #[tool_router]
 impl DendroidMcpServer {
-    pub fn new(doc: Arc<Mutex<NativeDocument>>) -> Self {
-        Self { doc, tool_router: Self::tool_router() }
+    pub fn new(doc: Arc<Mutex<NativeDocument>>, sql: Arc<Mutex<NativeSqlWorkspace>>) -> Self {
+        Self { doc, sql, tool_router: Self::tool_router() }
     }
 
     #[tool(name = "getOutline", description = "Returns just the document's headings (with their stable ids), as JSON.")]
@@ -123,6 +173,46 @@ impl DendroidMcpServer {
         doc.replace_content(&id, &content).await.map_err(to_mcp_error)?;
         Ok("replaced".to_string())
     }
+
+    #[tool(name = "dbList", description = "Lists every SQLite database in this workspace, as JSON (id + name).")]
+    async fn db_list(&self) -> Result<String, ErrorData> {
+        let sql = self.sql.lock().await;
+        serde_json::to_string(&sql.list_databases()).map_err(|e| ErrorData::internal_error(e.to_string(), None))
+    }
+
+    #[tool(name = "dbCreate", description = "Creates a new, empty SQLite database and returns its id.")]
+    async fn db_create(&self, params: Parameters<DbCreateParams>) -> Result<String, ErrorData> {
+        let DbCreateParams { name } = params.0;
+        let mut sql = self.sql.lock().await;
+        sql.create_database(&name).await.map_err(to_mcp_error)
+    }
+
+    #[tool(
+        name = "dbExec",
+        description = "Runs one SQL statement (INSERT/UPDATE/DELETE/CREATE TABLE/DROP TABLE/...) against a database, or — with batch=true — a `;`-separated multi-statement script. Bound params (?1, ?2, ...) are only honored when batch is false."
+    )]
+    async fn db_exec(&self, params: Parameters<DbExecParams>) -> Result<String, ErrorData> {
+        let DbExecParams { id, sql, params, batch } = params.0;
+        let mut db = self.sql.lock().await;
+        db.exec(&id, &sql, params, batch).await.map_err(to_mcp_error)?;
+        Ok("executed".to_string())
+    }
+
+    #[tool(name = "dbTables", description = "Lists a database's user tables and their columns, as JSON.")]
+    async fn db_tables(&self, params: Parameters<DbIdParams>) -> Result<String, ErrorData> {
+        let DbIdParams { id } = params.0;
+        let sql = self.sql.lock().await;
+        let tables = sql.list_tables(&id).map_err(to_mcp_error)?;
+        serde_json::to_string(&tables).map_err(|e| ErrorData::internal_error(e.to_string(), None))
+    }
+
+    #[tool(name = "dbTableRows", description = "Returns a page of a table's rows (plus column metadata and the total row count), as JSON.")]
+    async fn db_table_rows(&self, params: Parameters<DbTableRowsParams>) -> Result<String, ErrorData> {
+        let DbTableRowsParams { id, table, limit, offset } = params.0;
+        let sql = self.sql.lock().await;
+        let rows = sql.table_rows(&id, &table, limit, offset).map_err(to_mcp_error)?;
+        serde_json::to_string(&rows).map_err(|e| ErrorData::internal_error(e.to_string(), None))
+    }
 }
 
 #[tool_handler]
@@ -150,12 +240,18 @@ pub async fn bind(addr: SocketAddr) -> std::io::Result<tokio::net::TcpListener> 
     tokio::net::TcpListener::bind(addr).await
 }
 
-/// Serves `doc` over streamable-HTTP on an already-bound `listener` (`/mcp`,
-/// matching what Settings advertises) until `cancellation_token` fires.
-pub async fn serve_on(doc: Arc<Mutex<NativeDocument>>, listener: tokio::net::TcpListener, cancellation_token: CancellationToken) -> std::io::Result<()> {
+/// Serves `doc`/`sql` over streamable-HTTP on an already-bound `listener`
+/// (`/mcp`, matching what Settings advertises) until `cancellation_token`
+/// fires.
+pub async fn serve_on(
+    doc: Arc<Mutex<NativeDocument>>,
+    sql: Arc<Mutex<NativeSqlWorkspace>>,
+    listener: tokio::net::TcpListener,
+    cancellation_token: CancellationToken,
+) -> std::io::Result<()> {
     let config = StreamableHttpServerConfig::default().with_cancellation_token(cancellation_token.clone());
     let service: StreamableHttpService<DendroidMcpServer, LocalSessionManager> =
-        StreamableHttpService::new(move || Ok(DendroidMcpServer::new(doc.clone())), Default::default(), config);
+        StreamableHttpService::new(move || Ok(DendroidMcpServer::new(doc.clone(), sql.clone())), Default::default(), config);
     let router = axum::Router::new().nest_service("/mcp", service);
 
     axum::serve(listener, router).with_graceful_shutdown(async move { cancellation_token.cancelled_owned().await }).await
@@ -163,7 +259,12 @@ pub async fn serve_on(doc: Arc<Mutex<NativeDocument>>, listener: tokio::net::Tcp
 
 /// `bind` + `serve_on` — one call per "Local MCP" enable. `src-tauri`'s
 /// `mcp` module owns starting/stopping this alongside the settings toggle.
-pub async fn serve(doc: Arc<Mutex<NativeDocument>>, addr: SocketAddr, cancellation_token: CancellationToken) -> std::io::Result<()> {
+pub async fn serve(
+    doc: Arc<Mutex<NativeDocument>>,
+    sql: Arc<Mutex<NativeSqlWorkspace>>,
+    addr: SocketAddr,
+    cancellation_token: CancellationToken,
+) -> std::io::Result<()> {
     let listener = bind(addr).await?;
-    serve_on(doc, listener, cancellation_token).await
+    serve_on(doc, sql, listener, cancellation_token).await
 }

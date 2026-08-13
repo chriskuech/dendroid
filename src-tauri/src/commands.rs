@@ -18,8 +18,11 @@
 //! instead of one for command responses and another for background sync.
 
 use base64::{engine::general_purpose::STANDARD, Engine as _};
-use dendroid_core::{HeadingDto, HistoryEntryDto};
+use dendroid_core::{
+    ColumnDto, DatabaseDto, DbHistoryEntryDto, HeadingDto, HistoryEntryDto, TableDto, TableRowsDto,
+};
 use serde::Serialize;
+use serde_json::Value as JsonValue;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tauri::{AppHandle, Emitter, Manager, State, WebviewUrl, WebviewWindowBuilder, Window};
@@ -28,6 +31,16 @@ use tokio::sync::Mutex;
 use crate::state::{AppDocState, Session};
 
 pub const UPDATE_EVENT: &str = "crdt://update";
+
+/// Broadcast whenever a window's SQL databases change — a mutation this
+/// window made itself (`db_create`/`db_delete`/`db_exec`/`db_revert_to`),
+/// or one the ledger-poll thread in `lib.rs` picked up from another
+/// session/replica. No payload beyond which database changed: unlike
+/// `crdt://update`, there's no CRDT delta to hand the frontend — a
+/// `DatabaseView` that's currently open just re-fetches whatever it's
+/// showing (mirrors how `HistoryView.tsx` already reacts to `crdt`'s own
+/// `onUpdate` by re-fetching rather than diffing).
+pub const DB_UPDATE_EVENT: &str = "db://update";
 
 #[derive(Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -44,6 +57,13 @@ pub fn emit_update(app: &AppHandle, label: &str, bytes: Vec<u8>) {
     }
     if let Err(e) = app.emit_to(label, UPDATE_EVENT, UpdatePayload { update_b64: STANDARD.encode(bytes) }) {
         eprintln!("[crdt] failed to emit {UPDATE_EVENT} to {label}: {e}");
+    }
+}
+
+/// See `DB_UPDATE_EVENT`.
+pub fn emit_db_update(app: &AppHandle, label: &str) {
+    if let Err(e) = app.emit_to(label, DB_UPDATE_EVENT, ()) {
+        eprintln!("[sqldb] failed to emit {DB_UPDATE_EVENT} to {label}: {e}");
     }
 }
 
@@ -64,10 +84,11 @@ pub async fn workspace_open(
     let path = PathBuf::from(&root);
     let mut doc = dendroid_core::native::open_native(&path, state.session_id.clone()).await.map_err(|e| e.to_string())?;
     let snapshot = doc.export_snapshot_for_bootstrap().map_err(|e| e.to_string())?;
+    let sql = dendroid_core::native::open_native_sql(&path, state.session_id.clone()).await.map_err(|e| e.to_string())?;
 
     let label = window.label().to_string();
     let mut sessions = state.sessions.lock().await;
-    sessions.insert(label.clone(), Session { doc: Arc::new(Mutex::new(doc)) });
+    sessions.insert(label.clone(), Session { doc: Arc::new(Mutex::new(doc)), sql: Arc::new(Mutex::new(sql)) });
     drop(sessions);
 
     // Whichever window opens a workspace first in this process's lifetime
@@ -110,6 +131,12 @@ pub async fn open_workspace_window(app: AppHandle, root: String) -> Result<(), S
 async fn session_doc(state: &AppDocState, label: &str) -> Result<Arc<Mutex<dendroid_core::native::NativeDocument>>, String> {
     let sessions = state.sessions.lock().await;
     sessions.get(label).map(|s| s.doc.clone()).ok_or_else(|| "no workspace open".to_string())
+}
+
+/// Same lookup as `session_doc`, for the SQL database store.
+async fn session_sql(state: &AppDocState, label: &str) -> Result<Arc<Mutex<dendroid_core::native::NativeSqlWorkspace>>, String> {
+    let sessions = state.sessions.lock().await;
+    sessions.get(label).map(|s| s.sql.clone()).ok_or_else(|| "no workspace open".to_string())
 }
 
 /// Headless heading outline, derived from the document. The live UI reads
@@ -243,5 +270,139 @@ pub async fn doc_replace_content(
     if let Some(bytes) = delta {
         emit_update(window.app_handle(), &label, bytes);
     }
+    Ok(())
+}
+
+// --- SQL databases -------------------------------------------------------
+//
+// See `dendroid_core::sqldb` for the actual logic — everything below is
+// the same thin decode/delegate/broadcast shape `doc_*` above already
+// uses, just against `Session::sql` instead of `Session::doc`, and
+// broadcasting `DB_UPDATE_EVENT` (no delta payload — see its doc comment)
+// instead of `crdt://update`.
+
+/// Every live database in this window's workspace — what the sidebar's
+/// database list renders.
+#[tauri::command(rename_all = "camelCase")]
+pub async fn db_list(window: Window, state: State<'_, AppDocState>) -> Result<Vec<DatabaseDto>, String> {
+    let sql = session_sql(&state, window.label()).await?;
+    let sql = sql.lock().await;
+    Ok(sql.list_databases())
+}
+
+/// Creates a new, empty database and returns its fresh id.
+#[tauri::command(rename_all = "camelCase")]
+pub async fn db_create(window: Window, state: State<'_, AppDocState>, name: String) -> Result<String, String> {
+    let label = window.label().to_string();
+    let sql_handle = session_sql(&state, &label).await?;
+
+    let mut sql = sql_handle.lock().await;
+    let id = sql.create_database(&name).await.map_err(|e| e.to_string())?;
+    drop(sql);
+
+    emit_db_update(window.app_handle(), &label);
+    Ok(id)
+}
+
+/// Removes a database from the live set.
+#[tauri::command(rename_all = "camelCase")]
+pub async fn db_delete(window: Window, state: State<'_, AppDocState>, id: String) -> Result<(), String> {
+    let label = window.label().to_string();
+    let sql_handle = session_sql(&state, &label).await?;
+
+    let mut sql = sql_handle.lock().await;
+    sql.delete_database(&id).await.map_err(|e| e.to_string())?;
+    drop(sql);
+
+    emit_db_update(window.app_handle(), &label);
+    Ok(())
+}
+
+/// Runs one statement (or, if `batch`, a `;`-separated script) against
+/// `id` and ledgers it — see `dendroid_core::sqldb::SqlWorkspace::exec`.
+/// What every basic-table-UI action (insert/update/delete a row, create/
+/// alter/drop a table) and the "Run SQL" console both go through.
+#[tauri::command(rename_all = "camelCase")]
+pub async fn db_exec(
+    window: Window,
+    state: State<'_, AppDocState>,
+    id: String,
+    sql: String,
+    params: Option<Vec<JsonValue>>,
+    batch: Option<bool>,
+) -> Result<(), String> {
+    let label = window.label().to_string();
+    let sql_handle = session_sql(&state, &label).await?;
+
+    let mut db = sql_handle.lock().await;
+    db.exec(&id, &sql, params.unwrap_or_default(), batch.unwrap_or(false)).await.map_err(|e| e.to_string())?;
+    drop(db);
+
+    emit_db_update(window.app_handle(), &label);
+    Ok(())
+}
+
+/// Every user table in `id`, with its columns — what the database view's
+/// table list renders.
+#[tauri::command(rename_all = "camelCase")]
+pub async fn db_tables(window: Window, state: State<'_, AppDocState>, id: String) -> Result<Vec<TableDto>, String> {
+    let sql = session_sql(&state, window.label()).await?;
+    let sql = sql.lock().await;
+    sql.list_tables(&id).map_err(|e| e.to_string())
+}
+
+/// A columns-and-column-metadata description of `table` alone, without
+/// paging through its rows. The live UI doesn't call this today — it
+/// already gets column metadata for free from `db_tables` (the table
+/// strip) and `db_table_rows` (the grid) — but it's a cheaper primitive
+/// than a full `db_table_rows` round trip for anything that only needs a
+/// schema (e.g. a future "add row" form built before any rows exist).
+/// Same "exists for parity/future headless consumers" reasoning as
+/// `doc_outline`.
+#[tauri::command(rename_all = "camelCase")]
+pub async fn db_table_columns(window: Window, state: State<'_, AppDocState>, id: String, table: String) -> Result<Vec<ColumnDto>, String> {
+    let sql = session_sql(&state, window.label()).await?;
+    let sql = sql.lock().await;
+    let tables = sql.list_tables(&id).map_err(|e| e.to_string())?;
+    tables.into_iter().find(|t| t.name == table).map(|t| t.columns).ok_or_else(|| format!("table {table:?} not found"))
+}
+
+/// A page of `table`'s rows in `id` — what the database view's data grid
+/// renders. See `dendroid_core::sqldb::SqlWorkspace::table_rows`.
+#[tauri::command(rename_all = "camelCase")]
+pub async fn db_table_rows(
+    window: Window,
+    state: State<'_, AppDocState>,
+    id: String,
+    table: String,
+    limit: u32,
+    offset: u32,
+) -> Result<TableRowsDto, String> {
+    let sql = session_sql(&state, window.label()).await?;
+    let sql = sql.lock().await;
+    sql.table_rows(&id, &table, limit, offset).map_err(|e| e.to_string())
+}
+
+/// `id`'s change history, most recent first — what the History sidebar
+/// tab shows while a database (rather than the tree) is open.
+#[tauri::command(rename_all = "camelCase")]
+pub async fn db_history(window: Window, state: State<'_, AppDocState>, id: String) -> Result<Vec<DbHistoryEntryDto>, String> {
+    let sql = session_sql(&state, window.label()).await?;
+    let sql = sql.lock().await;
+    sql.history(&id).map_err(|e| e.to_string())
+}
+
+/// Rolls `id` back to `token` (a `DbHistoryEntryDto.token` from a previous
+/// `db_history` call) — see `dendroid_core::sqldb::SqlWorkspace::revert_to`.
+#[tauri::command(rename_all = "camelCase")]
+pub async fn db_revert_to(window: Window, state: State<'_, AppDocState>, id: String, token: String) -> Result<(), String> {
+    let label = window.label().to_string();
+    let sql_handle = session_sql(&state, &label).await?;
+
+    let mut sql = sql_handle.lock().await;
+    sql.revert_to(&id, &token).await.map_err(|e| e.to_string())?;
+    drop(sql);
+
+    emit_db_update(window.app_handle(), &label);
     Ok(())
 }

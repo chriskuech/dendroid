@@ -30,6 +30,8 @@ pub mod markdown;
 pub mod native;
 mod migrate;
 pub mod outline;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod sqldb;
 pub mod storage;
 
 pub use doc::DendroidDocument;
@@ -39,4 +41,6 @@ pub use ledger::new_session_id;
 pub use links::{LinkEntryDto, LinkRefDto};
 pub use markdown::ApplyMode;
 pub use outline::{HeadingDto, OutlineEntry};
+#[cfg(not(target_arch = "wasm32"))]
+pub use sqldb::{ColumnDto, DatabaseDto, DbHistoryEntryDto, SqlWorkspace, TableDto, TableRowDto, TableRowsDto};
 pub use storage::LedgerStorage;

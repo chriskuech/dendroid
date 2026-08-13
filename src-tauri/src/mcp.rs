@@ -43,6 +43,7 @@ pub async fn apply(app: AppHandle, enabled: bool, host: String, port: u16) -> Re
         return Err(format!("primary session {primary_label} not found"));
     };
     let doc = session.doc.clone();
+    let sql = session.sql.clone();
     drop(sessions);
 
     let addr: SocketAddr = format!("{host}:{port}").parse().map_err(|e| format!("invalid host/port: {e}"))?;
@@ -51,7 +52,7 @@ pub async fn apply(app: AppHandle, enabled: bool, host: String, port: u16) -> Re
     let cancellation_token = CancellationToken::new();
     let serve_token = cancellation_token.clone();
     tauri::async_runtime::spawn(async move {
-        if let Err(e) = dendroid_mcp::serve_on(doc, listener, serve_token).await {
+        if let Err(e) = dendroid_mcp::serve_on(doc, sql, listener, serve_token).await {
             eprintln!("[mcp] server error: {e}");
         }
     });

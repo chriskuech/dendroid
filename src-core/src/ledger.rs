@@ -14,24 +14,71 @@
 //!
 //! State is *never* mutated in place here — only appended. The current
 //! document is always just "replay every ledger file into a fresh LoroDoc".
+//!
+//! `LedgerWriter`/`LedgerCursor` are generic over the payload (`P`) each
+//! line carries, defaulting to `LoroUpdate` so every existing call site
+//! (and every byte already on disk) is untouched. `crate::sqldb` reuses the
+//! exact same append/tail machinery for its own `DbEvent` payload, pointed
+//! at a different subdirectory (see `native::NativeLedgerStorage::
+//! for_databases`) — same per-(day,session)-file convention, same
+//! multi-writer story, just a different envelope and a different `P`.
 
 use std::collections::HashMap;
+use std::marker::PhantomData;
 
 use base64::{engine::general_purpose::STANDARD, Engine as _};
 use chrono::Utc;
+use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
 use crate::error::{DendroidError, Result};
 use crate::storage::LedgerStorage;
 
-/// One line of a ledger file.
+/// The payload every existing (and, going forward, every ordinary
+/// markdown-tree) ledger line carries — a base64-encoded Loro update blob.
+/// Named and shaped so `#[serde(flatten)]`-ing it into `Envelope` produces
+/// byte-identical JSON to the hand-written struct this replaced (just an
+/// `update` key alongside `seq`/`ts`/`session_id`), so every ledger file
+/// ever written stays readable with zero migration.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-struct LedgerRecord {
+pub struct LoroUpdate {
+    update: String,
+}
+
+impl LoroUpdate {
+    pub fn new(bytes: &[u8]) -> Self {
+        Self { update: STANDARD.encode(bytes) }
+    }
+
+    pub fn decode(&self) -> Result<Vec<u8>> {
+        STANDARD.decode(&self.update).map_err(|e| DendroidError::LedgerRecord {
+            location: "<in-memory>".to_string(),
+            line: 0,
+            reason: format!("bad base64 payload: {e}"),
+        })
+    }
+}
+
+/// One line of a ledger file: metadata common to every kind of logged
+/// event, plus whatever `P` is logging.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct Envelope<P> {
     seq: u64,
     ts: String,
     session_id: String,
-    /// Base64-encoded Loro update bytes.
-    update: String,
+    #[serde(flatten)]
+    payload: P,
+}
+
+/// A payload as handed back by `LedgerCursor::poll`, together with the
+/// envelope metadata a payload type might need (e.g. `crate::sqldb`'s
+/// `DbEvent::Exec` wants a real timestamp for its history view — SQLite has
+/// no oplog of its own to derive one from the way Loro does).
+#[derive(Debug, Clone)]
+pub struct PolledRecord<P> {
+    pub ts: String,
+    pub session_id: String,
+    pub payload: P,
 }
 
 /// A fresh id for this running app instance. Embedded in every ledger
@@ -55,22 +102,24 @@ fn count_lines(bytes: &[u8]) -> u64 {
     bytes.split(|&b| b == b'\n').filter(|line| !line.is_empty()).count() as u64
 }
 
-/// Appends this session's updates to today's ledger file (through `S`),
+/// Appends this session's records to today's ledger file (through `S`),
 /// rolling over to a new file automatically when the date changes under a
-/// long-running process.
-pub struct LedgerWriter<S: LedgerStorage> {
+/// long-running process. Generic over the payload `P` each line carries —
+/// see the module doc comment.
+pub struct LedgerWriter<S: LedgerStorage, P = LoroUpdate> {
     storage: S,
     session_id: String,
     date: String,
     seq: u64,
+    _payload: PhantomData<P>,
 }
 
-impl<S: LedgerStorage> LedgerWriter<S> {
+impl<S: LedgerStorage, P: Serialize> LedgerWriter<S, P> {
     pub async fn open(storage: S, session_id: impl Into<String>) -> Result<Self> {
         let session_id = session_id.into();
         let date = today();
         let seq = count_lines(&storage.read_from(&record_name(&date, &session_id), 0).await?);
-        Ok(Self { storage, session_id, date, seq })
+        Ok(Self { storage, session_id, date, seq, _payload: PhantomData })
     }
 
     /// This session's current ledger file name (rolls over at midnight).
@@ -78,31 +127,22 @@ impl<S: LedgerStorage> LedgerWriter<S> {
         record_name(&self.date, &self.session_id)
     }
 
-    /// The storage backend this writer (and its owning `DendroidDocument`)
-    /// is writing into — `LedgerCursor::poll` needs the same one to tail
-    /// for other sessions'/replicas' writes.
+    /// The storage backend this writer (and its owning `DendroidDocument`/
+    /// `SqlWorkspace`) is writing into — a cursor needs the same one to
+    /// tail for other sessions'/replicas' writes.
     pub fn storage(&self) -> &S {
         &self.storage
     }
 
-    /// Append one update blob as a single JSON line.
-    pub async fn append(&mut self, update: &[u8]) -> Result<()> {
-        if update.is_empty() {
-            return Ok(());
-        }
-
+    /// Append one record as a single JSON line.
+    pub async fn append(&mut self, payload: P) -> Result<()> {
         let today = today();
         if today != self.date {
             self.date = today;
             self.seq = count_lines(&self.storage.read_from(&self.name(), 0).await?);
         }
 
-        let record = LedgerRecord {
-            seq: self.seq,
-            ts: Utc::now().to_rfc3339(),
-            session_id: self.session_id.clone(),
-            update: STANDARD.encode(update),
-        };
+        let record = Envelope { seq: self.seq, ts: Utc::now().to_rfc3339(), session_id: self.session_id.clone(), payload };
         let name = self.name();
         let line = serde_json::to_string(&record)
             .map_err(|e| DendroidError::LedgerRecord { location: name.clone(), line: self.seq as usize, reason: e.to_string() })?;
@@ -118,24 +158,31 @@ impl<S: LedgerStorage> LedgerWriter<S> {
 /// the initial full replay (starting from offset 0 on every file) and for
 /// ongoing multi-writer merge — other sessions of this app, or another
 /// replica of the workspace folder entirely, each write their own file,
-/// and this cursor is how we notice.
-#[derive(Default)]
-pub struct LedgerCursor {
+/// and this cursor is how we notice. Generic over the payload `P` — see
+/// the module doc comment.
+pub struct LedgerCursor<P = LoroUpdate> {
     offsets: HashMap<String, u64>,
+    _payload: PhantomData<P>,
 }
 
-impl LedgerCursor {
+impl<P> Default for LedgerCursor<P> {
+    fn default() -> Self {
+        Self { offsets: HashMap::new(), _payload: PhantomData }
+    }
+}
+
+impl<P: DeserializeOwned> LedgerCursor<P> {
     pub fn new() -> Self {
         Self::default()
     }
 
-    /// Returns newly-available update blobs (decoded, in file-then-line
-    /// order) since the last call. Malformed lines (e.g. a torn write from
-    /// a crash mid-append) are skipped with a logged warning rather than
-    /// failing the whole poll — one bad record must never brick the
-    /// document.
-    pub async fn poll<S: LedgerStorage>(&mut self, storage: &S) -> Result<Vec<Vec<u8>>> {
-        let mut updates = Vec::new();
+    /// Returns newly-available records (in file-then-line order) since the
+    /// last call. Malformed lines (e.g. a torn write from a crash
+    /// mid-append, or a line belonging to a different payload shape than
+    /// `P`) are skipped with a logged warning rather than failing the
+    /// whole poll — one bad record must never brick the workspace.
+    pub async fn poll<S: LedgerStorage>(&mut self, storage: &S) -> Result<Vec<PolledRecord<P>>> {
+        let mut records = Vec::new();
 
         let mut names = storage.list_files().await?;
         names.sort();
@@ -161,11 +208,8 @@ impl LedgerCursor {
                 if line.is_empty() {
                     continue;
                 }
-                match serde_json::from_slice::<LedgerRecord>(line) {
-                    Ok(record) => match STANDARD.decode(&record.update) {
-                        Ok(bytes) => updates.push(bytes),
-                        Err(e) => eprintln!("[ledger] {name}:{i}: bad base64 payload: {e}"),
-                    },
+                match serde_json::from_slice::<Envelope<P>>(line) {
+                    Ok(record) => records.push(PolledRecord { ts: record.ts, session_id: record.session_id, payload: record.payload }),
                     Err(e) => eprintln!("[ledger] {name}:{i}: malformed record, skipping: {e}"),
                 }
             }
@@ -173,6 +217,6 @@ impl LedgerCursor {
             self.offsets.insert(name, start + complete.len() as u64);
         }
 
-        Ok(updates)
+        Ok(records)
     }
 }
