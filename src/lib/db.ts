@@ -56,6 +56,16 @@ export interface TableRowsDto {
   totalRows: number;
 }
 
+/** Mirrors `dendroid_core::sqldb::QueryResultDto` — the shape of running a
+ * read-only statement (a `SELECT`, typically) through `queryDb` rather than
+ * a mutation through `execSql`. No `rowid` and no pagination, unlike
+ * `TableRowsDto`: an arbitrary query result isn't addressable the way a
+ * single table's rows are. */
+export interface QueryResultDto {
+  columns: string[];
+  rows: unknown[][];
+}
+
 /** Mirrors `dendroid_core::sqldb::DbHistoryEntryDto` — deliberately the
  * same shape as `lib/crdt/history.ts`'s `HistoryEntryDto` (token/
  * timestamp/message) so a history panel can render either with the same
@@ -126,8 +136,9 @@ export async function deleteDatabase(id: string): Promise<void> {
 
 /** Runs one statement (or, if `batch`, a `;`-separated script) against
  * `id` and ledgers it. What every basic-table-UI action (insert/update/
- * delete a row, create/alter/drop a table) and the "Run SQL" console both
- * go through. Rejects — without ledgering anything — if the statement
+ * delete a row, create/alter/drop a table) and the SQL editor's mutating
+ * statements both go through — a read-only statement typed there goes
+ * through `queryDb` instead. Rejects — without ledgering anything — if the statement
  * itself fails (bad syntax, a constraint violation, ...). */
 export async function execSql(id: string, sql: string, params: unknown[] = [], batch = false): Promise<void> {
   requireTauri();
@@ -141,11 +152,31 @@ export async function listTables(id: string): Promise<TableDto[]> {
   return invoke<TableDto[]>("db_tables", { id });
 }
 
-/** A page of `table`'s rows in `id`, ordered by `rowid` — what the
- * database view's data grid renders. */
-export async function tableRows(id: string, table: string, limit: number, offset: number): Promise<TableRowsDto> {
+/** A page of `table`'s rows in `id`, ordered by `rowid` unless `orderBy`
+ * names a column to sort by instead (`orderDesc` picks the direction) —
+ * what the database view's data grid renders, including its clickable
+ * sortable column headers. */
+export async function tableRows(
+  id: string,
+  table: string,
+  limit: number,
+  offset: number,
+  orderBy?: string | null,
+  orderDesc?: boolean,
+): Promise<TableRowsDto> {
   requireTauri();
-  return invoke<TableRowsDto>("db_table_rows", { id, table, limit, offset });
+  return invoke<TableRowsDto>("db_table_rows", { id, table, limit, offset, orderBy: orderBy ?? null, orderDesc: orderDesc ?? false });
+}
+
+/** Runs a single read-only statement (a `SELECT`, typically) against `id`
+ * and returns whatever it selected — the SQL editor's "run as a query"
+ * path. Rejects if `sql` isn't actually read-only (see
+ * `dendroid_core::sqldb::SqlWorkspace::query`); the caller should fall back
+ * to `execSql` for those. Unlike `execSql`, this never ledgers anything and
+ * never fires `db://update` — nothing about `id` changed. */
+export async function queryDb(id: string, sql: string): Promise<QueryResultDto> {
+  requireTauri();
+  return invoke<QueryResultDto>("db_query", { id, sql });
 }
 
 /** `id`'s change history, most recent first — what the History sidebar

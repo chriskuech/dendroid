@@ -42,5 +42,5 @@ pub use links::{LinkEntryDto, LinkRefDto};
 pub use markdown::ApplyMode;
 pub use outline::{HeadingDto, OutlineEntry};
 #[cfg(not(target_arch = "wasm32"))]
-pub use sqldb::{ColumnDto, DatabaseDto, DbHistoryEntryDto, SqlWorkspace, TableDto, TableRowDto, TableRowsDto};
+pub use sqldb::{ColumnDto, DatabaseDto, DbHistoryEntryDto, QueryResultDto, SqlWorkspace, TableDto, TableRowDto, TableRowsDto};
 pub use storage::LedgerStorage;

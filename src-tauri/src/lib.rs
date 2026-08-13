@@ -267,6 +267,7 @@ pub fn run() {
             commands::db_tables,
             commands::db_table_columns,
             commands::db_table_rows,
+            commands::db_query,
             commands::db_history,
             commands::db_revert_to,
             mcp::mcp_set_config,

@@ -19,7 +19,7 @@
 
 use base64::{engine::general_purpose::STANDARD, Engine as _};
 use dendroid_core::{
-    ColumnDto, DatabaseDto, DbHistoryEntryDto, HeadingDto, HistoryEntryDto, TableDto, TableRowsDto,
+    ColumnDto, DatabaseDto, DbHistoryEntryDto, HeadingDto, HistoryEntryDto, QueryResultDto, TableDto, TableRowsDto,
 };
 use serde::Serialize;
 use serde_json::Value as JsonValue;
@@ -368,7 +368,9 @@ pub async fn db_table_columns(window: Window, state: State<'_, AppDocState>, id:
 }
 
 /// A page of `table`'s rows in `id` — what the database view's data grid
-/// renders. See `dendroid_core::sqldb::SqlWorkspace::table_rows`.
+/// renders. `orderBy`/`orderDesc` back the grid's clickable column-header
+/// sort; omitted, it's `rowid`-ordered same as before. See
+/// `dendroid_core::sqldb::SqlWorkspace::table_rows`.
 #[tauri::command(rename_all = "camelCase")]
 pub async fn db_table_rows(
     window: Window,
@@ -377,10 +379,25 @@ pub async fn db_table_rows(
     table: String,
     limit: u32,
     offset: u32,
+    order_by: Option<String>,
+    order_desc: Option<bool>,
 ) -> Result<TableRowsDto, String> {
     let sql = session_sql(&state, window.label()).await?;
     let sql = sql.lock().await;
-    sql.table_rows(&id, &table, limit, offset).map_err(|e| e.to_string())
+    sql.table_rows(&id, &table, limit, offset, order_by.as_deref(), order_desc.unwrap_or(false)).map_err(|e| e.to_string())
+}
+
+/// Runs a single read-only statement (`SELECT`/`PRAGMA`/`EXPLAIN`/...)
+/// against `id` and returns whatever it selected — the SQL editor's "run
+/// as a query" path. Not ledgered (see
+/// `dendroid_core::sqldb::SqlWorkspace::query`), so unlike `db_exec` this
+/// never broadcasts `DB_UPDATE_EVENT`: nothing about `id` actually
+/// changed.
+#[tauri::command(rename_all = "camelCase")]
+pub async fn db_query(window: Window, state: State<'_, AppDocState>, id: String, sql: String) -> Result<QueryResultDto, String> {
+    let workspace = session_sql(&state, window.label()).await?;
+    let workspace = workspace.lock().await;
+    workspace.query(&id, &sql).map_err(|e| e.to_string())
 }
 
 /// `id`'s change history, most recent first — what the History sidebar

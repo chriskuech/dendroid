@@ -3,7 +3,7 @@
 // right `lib/db.ts` call goes out, since the actual persistence/replay
 // logic is covered on the Rust side (`src-core/tests/sqldb.rs`).
 
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { DatabaseView } from "./DatabaseView";
@@ -17,6 +17,7 @@ vi.mock("../../lib/db", async () => {
     listTables: vi.fn(),
     tableRows: vi.fn(),
     execSql: vi.fn(),
+    queryDb: vi.fn(),
     onDatabasesChanged: vi.fn(() => () => {}),
   };
 });
@@ -38,6 +39,10 @@ function rowsFixture(): TableRowsDto {
 }
 
 describe("DatabaseView", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it("shows an empty state when there are no tables yet", async () => {
     vi.mocked(db.listTables).mockResolvedValue([]);
     render(<DatabaseView database={database} onClose={vi.fn()} />);
@@ -129,5 +134,81 @@ describe("DatabaseView", () => {
     await screen.findByText(/no tables yet/i);
     await user.click(screen.getByRole("button", { name: /back to notes/i }));
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it("clicking a column header cycles ascending → descending → unsorted", async () => {
+    const user = userEvent.setup();
+    vi.mocked(db.listTables).mockResolvedValue([{ name: "todos", columns: rowsFixture().columns }]);
+    vi.mocked(db.tableRows).mockResolvedValue(rowsFixture());
+    render(<DatabaseView database={database} onClose={vi.fn()} />);
+
+    await screen.findByText("Write tests");
+    vi.mocked(db.tableRows).mockClear();
+
+    const header = screen.getByText("title");
+    await user.click(header);
+    await waitFor(() => expect(db.tableRows).toHaveBeenLastCalledWith("db-1", "todos", 50, 0, "title", false));
+
+    await user.click(header);
+    await waitFor(() => expect(db.tableRows).toHaveBeenLastCalledWith("db-1", "todos", 50, 0, "title", true));
+
+    await user.click(header);
+    await waitFor(() => expect(db.tableRows).toHaveBeenLastCalledWith("db-1", "todos", 50, 0, null, false));
+  });
+
+  it("running a SELECT in the SQL editor queries instead of executing, and renders a result grid", async () => {
+    const user = userEvent.setup();
+    vi.mocked(db.listTables).mockResolvedValue([{ name: "todos", columns: rowsFixture().columns }]);
+    vi.mocked(db.tableRows).mockResolvedValue(rowsFixture());
+    vi.mocked(db.queryDb).mockResolvedValue({ columns: ["title"], rows: [["Write tests"], ["Ship it"]] });
+    render(<DatabaseView database={database} onClose={vi.fn()} />);
+
+    await screen.findByText("Write tests");
+    await user.click(screen.getByRole("button", { name: /sql editor/i }));
+    const textarea = screen.getByPlaceholderText(/select to preview/i);
+    await user.type(textarea, "SELECT title FROM todos");
+    await user.click(screen.getByRole("button", { name: /^run$/i }));
+
+    await waitFor(() => expect(db.queryDb).toHaveBeenCalledWith("db-1", "SELECT title FROM todos"));
+    expect(db.execSql).not.toHaveBeenCalled();
+    expect(await screen.findByText("Ship it")).toBeInTheDocument();
+    expect(screen.getByText("2 rows")).toBeInTheDocument();
+  });
+
+  it("running a mutating statement in the SQL editor executes it as a ledgered batch", async () => {
+    const user = userEvent.setup();
+    vi.mocked(db.listTables).mockResolvedValue([{ name: "todos", columns: rowsFixture().columns }]);
+    vi.mocked(db.tableRows).mockResolvedValue(rowsFixture());
+    vi.mocked(db.execSql).mockResolvedValue(undefined);
+    render(<DatabaseView database={database} onClose={vi.fn()} />);
+
+    await screen.findByText("Write tests");
+    await user.click(screen.getByRole("button", { name: /sql editor/i }));
+    const textarea = screen.getByPlaceholderText(/select to preview/i);
+    await user.type(textarea, "DELETE FROM todos WHERE done = 1");
+    await user.click(screen.getByRole("button", { name: /^run$/i }));
+
+    await waitFor(() => expect(db.execSql).toHaveBeenCalledWith("db-1", "DELETE FROM todos WHERE done = 1", [], true));
+    expect(db.queryDb).not.toHaveBeenCalled();
+  });
+
+  it("typing a table-name prefix in the SQL editor offers it as a typeahead suggestion", async () => {
+    const user = userEvent.setup();
+    vi.mocked(db.listTables).mockResolvedValue([{ name: "todos", columns: rowsFixture().columns }]);
+    vi.mocked(db.tableRows).mockResolvedValue(rowsFixture());
+    render(<DatabaseView database={database} onClose={vi.fn()} />);
+
+    await screen.findByText("Write tests");
+    await user.click(screen.getByRole("button", { name: /sql editor/i }));
+    const textarea = screen.getByPlaceholderText(/select to preview/i);
+    await user.type(textarea, "SELECT * FROM tod");
+
+    // "todos" also names a tab in the table strip, so scope the query to
+    // the typeahead dropdown's own list item rather than `getByText`.
+    const suggestion = await screen.findByRole("listitem");
+    expect(suggestion).toHaveTextContent("todos");
+    await user.click(suggestion);
+
+    expect(textarea).toHaveValue("SELECT * FROM todos");
   });
 });
