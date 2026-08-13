@@ -35,6 +35,8 @@
 import { LoroDoc, getType, isContainer, type ContainerID, type LoroList, type LoroMap, type LoroText } from "loro-crdt";
 import { createDocBackend } from "../platform";
 import type { DocBackend } from "../platform/types";
+import { clearEncryptionKeyText, loadEncryptionKeyText, saveEncryptionKeyText } from "../settingsStore";
+import type { EncryptionStatusDto, GeneratedEncryptionKey } from "./encryption";
 import type { HistoryEntryDto } from "./history";
 import type { HeadingDto, OutlineEntry } from "./outline";
 
@@ -42,6 +44,21 @@ const NO_BACKEND_WARNING =
   "[crdt] No platform backend available — running an in-memory, unpersisted document " +
   "(e.g. `vite dev` opened in a plain browser before `bun run build:wasm` has built the wasm " +
   "package). Nothing here will be saved.";
+
+/** Encryption status doesn't ride along with `onUpdate` — a blocked poll
+ * (see `dendroid_core::doc::DendroidDocument::poll_external`) produces no
+ * document change to signal, so there's nothing for `onRemoteUpdate` to
+ * fire on. Polled on this interval instead — see `open()`'s status
+ * subscription below. Same cadence as the wasm backend's own external-poll
+ * interval (`lib/platform/wasm.ts`); no need to check more often than
+ * sync itself runs. */
+const ENCRYPTION_STATUS_POLL_MS = 1500;
+
+const NO_ENCRYPTION_STATUS: EncryptionStatusDto = { enabled: false, fingerprint: null, blockedReason: null };
+
+function encryptionStatusEqual(a: EncryptionStatusDto, b: EncryptionStatusDto): boolean {
+  return a.enabled === b.enabled && a.fingerprint === b.fingerprint && a.blockedReason === b.blockedReason;
+}
 
 export class DendroidDocument {
   readonly doc = new LoroDoc();
@@ -54,6 +71,9 @@ export class DendroidDocument {
   private backend: DocBackend | null = null;
   private stopLocalSubscription: (() => void) | null = null;
   private listeners = new Set<() => void>();
+  private encryptionListeners = new Set<(status: EncryptionStatusDto) => void>();
+  private encryptionPollHandle: ReturnType<typeof setInterval> | null = null;
+  private lastEncryptionStatus: EncryptionStatusDto = NO_ENCRYPTION_STATUS;
 
   constructor() {
     // Off by default in Loro. This mirror is where a local edit actually
@@ -112,6 +132,83 @@ export class DendroidDocument {
         console.error("[crdt] failed to persist local update", err);
       });
     });
+
+    // Re-supply this device's encryption key (if it's ever set one) so
+    // encrypted history decrypts right away rather than sitting blocked
+    // until Settings is opened — see `settingsStore.ts`'s
+    // `loadEncryptionKeyText` (OS-keychain-backed under Tauri) for why the
+    // key lives there rather than in `AppSettings`, and `dendroid_core::
+    // doc::DendroidDocument::set_encryption_key` for why calling this
+    // again is safe/idempotent.
+    const keyText = await loadEncryptionKeyText();
+    if (keyText) {
+      try {
+        await backend.setEncryptionKey(keyText);
+      } catch (err) {
+        console.error("[crdt] failed to re-apply saved encryption key", err);
+      }
+    }
+    await this.refreshEncryptionStatus();
+    this.encryptionPollHandle = setInterval(() => void this.refreshEncryptionStatus(), ENCRYPTION_STATUS_POLL_MS);
+  }
+
+  private async refreshEncryptionStatus(): Promise<void> {
+    if (!this.backend) return;
+    const status = await this.backend.encryptionStatus().catch((err: unknown) => {
+      console.error("[crdt] failed to read encryption status", err);
+      return null;
+    });
+    if (!status || encryptionStatusEqual(status, this.lastEncryptionStatus)) return;
+    this.lastEncryptionStatus = status;
+    for (const listener of this.encryptionListeners) listener(status);
+  }
+
+  /** Current encryption state, without waiting for the next poll tick —
+   * what Settings' encryption panel reads on mount. `NO_ENCRYPTION_STATUS`
+   * in preview mode (no backend to ask). */
+  async encryptionStatus(): Promise<EncryptionStatusDto> {
+    if (!this.backend) return NO_ENCRYPTION_STATUS;
+    return this.backend.encryptionStatus();
+  }
+
+  /** Fires whenever encryption status changes — a key was set/removed, or
+   * sync became blocked/unblocked — including once, right after `open()`
+   * resolves, with whatever the initial state turns out to be. */
+  onEncryptionStatusChange(callback: (status: EncryptionStatusDto) => void): () => void {
+    this.encryptionListeners.add(callback);
+    return () => this.encryptionListeners.delete(callback);
+  }
+
+  /** Turns on encryption with a freshly generated key ("create a key") and
+   * persists its textual form (`settingsStore.ts`) so it survives a
+   * restart — see `DocBackend.generateEncryptionKey`. */
+  async generateEncryptionKey(): Promise<GeneratedEncryptionKey> {
+    if (!this.backend) throw new Error("[crdt] generateEncryptionKey called without a platform backend");
+    const result = await this.backend.generateEncryptionKey();
+    await saveEncryptionKeyText(result.keyText);
+    await this.refreshEncryptionStatus();
+    return result;
+  }
+
+  /** Turns on encryption with `keyText` — scanned from a QR code or
+   * pasted — and persists it the same way `generateEncryptionKey` does.
+   * See `DocBackend.setEncryptionKey`. */
+  async setEncryptionKey(keyText: string): Promise<EncryptionStatusDto> {
+    if (!this.backend) throw new Error("[crdt] setEncryptionKey called without a platform backend");
+    const status = await this.backend.setEncryptionKey(keyText);
+    await saveEncryptionKeyText(keyText);
+    await this.refreshEncryptionStatus();
+    return status;
+  }
+
+  /** Turns encryption off on this device and forgets the persisted key —
+   * without clearing it, the next `open()` would just re-apply it. See
+   * `DocBackend.removeEncryptionKey`. */
+  async removeEncryptionKey(): Promise<void> {
+    if (!this.backend) throw new Error("[crdt] removeEncryptionKey called without a platform backend");
+    await this.backend.removeEncryptionKey();
+    await clearEncryptionKeyText();
+    await this.refreshEncryptionStatus();
   }
 
   /** Reads the heading outline directly out of this mirror — the live UI
@@ -198,6 +295,9 @@ export class DendroidDocument {
     this.stopLocalSubscription?.();
     this.stopLocalSubscription = null;
     this.listeners.clear();
+    if (this.encryptionPollHandle !== null) clearInterval(this.encryptionPollHandle);
+    this.encryptionPollHandle = null;
+    this.encryptionListeners.clear();
   }
 }
 

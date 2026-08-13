@@ -23,16 +23,23 @@ import { getDatabase, onDatabasesChanged, type DatabaseDto } from "../../lib/db"
 import { applyMcpConfig } from "../../lib/mcp";
 import { Sidebar, type SidebarView } from "../sidebar/Sidebar";
 import { AgentPanel } from "../agent/AgentPanel";
-import { AgentIcon, LogoIcon } from "../icons";
+import { AgentIcon, LogoIcon, WarningIcon } from "../icons";
 import { Editor, type EditorHandle } from "../editor/Editor";
 import { DatabaseView } from "../database/DatabaseView";
+import { Banner } from "../ui/Banner";
 import "../../styles/workspace.css";
 
 interface WorkspaceProps {
   rootPath: string;
+  /** Hands the live `DendroidDocument` instance up to `Shell` (`App.tsx`)
+   * once it's open, so a sibling `SettingsPage` can drive the same
+   * document's encryption controls — `Workspace` still owns opening/
+   * disposing it, this is just a way to share the reference. Called with
+   * `null` on unmount/rootPath change. */
+  onDocumentReady?: (crdt: DendroidDocument | null) => void;
 }
 
-export function Workspace({ rootPath }: WorkspaceProps) {
+export function Workspace({ rootPath, onDocumentReady }: WorkspaceProps) {
   const { workspace, settings, isNarrow, setEditorFocused, chromeFaded, chromeTransitionMs } = useAppState();
   const crdtRef = useRef<DendroidDocument | null>(null);
   const editorRef = useRef<EditorHandle>(null);
@@ -40,6 +47,12 @@ export function Workspace({ rootPath }: WorkspaceProps) {
   const [entries, setEntries] = useState<OutlineEntry[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  // Set the moment the ledger holds an encrypted event this device can't
+  // read (no key, or the wrong one) — see `dendroid_core::doc::
+  // DendroidDocument`'s `blocked_reason`. Sync is genuinely stopped while
+  // this is set (`poll_external` no-ops), not just visually flagged — the
+  // banner below is what tells the user why nothing new is coming in.
+  const [encryptionBlockedReason, setEncryptionBlockedReason] = useState<string | null>(null);
   // Which panel the sidebar/drawer currently shows — Tree or the mindmap
   // graph (see components/sidebar/Sidebar.tsx). Shared between the wide
   // sidebar and the narrow drawer so switching in one is remembered by the
@@ -100,21 +113,29 @@ export function Workspace({ rootPath }: WorkspaceProps) {
 
     const refreshOutline = () => setEntries(crdt.snapshotOutlineWithLinks());
     const unsubscribe = crdt.onUpdate(refreshOutline);
+    const unsubscribeEncryption = crdt.onEncryptionStatusChange((status) => setEncryptionBlockedReason(status.blockedReason));
 
     crdt
       .open(rootPath)
       .then(() => {
         if (cancelled) return;
         setReady(true);
+        onDocumentReady?.(crdt);
       })
       .catch((err: unknown) => setError(String(err)));
 
     return () => {
       cancelled = true;
       unsubscribe();
+      unsubscribeEncryption();
       crdt.dispose();
       crdtRef.current = null;
+      onDocumentReady?.(null);
+      setEncryptionBlockedReason(null);
     };
+    // `onDocumentReady` deliberately isn't a dependency here — it's a
+    // stable setState callback from `Shell` (`App.tsx`), and this effect
+    // should only re-run when the workspace itself changes.
   }, [rootPath]);
 
   // Covers the cold-start case `AppState.tsx`'s own `applyMcpConfig` effect
@@ -230,6 +251,7 @@ export function Workspace({ rootPath }: WorkspaceProps) {
   // (losing cursor position and focus) purely because of window width.
   return (
     <div className={`workspace${isNarrow ? " workspace--narrow" : ""}`}>
+      {encryptionBlockedReason && <Banner icon={WarningIcon}>{encryptionBlockedReason} Sync is stopped until this is resolved in Settings.</Banner>}
       {isNarrow ? (
         <div
           className="workspace__topbar"

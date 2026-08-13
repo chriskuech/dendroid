@@ -396,3 +396,49 @@ export function SettingsIcon(props: IconProps) {
     </PixelIcon>
   );
 }
+
+/** A camera outline — "scan a QR code" (Settings' pairing flow, and the
+ * live camera scanner modal it opens). */
+export function CameraIcon(props: IconProps) {
+  return (
+    <PixelIcon {...props}>
+      <rect x={2} y={5} width={12} height={1} />
+      <rect x={2} y={12} width={12} height={1} />
+      <rect x={2} y={6} width={1} height={6} />
+      <rect x={13} y={6} width={1} height={6} />
+      <rect x={6} y={3} width={4} height={1} />
+      <rect x={5} y={4} width={1} height={1} />
+      <rect x={10} y={4} width={1} height={1} />
+      <rect x={11} y={5} width={2} height={1} />
+      <rect x={6} y={7} width={1} height={4} />
+      <rect x={9} y={7} width={1} height={4} />
+      <rect x={7} y={7} width={2} height={1} />
+      <rect x={7} y={10} width={2} height={1} />
+    </PixelIcon>
+  );
+}
+
+/** A warning triangle — the blocked-sync error banner (`ui/Banner.tsx`,
+ * used by `Workspace.tsx` when an encrypted event arrives and this device
+ * can't decrypt it). */
+export function WarningIcon(props: IconProps) {
+  return (
+    <PixelIcon {...props}>
+      <rect x={7} y={2} width={2} height={1} />
+      <rect x={6} y={3} width={1} height={1} />
+      <rect x={9} y={3} width={1} height={1} />
+      <rect x={5} y={4} width={1} height={1} />
+      <rect x={10} y={4} width={1} height={1} />
+      <rect x={4} y={5} width={1} height={2} />
+      <rect x={11} y={5} width={1} height={2} />
+      <rect x={3} y={7} width={1} height={2} />
+      <rect x={12} y={7} width={1} height={2} />
+      <rect x={2} y={9} width={1} height={2} />
+      <rect x={13} y={9} width={1} height={2} />
+      <rect x={2} y={11} width={12} height={1} />
+      <rect x={2} y={12} width={12} height={1} />
+      <rect x={7} y={6} width={2} height={4} />
+      <rect x={7} y={11} width={2} height={1} />
+    </PixelIcon>
+  );
+}

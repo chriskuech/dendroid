@@ -493,3 +493,30 @@
   text-transform: uppercase;
   color: var(--line-strong);
 }
+
+/* Banner — see ui/Banner.tsx's doc comment for why this exists alongside
+ * (not instead of) the per-panel inline `*__status--error` convention.
+ * Fixed rather than a flex child of whatever renders it — `Workspace`'s
+ * own layout is a `display: flex; height: 100vh` sidebar/editor row (or
+ * column, narrow), and this needs to sit above that regardless of which,
+ * without threading a new wrapper through both layouts. */
+.banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 25;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 20px;
+  border-bottom: 1px solid var(--danger-dim);
+  background: var(--surface);
+  color: var(--danger);
+}
+
+.banner__text {
+  font-size: 12px;
+  line-height: 1.6;
+  font-weight: 300;
+}

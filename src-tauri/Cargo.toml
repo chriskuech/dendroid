@@ -32,3 +32,12 @@ base64 = "0.23"
 tokio = { version = "1", features = ["sync"] }
 tokio-util = "0.7"
 
+# OS-keychain-backed storage for the encryption key (see `keychain.rs`) —
+# macOS Keychain and Windows Credential Manager come from this crate's own
+# native backends; Linux goes through its `zbus`-based Secret Service
+# client (pure Rust — no `libdbus-dev`/system D-Bus bindings needed at
+# build time, just a running Secret Service provider — GNOME Keyring,
+# KWallet's secret-service bridge, etc. — at runtime) rather than the
+# `dbus`-crate-based backend, which would need one.
+keyring = { version = "4", features = ["apple-native-keyring-store"] }
+

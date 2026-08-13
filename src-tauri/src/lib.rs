@@ -2,6 +2,7 @@
 
 mod acp;
 mod commands;
+mod keychain;
 mod mcp;
 mod state;
 
@@ -262,6 +263,13 @@ pub fn run() {
             commands::doc_replace_content,
             commands::doc_history,
             commands::doc_revert_to,
+            commands::encryption_status,
+            commands::encryption_generate_key,
+            commands::encryption_set_key,
+            commands::encryption_remove_key,
+            keychain::keychain_get_encryption_key,
+            keychain::keychain_set_encryption_key,
+            keychain::keychain_delete_encryption_key,
             commands::db_list,
             commands::db_create,
             commands::db_delete,

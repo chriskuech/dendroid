@@ -99,6 +99,16 @@ impl LedgerStorage for NativeLedgerStorage {
         file.sync_data().map_err(|e| io_err(&path, e))?;
         Ok(())
     }
+
+    async fn write(&self, name: &str, bytes: &[u8]) -> Result<()> {
+        fs::create_dir_all(&self.dir).map_err(|e| io_err(&self.dir, e))?;
+        let path = self.path(name);
+        let mut file = OpenOptions::new().create(true).write(true).truncate(true).open(&path).map_err(|e| io_err(&path, e))?;
+        file.write_all(bytes).map_err(|e| io_err(&path, e))?;
+        file.flush().map_err(|e| io_err(&path, e))?;
+        file.sync_data().map_err(|e| io_err(&path, e))?;
+        Ok(())
+    }
 }
 
 /// The common native case: a `DendroidDocument` backed by real files under

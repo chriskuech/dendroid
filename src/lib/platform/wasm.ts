@@ -11,6 +11,7 @@
 // Tauri build, which doesn't need it.
 
 import { base64ToBytes, bytesToBase64 } from "../crdt/base64";
+import type { EncryptionStatusDto, GeneratedEncryptionKey } from "../crdt/encryption";
 import type { HistoryEntryDto } from "../crdt/history";
 import { getWorkspaceHandle } from "./fsHandles";
 import type { DocBackend } from "./types";
@@ -105,5 +106,25 @@ export class WasmDocBackend implements DocBackend {
     this.doc?.free();
     this.doc = null;
     this.onRemote = null;
+  }
+
+  encryptionStatus(): Promise<EncryptionStatusDto> {
+    if (!this.doc) throw new Error("[wasm] encryptionStatus called before open()");
+    return Promise.resolve(this.doc.encryptionStatus() as EncryptionStatusDto);
+  }
+
+  async generateEncryptionKey(): Promise<GeneratedEncryptionKey> {
+    if (!this.doc) throw new Error("[wasm] generateEncryptionKey called before open()");
+    return (await this.doc.generateEncryptionKey()) as GeneratedEncryptionKey;
+  }
+
+  async setEncryptionKey(keyText: string): Promise<EncryptionStatusDto> {
+    if (!this.doc) throw new Error("[wasm] setEncryptionKey called before open()");
+    return (await this.doc.setEncryptionKey(keyText)) as EncryptionStatusDto;
+  }
+
+  async removeEncryptionKey(): Promise<void> {
+    if (!this.doc) throw new Error("[wasm] removeEncryptionKey called before open()");
+    this.doc.removeEncryptionKey();
   }
 }
