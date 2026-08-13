@@ -115,6 +115,12 @@ pub struct DbTableRowsParams {
     pub limit: u32,
     #[serde(default)]
     pub offset: u32,
+    /// Sort by this column instead of `rowid` — must name a real column of
+    /// `table` (or be `"rowid"` itself).
+    #[serde(default)]
+    pub order_by: Option<String>,
+    #[serde(default)]
+    pub order_desc: bool,
 }
 
 /// The MCP-facing surface — one `NativeDocument`/`NativeSqlWorkspace` pair
@@ -208,9 +214,9 @@ impl DendroidMcpServer {
 
     #[tool(name = "dbTableRows", description = "Returns a page of a table's rows (plus column metadata and the total row count), as JSON.")]
     async fn db_table_rows(&self, params: Parameters<DbTableRowsParams>) -> Result<String, ErrorData> {
-        let DbTableRowsParams { id, table, limit, offset } = params.0;
+        let DbTableRowsParams { id, table, limit, offset, order_by, order_desc } = params.0;
         let sql = self.sql.lock().await;
-        let rows = sql.table_rows(&id, &table, limit, offset).map_err(to_mcp_error)?;
+        let rows = sql.table_rows(&id, &table, limit, offset, order_by.as_deref(), order_desc).map_err(to_mcp_error)?;
         serde_json::to_string(&rows).map_err(|e| ErrorData::internal_error(e.to_string(), None))
     }
 }
