@@ -4,10 +4,14 @@
 //     |-- DendroidDocument (lib/crdt/document.ts) — the frontend Loro
 //     |   mirror; opens the workspace (replays the ledger on the Rust
 //     |   side), then stays live via the "crdt://update" event.
-//     |-- TreeView — read-only navigation, derived from the same doc
-//     |   (lib/crdt/document.ts's snapshotOutline). Expand/collapse state
-//     |   is mirrored here from the editor's headingFold plugin, so
-//     |   folding a heading in either place folds it in both.
+//     |-- Sidebar (components/sidebar/Sidebar.tsx) — a rail switching
+//     |   between two read-only views of the same outline
+//     |   (lib/crdt/document.ts's snapshotOutlineWithLinks):
+//     |     |-- TreeView — row-per-heading navigation. Expand/collapse
+//     |     |   state is mirrored here from the editor's headingFold
+//     |     |   plugin, so folding a heading in either place folds it in
+//     |     |   both.
+//     |     `-- MindMapView — the same outline as a draggable node graph.
 //     `-- Editor — TipTap bound to the *whole* document directly through
 //         loro-prosemirror; there is no per-node scoping anymore.
 
@@ -16,7 +20,7 @@ import { useAppState } from "../../lib/AppState";
 import { DendroidDocument } from "../../lib/crdt/document";
 import type { OutlineEntry } from "../../lib/crdt/outline";
 import { applyMcpConfig } from "../../lib/mcp";
-import { TreeView } from "../tree/TreeView";
+import { Sidebar, type SidebarView } from "../sidebar/Sidebar";
 import { LogoIcon } from "../icons";
 import { Editor, type EditorHandle } from "../editor/Editor";
 import "../../styles/workspace.css";
@@ -33,6 +37,11 @@ export function Workspace({ rootPath }: WorkspaceProps) {
   const [entries, setEntries] = useState<OutlineEntry[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  // Which panel the sidebar/drawer currently shows — Tree or the mindmap
+  // graph (see components/sidebar/Sidebar.tsx). Shared between the wide
+  // sidebar and the narrow drawer so switching in one is remembered by the
+  // other.
+  const [sidebarView, setSidebarView] = useState<SidebarView>("tree");
   // The editor's headingFold plugin is the source of truth (see
   // Editor.tsx / lib/tiptap/headingFold.ts) — this is just its state
   // mirrored down so the tree view can render the same folds. Toggling
@@ -208,7 +217,13 @@ export function Workspace({ rootPath }: WorkspaceProps) {
           <span className="workspace__breadcrumb">{breadcrumb}</span>
         </div>
       ) : (
-        <TreeView {...treeViewProps} faded={chromeFaded} transitionMs={chromeTransitionMs} />
+        <Sidebar
+          {...treeViewProps}
+          view={sidebarView}
+          onViewChange={setSidebarView}
+          faded={chromeFaded}
+          transitionMs={chromeTransitionMs}
+        />
       )}
 
       <div
@@ -252,8 +267,10 @@ export function Workspace({ rootPath }: WorkspaceProps) {
                 : "opacity 130ms cubic-bezier(0.2, 0, 0, 1), backdrop-filter 130ms cubic-bezier(0.2, 0, 0, 1)",
             }}
           />
-          <TreeView
+          <Sidebar
             {...treeViewProps}
+            view={sidebarView}
+            onViewChange={setSidebarView}
             onClose={() => setDrawerOpen(false)}
             drawerStyle={{
               opacity: drawerOpen ? 1 : 0,
