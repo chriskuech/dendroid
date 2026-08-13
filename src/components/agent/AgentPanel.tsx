@@ -8,6 +8,12 @@
 // messages/tool calls/permission prompts — the agent can interleave a tool
 // call between two message chunks, and a single array is the only way the
 // render order stays true to that.
+//
+// If Settings' "Local MCP" server is enabled, its URL goes along on
+// connect so the agent can use it as an MCP server — see `handleSend`.
+// Which of its tools the agent actually sees is controlled entirely by
+// Settings' "Skills" section (`disabledSkills`), enforced server-side in
+// `src-mcp`; nothing here re-applies that filtering.
 
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
 import {
@@ -20,7 +26,7 @@ import {
   type AcpUpdate,
   onAgentEvent,
 } from "../../lib/acp";
-import type { AgentSettings } from "../../lib/types";
+import type { AgentSettings, McpSettings } from "../../lib/types";
 import { AgentIcon, CloseIcon } from "../icons";
 import "../../styles/agent.css";
 
@@ -100,11 +106,16 @@ function finalizeStreaming(prev: TimelineItem[]): TimelineItem[] {
 interface AgentPanelProps {
   cwd: string;
   agentSettings: AgentSettings;
+  /** Settings' "Local MCP" config — when enabled, its URL is offered to
+   * the agent as an MCP server on connect (see `handleSend`'s `startAgent`
+   * call), so whatever's left enabled under Settings' "Skills" section
+   * becomes something this session can call. */
+  mcpSettings: McpSettings;
   open: boolean;
   onClose: () => void;
 }
 
-export function AgentPanel({ cwd, agentSettings, open, onClose }: AgentPanelProps) {
+export function AgentPanel({ cwd, agentSettings, mcpSettings, open, onClose }: AgentPanelProps) {
   const [connection, setConnection] = useState<Connection>("idle");
   const [timeline, setTimeline] = useState<TimelineItem[]>([]);
   const [input, setInput] = useState("");
@@ -158,7 +169,8 @@ export function AgentPanel({ cwd, agentSettings, open, onClose }: AgentPanelProp
     try {
       if (connectionRef.current !== "connected") {
         setConnection("connecting");
-        await startAgent(cwd, agentSettings);
+        const mcpUrl = mcpSettings.enabled ? `http://${mcpSettings.host}:${mcpSettings.port}/mcp` : null;
+        await startAgent(cwd, agentSettings, mcpUrl);
         setConnection("connected");
       }
       const result = await sendPrompt(text);
@@ -175,7 +187,7 @@ export function AgentPanel({ cwd, agentSettings, open, onClose }: AgentPanelProp
     } finally {
       setBusy(false);
     }
-  }, [input, busy, configured, cwd, agentSettings]);
+  }, [input, busy, configured, cwd, agentSettings, mcpSettings]);
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent<HTMLTextAreaElement>) => {

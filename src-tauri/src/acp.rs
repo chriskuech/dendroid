@@ -61,8 +61,26 @@ pub async fn stop_session(state: &AppDocState, label: &str) {
 /// had first — same "a config change always restarts rather than trying to
 /// diff old vs. new" rule `mcp::apply` follows, since there's no cheap way
 /// to tell whether `command`/`args` changed since the last connection.
+///
+/// `mcp_url` is Settings' "Local MCP" URL (`http://host:port/mcp`) if that
+/// server is currently enabled, `None` otherwise — see `lib/acp.ts`'s
+/// `startAgent`. When present *and* the agent's own `initialize` response
+/// says it supports the `"http"` MCP transport, it's handed to
+/// `session/new` as one of the session's `mcpServers`, so every skill
+/// Settings' "Skills" section leaves enabled (`src-mcp`'s `tool_router`,
+/// filtered by `mcp::apply`'s `disabled_skills`) becomes something this
+/// agent can actually call — nothing dendroid does client-side re-filters
+/// or re-lists them, that enforcement already lives in the MCP server
+/// itself.
 #[tauri::command(rename_all = "camelCase")]
-pub async fn acp_start(window: Window, state: State<'_, AppDocState>, command: String, args: Vec<String>, cwd: String) -> Result<(), String> {
+pub async fn acp_start(
+    window: Window,
+    state: State<'_, AppDocState>,
+    command: String,
+    args: Vec<String>,
+    cwd: String,
+    mcp_url: Option<String>,
+) -> Result<(), String> {
     if command.trim().is_empty() {
         return Err("no agent command configured — set one in Settings".to_string());
     }
@@ -71,7 +89,17 @@ pub async fn acp_start(window: Window, state: State<'_, AppDocState>, command: S
     stop_session(&state, &label).await;
 
     let (client, mut events) = AcpClient::spawn(&command, &args, &cwd).await.map_err(|e| e.to_string())?;
-    let session_id = client.new_session(&cwd).await.map_err(|e| e.to_string())?;
+    let mcp_servers = match mcp_url {
+        Some(url) if client.supports_mcp_http() => {
+            vec![serde_json::json!({ "type": "http", "name": "dendroid", "url": url, "headers": [] })]
+        }
+        // Either "Local MCP" is off, or the agent's `initialize` response
+        // never advertised `mcpCapabilities.http` — either way the session
+        // opens without it rather than sending an entry the agent said it
+        // can't use.
+        _ => Vec::new(),
+    };
+    let session_id = client.new_session(&cwd, mcp_servers).await.map_err(|e| e.to_string())?;
 
     // Forwards every event for this session to its own window, for as long
     // as the session lives — mirrors `commands.rs`'s "broadcast only to the

@@ -49,11 +49,20 @@ function splitArgs(args: string): string[] {
  * completes the ACP handshake, and opens a session — everything this
  * window's chat drawer needs before it can send a prompt. Throws
  * `AgentUnavailableError` outside Tauri, or whatever error the Rust side
- * reports (bad command, agent crashed during handshake, …). */
-export async function startAgent(cwd: string, agent: AgentSettings): Promise<void> {
+ * reports (bad command, agent crashed during handshake, …).
+ *
+ * `mcpUrl` is Settings' "Local MCP" URL (`http://host:port/mcp`) when that
+ * server is enabled, `null` otherwise — pass `null` there instead of
+ * anything computed from a stale/disabled config. The Rust side only
+ * actually offers it to the agent if the agent's own handshake said it
+ * supports the `"http"` MCP transport; see `src-tauri/src/acp.rs`'s
+ * `acp_start`. Whichever skills Settings' "Skills" section has enabled are
+ * then just whatever the agent sees when it lists that server's tools —
+ * nothing here re-applies that filtering. */
+export async function startAgent(cwd: string, agent: AgentSettings, mcpUrl: string | null): Promise<void> {
   if (!hasTauri()) throw new AgentUnavailableError();
   const { invoke } = await import("@tauri-apps/api/core");
-  await invoke("acp_start", { command: agent.command, args: splitArgs(agent.args), cwd });
+  await invoke("acp_start", { command: agent.command, args: splitArgs(agent.args), cwd, mcpUrl });
 }
 
 /** Kills this window's agent process, if any. Safe to call when nothing is

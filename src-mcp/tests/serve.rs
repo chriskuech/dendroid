@@ -14,6 +14,10 @@ fn tmp_workspace(name: &str) -> std::path::PathBuf {
 const INIT_BODY: &str = r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}"#;
 
 async fn spawn_server(root: &std::path::Path) -> (reqwest::Client, String, CancellationToken) {
+    spawn_server_with_disabled(root, Vec::new()).await
+}
+
+async fn spawn_server_with_disabled(root: &std::path::Path, disabled_tools: Vec<String>) -> (reqwest::Client, String, CancellationToken) {
     let doc = open_native(root, "mcp-test-session").await.unwrap();
     let doc = Arc::new(Mutex::new(doc));
     let sql = open_native_sql(root, "mcp-test-session").await.unwrap();
@@ -23,7 +27,7 @@ async fn spawn_server(root: &std::path::Path) -> (reqwest::Client, String, Cance
     let addr = listener.local_addr().unwrap();
     let ct = CancellationToken::new();
 
-    tokio::spawn(dendroid_mcp::serve_on(doc, sql, listener, ct.child_token()));
+    tokio::spawn(dendroid_mcp::serve_on(doc, sql, listener, ct.child_token(), disabled_tools));
 
     (reqwest::Client::new(), format!("http://{addr}/mcp"), ct)
 }
@@ -156,6 +160,55 @@ async fn db_tools_round_trip_over_http() -> anyhow::Result<()> {
 
     let rows = call(6, "dbTableRows", serde_json::json!({ "id": db_id, "table": "todos" })).await?.text().await?;
     assert!(rows.contains("Ship it"), "expected the inserted row in dbTableRows, got: {rows}");
+
+    ct.cancel();
+    Ok(())
+}
+
+/// A skill disabled via `serve_on`'s `disabled_tools` (Settings' "Skills"
+/// section, in the real app) is hidden from `tools/list` *and* rejected if
+/// called anyway — the enforcement `ToolRouter::disable_route` already
+/// gives every consumer of this server, including the ACP chat drawer once
+/// it's wired to this same server (see `src-tauri/src/acp.rs`).
+#[tokio::test]
+async fn a_disabled_skill_is_hidden_from_the_tool_list_and_rejected_if_called() -> anyhow::Result<()> {
+    let root = tmp_workspace("disabled-skill");
+    let (client, url, ct) = spawn_server_with_disabled(&root, vec!["dbCreate".to_string()]).await;
+
+    let init = client
+        .post(&url)
+        .header("content-type", "application/json")
+        .header("accept", "application/json, text/event-stream")
+        .body(INIT_BODY)
+        .send()
+        .await?;
+    assert_eq!(init.status(), 200);
+    let session_id = init.headers().get("mcp-session-id").expect("server should assign a session id").to_str()?.to_string();
+
+    let list_response = client
+        .post(&url)
+        .header("content-type", "application/json")
+        .header("accept", "application/json, text/event-stream")
+        .header("mcp-session-id", &session_id)
+        .json(&serde_json::json!({ "jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {} }))
+        .send()
+        .await?
+        .text()
+        .await?;
+    assert!(!list_response.contains("dbCreate"), "expected dbCreate to be hidden from tools/list, got: {list_response}");
+    assert!(list_response.contains("dbList"), "expected an unrelated, still-enabled tool to remain listed, got: {list_response}");
+
+    let call_response = client
+        .post(&url)
+        .header("content-type", "application/json")
+        .header("accept", "application/json, text/event-stream")
+        .header("mcp-session-id", &session_id)
+        .json(&tools_call(3, "dbCreate", serde_json::json!({ "name": "Should not work" })))
+        .send()
+        .await?
+        .text()
+        .await?;
+    assert!(call_response.contains("error"), "expected calling a disabled skill to fail, got: {call_response}");
 
     ct.cancel();
     Ok(())

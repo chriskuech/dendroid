@@ -11,17 +11,20 @@
 
 use std::net::SocketAddr;
 
+use serde::Serialize;
 use tauri::{AppHandle, Manager};
 use tokio_util::sync::CancellationToken;
 
 use crate::state::{AppDocState, McpHandle};
 
-/// Applies `enabled`/`host`/`port`: stops whatever server is currently
-/// running (if any — a config change always restarts rather than trying to
-/// diff old vs. new), then starts a fresh one if `enabled`. Called by the
-/// `mcp_set_config` command below whenever the frontend's `settings.mcp`
-/// changes, including once at startup if it was already on.
-pub async fn apply(app: AppHandle, enabled: bool, host: String, port: u16) -> Result<(), String> {
+/// Applies `enabled`/`host`/`port`/`disabled_skills`: stops whatever server
+/// is currently running (if any — a config change always restarts rather
+/// than trying to diff old vs. new), then starts a fresh one if `enabled`.
+/// Called by the `mcp_set_config` command below whenever the frontend's
+/// `settings.mcp` changes — including a "Skills" toggle, not just the
+/// enabled/host/port fields the doc comment used to only mention — plus
+/// once at startup if it was already on.
+pub async fn apply(app: AppHandle, enabled: bool, host: String, port: u16, disabled_skills: Vec<String>) -> Result<(), String> {
     let state = app.state::<AppDocState>();
 
     if let Some(handle) = state.mcp_handle.lock().await.take() {
@@ -52,7 +55,7 @@ pub async fn apply(app: AppHandle, enabled: bool, host: String, port: u16) -> Re
     let cancellation_token = CancellationToken::new();
     let serve_token = cancellation_token.clone();
     tauri::async_runtime::spawn(async move {
-        if let Err(e) = dendroid_mcp::serve_on(doc, sql, listener, serve_token).await {
+        if let Err(e) = dendroid_mcp::serve_on(doc, sql, listener, serve_token, disabled_skills).await {
             eprintln!("[mcp] server error: {e}");
         }
     });
@@ -62,6 +65,26 @@ pub async fn apply(app: AppHandle, enabled: bool, host: String, port: u16) -> Re
 }
 
 #[tauri::command(rename_all = "camelCase")]
-pub async fn mcp_set_config(app: AppHandle, enabled: bool, host: String, port: u16) -> Result<(), String> {
-    apply(app, enabled, host, port).await
+pub async fn mcp_set_config(app: AppHandle, enabled: bool, host: String, port: u16, disabled_skills: Vec<String>) -> Result<(), String> {
+    apply(app, enabled, host, port, disabled_skills).await
+}
+
+/// One entry in the "Skills" section's catalog — just enough for Settings
+/// to render a name/description row per tool. `mcp_list_skills` returns
+/// the whole catalog regardless of "Local MCP" being enabled or which
+/// skills are currently disabled, so the section is browsable/configurable
+/// even before the server's ever been turned on.
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SkillInfo {
+    pub name: String,
+    pub description: String,
+}
+
+#[tauri::command]
+pub fn mcp_list_skills() -> Vec<SkillInfo> {
+    dendroid_mcp::DendroidMcpServer::tool_catalog()
+        .into_iter()
+        .map(|tool| SkillInfo { name: tool.name.into_owned(), description: tool.description.map(|d| d.into_owned()).unwrap_or_default() })
+        .collect()
 }

@@ -30,6 +30,13 @@ export interface McpSettings {
   enabled: boolean;
   host: string;
   port: number;
+  /** Names of skills (MCP tools — see `lib/mcp.ts`'s `listMcpSkills`) the
+   * "Skills" settings section has turned off. Enforced server-side, in
+   * `src-mcp`'s `ToolRouter` (a disabled skill is hidden from `tools/list`
+   * and rejected if called anyway) — not filtered here, so this is just
+   * the list of names to disable, not a cache of anything richer. Absent
+   * names are enabled; there's no "unknown skill" state to represent. */
+  disabledSkills: string[];
 }
 
 /** Configures the agent the chat drawer spawns — see `lib/acp.ts` and
@@ -73,6 +80,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
     enabled: false,
     host: "127.0.0.1",
     port: 7717,
+    disabledSkills: [],
   },
   agent: {
     command: "",

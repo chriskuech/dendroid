@@ -15,6 +15,13 @@
 //! about still reaches the frontend instead of being dropped or rejected —
 //! see `AcpEvent::Update`'s doc comment.
 //!
+//! `session/new`'s `mcpServers` is left entirely to the caller (see
+//! `new_session`) — this crate only tracks whether the agent's own
+//! `initialize` response says it supports the `"http"` transport
+//! (`AcpClient::supports_mcp_http`), so `src-tauri/src/acp.rs` can decide
+//! whether it's safe to hand the agent dendroid's local MCP server
+//! (`src-mcp`) as one of its skills.
+//!
 //! `fs/*` and `terminal/*` requests aren't supported: `initialize`
 //! advertises no `fs`/`terminal` client capabilities, so a spec-compliant
 //! agent won't send them; if one does anyway (or sends any other method we
@@ -23,7 +30,7 @@
 
 use std::collections::HashMap;
 use std::process::Stdio;
-use std::sync::atomic::{AtomicI64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicI64, Ordering};
 use std::sync::Arc;
 
 use serde_json::{json, Value};
@@ -103,6 +110,17 @@ pub struct AcpClient {
     next_id: Arc<AtomicI64>,
     pending: PendingMap,
     child: Arc<Mutex<Child>>,
+    /// Whether the `initialize` handshake's response advertised
+    /// `agentCapabilities.mcpCapabilities.http` — set once in `spawn`,
+    /// right after that response arrives, and read back by
+    /// `src-tauri/src/acp.rs` before it offers dendroid's local MCP server
+    /// to [`new_session`]'s `mcp_servers`: the ACP spec only allows an
+    /// `"http"`-transport `McpServer` entry when the agent declared
+    /// support for it. `Arc<AtomicBool>` rather than a plain `bool` for the
+    /// same reason every other field here is `Arc`-wrapped — clones share
+    /// one underlying connection, so a clone taken before the handshake
+    /// finished still sees the answer once it's in.
+    mcp_http_supported: Arc<AtomicBool>,
 }
 
 impl AcpClient {
@@ -179,8 +197,21 @@ impl AcpClient {
             });
         }
 
-        let client = AcpClient { stdin, next_id: Arc::new(AtomicI64::new(1)), pending, child: Arc::new(Mutex::new(child)) };
-        client.initialize().await?;
+        let client = AcpClient {
+            stdin,
+            next_id: Arc::new(AtomicI64::new(1)),
+            pending,
+            child: Arc::new(Mutex::new(child)),
+            mcp_http_supported: Arc::new(AtomicBool::new(false)),
+        };
+        let init_result = client.initialize().await?;
+        let mcp_http_supported = init_result
+            .get("agentCapabilities")
+            .and_then(|c| c.get("mcpCapabilities"))
+            .and_then(|c| c.get("http"))
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
+        client.mcp_http_supported.store(mcp_http_supported, Ordering::Relaxed);
         Ok((client, rx))
     }
 
@@ -203,9 +234,21 @@ impl AcpClient {
         .await
     }
 
+    /// Whether the connected agent's `initialize` response advertised
+    /// support for `"http"`-transport MCP servers — see
+    /// `mcp_http_supported`'s doc comment.
+    pub fn supports_mcp_http(&self) -> bool {
+        self.mcp_http_supported.load(Ordering::Relaxed)
+    }
+
     /// Opens a new session rooted at `cwd` and returns its `sessionId`.
-    pub async fn new_session(&self, cwd: &str) -> Result<String, AcpError> {
-        let result = self.request("session/new", json!({ "cwd": cwd, "mcpServers": [] })).await?;
+    /// `mcp_servers` is forwarded verbatim as `session/new`'s own
+    /// `mcpServers` — raw JSON rather than a modeled type, same choice
+    /// `AcpEvent::Update` makes, so this crate doesn't need updating just
+    /// because the caller wants a different `McpServer` transport variant.
+    /// Pass `vec![]` for no MCP servers.
+    pub async fn new_session(&self, cwd: &str, mcp_servers: Vec<Value>) -> Result<String, AcpError> {
+        let result = self.request("session/new", json!({ "cwd": cwd, "mcpServers": mcp_servers })).await?;
         result
             .get("sessionId")
             .and_then(|v| v.as_str())

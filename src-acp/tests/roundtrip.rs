@@ -25,6 +25,37 @@ async fn spawn_reports_an_error_for_a_missing_binary() {
 }
 
 #[tokio::test]
+async fn mcp_http_support_is_read_from_the_initialize_response_and_forwarded_to_session_new() {
+    // Advertises `mcpCapabilities.http: true`, then echoes back whatever
+    // `session/new` sent as `mcpServers` inside the session id itself — a
+    // cheap way to assert the client forwarded it unchanged without
+    // needing to model `session/new`'s params on the script side.
+    let script = r#"
+        IFS= read -r _line1
+        printf '%s\n' '{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":1,"agentCapabilities":{"mcpCapabilities":{"http":true}}}}'
+        IFS= read -r line2
+        esc=$(printf '%s' "$line2" | sed 's/\\/\\\\/g; s/"/\\"/g')
+        printf '{"jsonrpc":"2.0","id":2,"result":{"sessionId":"saw:%s"}}\n' "$esc"
+    "#;
+
+    let (client, _events) = timeout(TIMEOUT, AcpClient::spawn("sh", &["-c".to_string(), script.to_string()], "."))
+        .await
+        .expect("spawn timed out")
+        .expect("spawn failed");
+
+    assert!(client.supports_mcp_http(), "expected the client to report mcp http support");
+
+    let mcp_servers = vec![json!({"type": "http", "name": "dendroid", "url": "http://127.0.0.1:7717/mcp", "headers": []})];
+    let session_id = timeout(TIMEOUT, client.new_session(".", mcp_servers))
+        .await
+        .expect("new_session timed out")
+        .expect("new_session failed");
+    assert!(session_id.contains(r#""mcpServers":[{"headers":[],"name":"dendroid","type":"http","url":"http://127.0.0.1:7717/mcp"}]"#));
+
+    client.shutdown().await;
+}
+
+#[tokio::test]
 async fn full_turn_round_trip_including_a_permission_request() {
     // id 1: initialize (sent by `AcpClient::spawn` itself)
     // id 2: session/new
@@ -49,7 +80,8 @@ async fn full_turn_round_trip_including_a_permission_request() {
         .expect("spawn timed out")
         .expect("spawn failed");
 
-    let session_id = timeout(TIMEOUT, client.new_session(".")).await.expect("new_session timed out").expect("new_session failed");
+    let session_id =
+        timeout(TIMEOUT, client.new_session(".", vec![])).await.expect("new_session timed out").expect("new_session failed");
     assert_eq!(session_id, "sess-1");
 
     let prompt_client = client.clone();
