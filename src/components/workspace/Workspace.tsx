@@ -19,10 +19,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useAppState } from "../../lib/AppState";
 import { DendroidDocument } from "../../lib/crdt/document";
 import type { OutlineEntry } from "../../lib/crdt/outline";
+import { getDatabase, onDatabasesChanged, type DatabaseDto } from "../../lib/db";
 import { applyMcpConfig } from "../../lib/mcp";
 import { Sidebar, type SidebarView } from "../sidebar/Sidebar";
 import { LogoIcon } from "../icons";
 import { Editor, type EditorHandle } from "../editor/Editor";
+import { DatabaseView } from "../database/DatabaseView";
 import "../../styles/workspace.css";
 
 interface WorkspaceProps {
@@ -54,6 +56,36 @@ export function Workspace({ rootPath }: WorkspaceProps) {
   // Same mirroring story as `collapsedIds`, for whichever heading (if any)
   // the editor's docRoot plugin currently has scoped as the root.
   const [rootId, setRootId] = useState<string | null>(null);
+  // The database currently open in the main area, if any — set by picking
+  // a row in the sidebar's Databases tab (see Sidebar.tsx's
+  // `onSelectDatabase`). `selectedDatabase` is the resolved DTO (for
+  // `DatabaseView`'s header); kept separate from the bare id so a delete
+  // from elsewhere (another window, another session merged in via
+  // `db://update`) can be noticed and fall back to the Editor rather than
+  // rendering a `DatabaseView` for a database that no longer exists.
+  const [selectedDatabaseId, setSelectedDatabaseId] = useState<string | null>(null);
+  const [selectedDatabase, setSelectedDatabase] = useState<DatabaseDto | null>(null);
+
+  useEffect(() => {
+    if (!selectedDatabaseId) {
+      setSelectedDatabase(null);
+      return;
+    }
+    let cancelled = false;
+    const refresh = () => {
+      getDatabase(selectedDatabaseId).then((db) => {
+        if (cancelled) return;
+        setSelectedDatabase(db);
+        if (!db) setSelectedDatabaseId(null);
+      });
+    };
+    refresh();
+    const unsubscribe = onDatabasesChanged(refresh);
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
+  }, [selectedDatabaseId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -222,6 +254,8 @@ export function Workspace({ rootPath }: WorkspaceProps) {
           crdt={crdtRef.current}
           view={sidebarView}
           onViewChange={setSidebarView}
+          selectedDatabaseId={selectedDatabaseId}
+          onSelectDatabase={setSelectedDatabaseId}
           faded={chromeFaded}
           transitionMs={chromeTransitionMs}
         />
@@ -238,17 +272,21 @@ export function Workspace({ rootPath }: WorkspaceProps) {
             : undefined
         }
       >
-        <Editor
-          ref={editorRef}
-          crdt={crdtRef.current}
-          initialExpandedDepth={settings.descendantDepth}
-          onFoldChange={setCollapsedIds}
-          onRootChange={setRootId}
-          onLinkExpandChange={setExpandedLinkIds}
-          onNavigateLink={selectHeading}
-          onFocusChange={setEditorFocused}
-          auralFeedback={settings.auralFeedback}
-        />
+        {selectedDatabase ? (
+          <DatabaseView database={selectedDatabase} onClose={() => setSelectedDatabaseId(null)} />
+        ) : (
+          <Editor
+            ref={editorRef}
+            crdt={crdtRef.current}
+            initialExpandedDepth={settings.descendantDepth}
+            onFoldChange={setCollapsedIds}
+            onRootChange={setRootId}
+            onLinkExpandChange={setExpandedLinkIds}
+            onNavigateLink={selectHeading}
+            onFocusChange={setEditorFocused}
+            auralFeedback={settings.auralFeedback}
+          />
+        )}
       </div>
 
       {isNarrow && (
@@ -273,6 +311,8 @@ export function Workspace({ rootPath }: WorkspaceProps) {
             crdt={crdtRef.current}
             view={sidebarView}
             onViewChange={setSidebarView}
+            selectedDatabaseId={selectedDatabaseId}
+            onSelectDatabase={setSelectedDatabaseId}
             onClose={() => setDrawerOpen(false)}
             drawerStyle={{
               opacity: drawerOpen ? 1 : 0,

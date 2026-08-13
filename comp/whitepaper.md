@@ -9,6 +9,10 @@ Dendroid (`dendroid.app` ) is a native Markdown note-taking app. It reimagines y
     - “Tree view” of headers in the notes
         - Can click a button on the Tree view node to set as the root of the editor view
         - Can click a button to reset editor back to root view
+- SQLite databases, alongside your notes
+    - Create/delete databases from the sidebar’s Databases tab
+    - A basic table UI in the main area: browse/create tables, edit cells, add/delete rows, or drop into a “Run SQL” console for anything the grid can’t express
+    - Persisted through their own transaction log (native desktop builds only, for now) — same point-in-time History/revert as the markdown tree, scoped per database
 - Generic sync providers
     - Support different sync options out of the box
 - Security/privacy-first
@@ -106,6 +110,7 @@ Following our aesthetic guidance on iconography,—
 ### Core
 
 - Tree CRDT persisted built from a transaction log
+- SQLite databases persisted through a second, independently-ledgered transaction log (own directory, same per-(day, session)-file convention) — statements are logged and replayed rather than CRDT-merged, since SQL isn’t a CRDT; point-in-time revert works per database by truncating and rebuilding from its own statement log
 - Sync providers
     - Generic interface for reading and writing the transaction log
         - Must support multiple writers

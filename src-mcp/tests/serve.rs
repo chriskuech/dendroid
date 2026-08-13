@@ -1,7 +1,7 @@
 use std::fs;
 use std::sync::Arc;
 
-use dendroid_core::native::open_native;
+use dendroid_core::native::{open_native, open_native_sql};
 use tokio::sync::Mutex;
 use tokio_util::sync::CancellationToken;
 
@@ -16,12 +16,14 @@ const INIT_BODY: &str = r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params
 async fn spawn_server(root: &std::path::Path) -> (reqwest::Client, String, CancellationToken) {
     let doc = open_native(root, "mcp-test-session").await.unwrap();
     let doc = Arc::new(Mutex::new(doc));
+    let sql = open_native_sql(root, "mcp-test-session").await.unwrap();
+    let sql = Arc::new(Mutex::new(sql));
 
     let listener = dendroid_mcp::bind("127.0.0.1:0".parse().unwrap()).await.unwrap();
     let addr = listener.local_addr().unwrap();
     let ct = CancellationToken::new();
 
-    tokio::spawn(dendroid_mcp::serve_on(doc, listener, ct.child_token()));
+    tokio::spawn(dendroid_mcp::serve_on(doc, sql, listener, ct.child_token()));
 
     (reqwest::Client::new(), format!("http://{addr}/mcp"), ct)
 }
@@ -86,6 +88,74 @@ async fn get_outline_and_insert_round_trip_over_http() -> anyhow::Result<()> {
         .text()
         .await?;
     assert!(outline_after.contains("From MCP"), "expected the new heading in the outline, got: {outline_after}");
+
+    ct.cancel();
+    Ok(())
+}
+
+#[tokio::test]
+async fn db_tools_round_trip_over_http() -> anyhow::Result<()> {
+    let root = tmp_workspace("db-smoke");
+    let (client, url, ct) = spawn_server(&root).await;
+
+    let init = client
+        .post(&url)
+        .header("content-type", "application/json")
+        .header("accept", "application/json, text/event-stream")
+        .body(INIT_BODY)
+        .send()
+        .await?;
+    assert_eq!(init.status(), 200);
+    let session_id = init.headers().get("mcp-session-id").expect("server should assign a session id").to_str()?.to_string();
+
+    let call = |id: i64, name: &str, arguments: serde_json::Value| {
+        client
+            .post(&url)
+            .header("content-type", "application/json")
+            .header("accept", "application/json, text/event-stream")
+            .header("mcp-session-id", &session_id)
+            .json(&tools_call(id, name, arguments))
+            .send()
+    };
+
+    let create_response = call(2, "dbCreate", serde_json::json!({ "name": "Tasks" })).await?.text().await?;
+    // The tool result's text content is itself a JSON string (the db id) —
+    // pull it out from around the SSE/JSON-RPC framing rather than parsing
+    // the whole envelope, same lightweight approach the other test uses.
+    assert!(!create_response.contains("error"), "dbCreate should succeed, got: {create_response}");
+
+    let list_response = call(3, "dbList", serde_json::json!({})).await?.text().await?;
+    assert!(list_response.contains("Tasks"), "expected the new database in dbList, got: {list_response}");
+
+    // Extract the raw id out of the dbList response well enough to use it
+    // in the next call — it's the only quoted `id` field in that payload.
+    let id_marker = "\\\"id\\\":\\\"";
+    let start = list_response.find(id_marker).expect("dbList response should contain an id") + id_marker.len();
+    let end = list_response[start..].find("\\\"").expect("id should be quoted") + start;
+    let db_id = list_response[start..end].to_string();
+
+    let create_table = call(
+        4,
+        "dbExec",
+        serde_json::json!({ "id": db_id, "sql": "CREATE TABLE todos (title TEXT)" }),
+    )
+    .await?
+    .text()
+    .await?;
+    assert!(create_table.contains("executed"), "expected dbExec to report success, got: {create_table}");
+
+    let insert = call(
+        5,
+        "dbExec",
+        serde_json::json!({ "id": db_id, "sql": "INSERT INTO todos (title) VALUES (?1)", "params": ["Ship it"] }),
+    )
+    .await?
+    .text()
+    .await?;
+    assert!(insert.contains("executed"), "expected dbExec to report success, got: {insert}");
+
+    let rows = call(6, "dbTableRows", serde_json::json!({ "id": db_id, "table": "todos" })).await?.text().await?;
+    assert!(rows.contains("Ship it"), "expected the inserted row in dbTableRows, got: {rows}");
 
     ct.cancel();
     Ok(())

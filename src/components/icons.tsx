@@ -234,6 +234,44 @@ export function HistoryIcon(props: IconProps) {
   );
 }
 
+/** A stacked-disk cylinder — the database tab (see
+ * components/sidebar/Sidebar.tsx) and its rows/headers. Corners of the top
+ * and bottom rims are nicked by one pixel to read as an ellipse rather
+ * than a plain box, the same trick a pixel-art cylinder always uses; the
+ * two internal bands read as disk seams. */
+export function DatabaseIcon(props: IconProps) {
+  return (
+    <PixelIcon {...props}>
+      <rect x={4} y={2} width={8} height={1} />
+      <rect x={3} y={3} width={1} height={1} />
+      <rect x={12} y={3} width={1} height={1} />
+      <rect x={2} y={4} width={1} height={8} />
+      <rect x={13} y={4} width={1} height={8} />
+      <rect x={3} y={12} width={1} height={1} />
+      <rect x={12} y={12} width={1} height={1} />
+      <rect x={4} y={13} width={8} height={1} />
+      <rect x={3} y={6} width={10} height={1} />
+      <rect x={3} y={9} width={10} height={1} />
+    </PixelIcon>
+  );
+}
+
+/** An open trash can, lid + two ridge lines — the "delete database"/"delete
+ * row" affordance and its confirmation dialog. */
+export function TrashIcon(props: IconProps) {
+  return (
+    <PixelIcon {...props}>
+      <rect x={5} y={3} width={6} height={1} />
+      <rect x={4} y={4} width={8} height={1} />
+      <rect x={4} y={5} width={1} height={9} />
+      <rect x={11} y={5} width={1} height={9} />
+      <rect x={4} y={13} width={8} height={1} />
+      <rect x={6} y={6} width={1} height={6} />
+      <rect x={9} y={6} width={1} height={6} />
+    </PixelIcon>
+  );
+}
+
 export function SettingsIcon(props: IconProps) {
   return (
     <PixelIcon {...props}>

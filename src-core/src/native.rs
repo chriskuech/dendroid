@@ -11,6 +11,7 @@ use std::{
 
 use crate::doc::DendroidDocument;
 use crate::error::{DendroidError, Result};
+use crate::sqldb::SqlWorkspace;
 use crate::storage::LedgerStorage;
 
 fn io_err(path: &Path, source: std::io::Error) -> DendroidError {
@@ -31,6 +32,15 @@ impl NativeLedgerStorage {
     /// `workspace_root/ledger`, the convention every native host uses.
     pub fn for_workspace(workspace_root: &Path) -> Self {
         Self::new(workspace_root.join("ledger"))
+    }
+
+    /// `workspace_root/db-ledger` — the SQL database store's own directory,
+    /// deliberately separate from `for_workspace`'s `ledger/` so a
+    /// `sqldb::DbEvent` line never lands in the same file (and same
+    /// `LedgerCursor<LoroUpdate>` parse attempt) a markdown-tree
+    /// `LoroUpdate` line does. See `sqldb`'s module doc comment.
+    pub fn for_databases(workspace_root: &Path) -> Self {
+        Self::new(workspace_root.join("db-ledger"))
     }
 
     fn path(&self, name: &str) -> PathBuf {
@@ -98,4 +108,13 @@ pub type NativeDocument = DendroidDocument<NativeLedgerStorage>;
 /// Convenience over `DendroidDocument::open(NativeLedgerStorage::for_workspace(root), ..)`.
 pub async fn open_native(workspace_root: &Path, session_id: impl Into<String>) -> Result<NativeDocument> {
     DendroidDocument::open(NativeLedgerStorage::for_workspace(workspace_root), session_id).await
+}
+
+/// The common native case for the SQL database store: a `SqlWorkspace`
+/// backed by real files under `{workspace_root}/db-ledger/`.
+pub type NativeSqlWorkspace = SqlWorkspace<NativeLedgerStorage>;
+
+/// Convenience over `SqlWorkspace::open(NativeLedgerStorage::for_databases(root), ..)`.
+pub async fn open_native_sql(workspace_root: &Path, session_id: impl Into<String>) -> Result<NativeSqlWorkspace> {
+    SqlWorkspace::open(NativeLedgerStorage::for_databases(workspace_root), session_id).await
 }

@@ -26,6 +26,8 @@ function baseProps(overrides: Partial<React.ComponentProps<typeof Sidebar>> = {}
     onToggleCollapse: vi.fn(),
     onToggleLinkExpand: vi.fn(),
     onReroot: vi.fn(),
+    selectedDatabaseId: null,
+    onSelectDatabase: vi.fn(),
     ...overrides,
   };
 }
@@ -71,6 +73,30 @@ describe("Sidebar", () => {
   it("renders nothing for the history view when crdt isn't open yet", () => {
     render(<Sidebar {...baseProps({ view: "history", crdt: null })} />);
     expect(document.querySelector(".history-view")).not.toBeInTheDocument();
+  });
+
+  it("clicking the database rail button switches to the database view", async () => {
+    const user = userEvent.setup();
+    const onViewChange = vi.fn();
+    render(<Sidebar {...baseProps({ onViewChange })} />);
+    await user.click(screen.getByRole("tab", { name: /^databases$/i }));
+    expect(onViewChange).toHaveBeenCalledWith("database");
+  });
+
+  it("shows the database list when view is 'database'", () => {
+    render(<Sidebar {...baseProps({ view: "database" })} />);
+    expect(document.querySelector(".database-list")).toBeInTheDocument();
+    expect(document.querySelector(".tree-view")).not.toBeInTheDocument();
+  });
+
+  it("shows the database's own history instead of the tree's once a database is selected", () => {
+    render(<Sidebar {...baseProps({ view: "history", selectedDatabaseId: "db-1" })} />);
+    expect(document.querySelector(".history-view")).toBeInTheDocument();
+    // Both HistoryView and DatabaseHistoryView render the same
+    // `.history-view` shell — what distinguishes them here is that the
+    // database one never touches `crdt` (which is `null` in these tests
+    // and would otherwise render nothing per the test above).
+    expect(screen.getByText("History")).toBeInTheDocument();
   });
 
   it("marks the active rail tab via aria-selected", () => {

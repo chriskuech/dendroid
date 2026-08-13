@@ -66,13 +66,15 @@
   min-width: 0;
 }
 
-/* TreeView, MindMapView, and HistoryView each size themselves for
+/* TreeView, MindMapView, HistoryView (and its database counterparts,
+ * DatabaseListView/DatabaseHistoryView) each size themselves for
  * standalone use (fixed width + their own right border) — inside this
  * shell `.sidebar` and `.sidebar__content` already own that, so drop the
  * duplicate. */
 .sidebar__content > .tree-view,
 .sidebar__content > .mindmap-view,
-.sidebar__content > .history-view {
+.sidebar__content > .history-view,
+.sidebar__content > .database-list {
   width: auto;
   border-right: none;
   flex: 1;

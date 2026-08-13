@@ -205,18 +205,20 @@ pub fn run() {
                 // so this walks every open session rather than assuming a
                 // single global one, and emits each session's updates only
                 // to its own window.
-                let outbound: Vec<(String, Vec<u8>)> = tauri::async_runtime::block_on(async {
+                let (outbound, db_changed): (Vec<(String, Vec<u8>)>, Vec<String>) = tauri::async_runtime::block_on(async {
                     let state = handle.state::<AppDocState>();
                     // Clone out the `Arc` handles and drop the map lock
                     // before awaiting each one's poll, rather than holding
                     // it (and blocking every command that needs a session
                     // lookup) for the whole tick.
                     let sessions = state.sessions.lock().await;
-                    let docs: Vec<(String, _)> = sessions.iter().map(|(label, session)| (label.clone(), session.doc.clone())).collect();
+                    let docs: Vec<(String, _, _)> =
+                        sessions.iter().map(|(label, session)| (label.clone(), session.doc.clone(), session.sql.clone())).collect();
                     drop(sessions);
 
                     let mut outbound = Vec::new();
-                    for (label, doc) in docs {
+                    let mut db_changed = Vec::new();
+                    for (label, doc, sql) in docs {
                         let mut doc = doc.lock().await;
                         match doc.poll_external().await {
                             Ok(true) => match doc.export_updates_for_frontend() {
@@ -227,12 +229,23 @@ pub fn run() {
                             Ok(false) => {}
                             Err(e) => eprintln!("[crdt] poll_external failed for {label}: {e}"),
                         }
+                        drop(doc);
+
+                        let mut sql = sql.lock().await;
+                        match sql.poll_external().await {
+                            Ok(true) => db_changed.push(label.clone()),
+                            Ok(false) => {}
+                            Err(e) => eprintln!("[sqldb] poll_external failed for {label}: {e}"),
+                        }
                     }
-                    outbound
+                    (outbound, db_changed)
                 });
 
                 for (label, bytes) in outbound {
                     commands::emit_update(&handle, &label, bytes);
+                }
+                for label in db_changed {
+                    commands::emit_db_update(&handle, &label);
                 }
             });
             Ok(())
@@ -247,6 +260,15 @@ pub fn run() {
             commands::doc_replace_content,
             commands::doc_history,
             commands::doc_revert_to,
+            commands::db_list,
+            commands::db_create,
+            commands::db_delete,
+            commands::db_exec,
+            commands::db_tables,
+            commands::db_table_columns,
+            commands::db_table_rows,
+            commands::db_history,
+            commands::db_revert_to,
             mcp::mcp_set_config,
         ])
         .run(tauri::generate_context!())
