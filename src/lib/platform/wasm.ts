@@ -11,6 +11,7 @@
 // Tauri build, which doesn't need it.
 
 import { base64ToBytes, bytesToBase64 } from "../crdt/base64";
+import type { HistoryEntryDto } from "../crdt/history";
 import { getWorkspaceHandle } from "./fsHandles";
 import type { DocBackend } from "./types";
 // Type-only: the value itself is loaded via dynamic `import()` in `open()`
@@ -81,6 +82,21 @@ export class WasmDocBackend implements DocBackend {
 
   onRemoteUpdate(callback: (bytes: Uint8Array) => void): void {
     this.onRemote = callback;
+  }
+
+  async history(): Promise<HistoryEntryDto[]> {
+    if (!this.doc) throw new Error("[wasm] history called before open()");
+    return this.doc.history() as HistoryEntryDto[];
+  }
+
+  /** Unlike Tauri (a separate broadcast event), the wasm binding just
+   * hands the resulting delta straight back — forward it to `onRemote`
+   * ourselves, the same way `pollExternal`'s interval loop already does. */
+  async revertTo(token: string): Promise<void> {
+    if (!this.doc) throw new Error("[wasm] revertTo called before open()");
+    await this.doc.revertTo(token);
+    const updateB64 = this.doc.exportUpdatesForFrontend();
+    if (updateB64) this.onRemote?.(base64ToBytes(updateB64));
   }
 
   dispose(): void {

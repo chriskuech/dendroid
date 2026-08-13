@@ -4,15 +4,17 @@
 // verb kept on the destructive button, and Cancel (never the destructive
 // action) getting the initial focus so a stray Enter can't confirm it.
 //
-// No call site yet: the app's one destructive action (Settings' "Remove
-// key") is disabled because encryption itself isn't implemented (see
-// whitepaper.md) — there's nothing real to confirm removing. This exists
-// as ready infrastructure for when that lands, same as the rest of ui/'s
-// primitives mirror comp/Dendroid Design System.dc.html section 06
-// independent of how many call sites they have on a given day.
+// Originally built with no call site (Settings' "Remove key" is disabled
+// until encryption itself exists — see whitepaper.md) as ready
+// infrastructure for when that lands, same as the rest of ui/'s primitives
+// mirror comp/Dendroid Design System.dc.html section 06 independent of how
+// many call sites they have on a given day. Its first real call site is
+// History's "Roll back" prompt (components/history/HistoryView.tsx) —
+// `icon` was pulled out to a prop then, so each caller reads as itself
+// instead of every confirmation looking like a key removal.
 
-import { useEffect, useRef } from "react";
-import { EncryptionIcon } from "../icons";
+import { useEffect, useRef, type ComponentType } from "react";
+import type { IconProps } from "../icons";
 import { Button } from "./Button";
 import "../../styles/ui.css";
 
@@ -23,6 +25,7 @@ export interface ConfirmDialogDetail {
 
 export interface ConfirmDialogProps {
   open: boolean;
+  icon: ComponentType<IconProps>;
   title: string;
   body: string;
   /** Optional key/value table — e.g. what "Remove key" would list: the key
@@ -33,7 +36,7 @@ export interface ConfirmDialogProps {
   onCancel: () => void;
 }
 
-export function ConfirmDialog({ open, title, body, details, confirmLabel, onConfirm, onCancel }: ConfirmDialogProps) {
+export function ConfirmDialog({ open, icon: Icon, title, body, details, confirmLabel, onConfirm, onCancel }: ConfirmDialogProps) {
   const cancelRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -86,7 +89,7 @@ export function ConfirmDialog({ open, title, body, details, confirmLabel, onConf
         }}
       >
         <div className="confirm-dialog__header">
-          <EncryptionIcon size={16} style={{ color: "var(--danger)" }} />
+          <Icon size={16} style={{ color: "var(--danger)" }} />
           <span className="confirm-dialog__title">{title}</span>
           <span className="confirm-dialog__esc">esc</span>
         </div>

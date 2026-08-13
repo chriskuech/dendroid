@@ -4,7 +4,7 @@
 
 import type { SVGProps } from "react";
 
-interface IconProps extends Omit<SVGProps<SVGSVGElement>, "viewBox" | "shapeRendering"> {
+export interface IconProps extends Omit<SVGProps<SVGSVGElement>, "viewBox" | "shapeRendering"> {
   size?: number;
 }
 
@@ -204,6 +204,32 @@ export function GraphIcon(props: IconProps) {
       <rect x={9} y={5} width={1} height={1} />
       <rect x={10} y={6} width={1} height={1} />
       <rect x={11} y={7} width={1} height={1} />
+    </PixelIcon>
+  );
+}
+
+/** A clock face, stepped into an octagon out of plain rects like the rest
+ * of this set (no true circle at this grid size) — the history/rollback
+ * tab and its confirmation dialog. Not in comp/Dendroid Design System —
+ * the History feature came after that reference was drawn. */
+export function HistoryIcon(props: IconProps) {
+  return (
+    <PixelIcon {...props}>
+      <rect x={6} y={2} width={4} height={1} />
+      <rect x={4} y={3} width={2} height={1} />
+      <rect x={10} y={3} width={2} height={1} />
+      <rect x={3} y={4} width={1} height={1} />
+      <rect x={12} y={4} width={1} height={1} />
+      <rect x={2} y={5} width={1} height={6} />
+      <rect x={13} y={5} width={1} height={6} />
+      <rect x={3} y={11} width={1} height={1} />
+      <rect x={12} y={11} width={1} height={1} />
+      <rect x={4} y={12} width={2} height={1} />
+      <rect x={10} y={12} width={2} height={1} />
+      <rect x={6} y={13} width={4} height={1} />
+      {/* Hands, meeting at center: minute hand up, hour hand right. */}
+      <rect x={7} y={5} width={1} height={3} />
+      <rect x={8} y={7} width={3} height={1} />
     </PixelIcon>
   );
 }

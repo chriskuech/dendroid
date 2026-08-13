@@ -9,17 +9,23 @@
 // fixed-width variant).
 
 import type { CSSProperties } from "react";
+import type { DendroidDocument } from "../../lib/crdt/document";
 import type { OutlineEntry } from "../../lib/crdt/outline";
 import { TreeView } from "../tree/TreeView";
 import { MindMapView } from "../mindmap/MindMapView";
-import { CloseIcon, GraphIcon, LogoIcon } from "../icons";
+import { HistoryView } from "../history/HistoryView";
+import { CloseIcon, GraphIcon, HistoryIcon, LogoIcon } from "../icons";
 import "../../styles/sidebar.css";
 
-export type SidebarView = "tree" | "mindmap";
+export type SidebarView = "tree" | "mindmap" | "history";
 
 interface SidebarProps {
   view: SidebarView;
   onViewChange: (view: SidebarView) => void;
+  /** Only needed for the "history" view (`HistoryView.crdt`) — `null`
+   * while the document is still opening, same as `Workspace.tsx`'s own
+   * `crdtRef` before `ready`. */
+  crdt: DendroidDocument | null;
   entries: OutlineEntry[];
   collapsedIds: ReadonlySet<string>;
   expandedLinkIds: ReadonlySet<string>;
@@ -45,6 +51,7 @@ interface SidebarProps {
 export function Sidebar({
   view,
   onViewChange,
+  crdt,
   entries,
   collapsedIds,
   expandedLinkIds,
@@ -88,6 +95,16 @@ export function Sidebar({
         >
           <GraphIcon size={16} />
         </button>
+        <button
+          type="button"
+          role="tab"
+          className={`sidebar__rail-btn${view === "history" ? " is-active" : ""}`}
+          aria-label="History"
+          aria-selected={view === "history"}
+          onClick={() => onViewChange("history")}
+        >
+          <HistoryIcon size={16} />
+        </button>
       </div>
       <div className="sidebar__content">
         {view === "tree" ? (
@@ -102,9 +119,11 @@ export function Sidebar({
             onToggleLinkExpand={onToggleLinkExpand}
             onReroot={onReroot}
           />
-        ) : (
+        ) : view === "mindmap" ? (
           <MindMapView entries={entries} onSelectHeading={onSelectHeading} />
-        )}
+        ) : crdt ? (
+          <HistoryView crdt={crdt} />
+        ) : null}
       </div>
       {onClose && (
         <button type="button" className="sidebar__close" onClick={onClose} aria-label="Close sidebar">

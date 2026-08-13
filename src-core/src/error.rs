@@ -34,6 +34,9 @@ pub enum DendroidError {
 
     #[error("invalid tree id {0:?}: {1}")]
     InvalidTreeId(String, String),
+
+    #[error("history error: {0}")]
+    History(String),
 }
 
 pub type Result<T> = std::result::Result<T, DendroidError>;
