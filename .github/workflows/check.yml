@@ -70,6 +70,9 @@ jobs:
       - name: Verify section-structure invariants
         run: bun run scripts/verify-section-structure.ts
 
+      - name: Frontend tests (vitest)
+        run: bun run test
+
       # Not `-D warnings`: the tree currently has a handful of pre-existing
       # clippy warnings, so gating on them would fail every PR until they
       # are cleaned up. Errors still fail the job. Add
