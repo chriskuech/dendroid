@@ -27,6 +27,13 @@ pub struct McpHandle {
     pub cancellation_token: CancellationToken,
 }
 
+/// One window's connection to a spawned ACP agent process, plus the
+/// session it opened on it. See `crate::acp`.
+pub struct AcpSession {
+    pub client: dendroid_acp::AcpClient,
+    pub session_id: String,
+}
+
 /// One session id per running app process — this is what makes ledger
 /// filenames collision-free across replicas of the same workspace folder
 /// (see `dendroid_core::ledger`). Generated once at startup and reused for
@@ -60,6 +67,13 @@ pub struct AppDocState {
     /// The currently-running MCP server, if "Local MCP" is enabled — see
     /// `crate::mcp`.
     pub mcp_handle: Mutex<Option<McpHandle>>,
+    /// One agent session per *window* (like `sessions` above), keyed by
+    /// window label — the chat drawer's own document, unrelated to the
+    /// "primary" window concept `mcp_handle` uses. Present only once that
+    /// window's drawer has connected (`crate::acp::acp_start`); absent
+    /// otherwise, including after the window's session is stopped or the
+    /// window closes.
+    pub acp_sessions: Mutex<HashMap<String, AcpSession>>,
 }
 
 impl AppDocState {
@@ -69,6 +83,7 @@ impl AppDocState {
             sessions: Mutex::new(HashMap::new()),
             primary_label: Mutex::new(None),
             mcp_handle: Mutex::new(None),
+            acp_sessions: Mutex::new(HashMap::new()),
         }
     }
 }

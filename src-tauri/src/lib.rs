@@ -1,5 +1,6 @@
 // Platform-agnostic logic lives in the `dendroid-core` crate (src-core/).
 
+mod acp;
 mod commands;
 mod mcp;
 mod state;
@@ -179,6 +180,7 @@ pub fn run() {
                 let state = window.state::<AppDocState>();
                 tauri::async_runtime::block_on(async {
                     state.sessions.lock().await.remove(&label);
+                    acp::stop_session(&state, &label).await;
 
                     let mut primary = state.primary_label.lock().await;
                     if primary.as_deref() == Some(label.as_str()) {
@@ -271,6 +273,11 @@ pub fn run() {
             commands::db_history,
             commands::db_revert_to,
             mcp::mcp_set_config,
+            acp::acp_start,
+            acp::acp_stop,
+            acp::acp_send_prompt,
+            acp::acp_cancel,
+            acp::acp_respond_permission,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
