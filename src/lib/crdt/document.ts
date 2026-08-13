@@ -136,9 +136,10 @@ export class DendroidDocument {
     // Re-supply this device's encryption key (if it's ever set one) so
     // encrypted history decrypts right away rather than sitting blocked
     // until Settings is opened — see `settingsStore.ts`'s
-    // `ENCRYPTION_KEY_KEY` doc comment for why the key lives there rather
-    // than in `AppSettings`, and `dendroid_core::doc::DendroidDocument::
-    // set_encryption_key` for why calling this again is safe/idempotent.
+    // `loadEncryptionKeyText` (OS-keychain-backed under Tauri) for why the
+    // key lives there rather than in `AppSettings`, and `dendroid_core::
+    // doc::DendroidDocument::set_encryption_key` for why calling this
+    // again is safe/idempotent.
     const keyText = await loadEncryptionKeyText();
     if (keyText) {
       try {

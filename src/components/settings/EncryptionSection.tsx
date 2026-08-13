@@ -40,9 +40,10 @@ export function EncryptionSection({ crdt }: EncryptionSectionProps) {
 
   async function openShowQr() {
     // The key text itself only ever lives in the frontend's own persisted
-    // settings (see `settingsStore.ts`'s `ENCRYPTION_KEY_KEY`) — the
-    // backend never hands raw key material back out except right when a
-    // key is first created (`generateEncryptionKey`'s return value).
+    // storage (see `settingsStore.ts`'s `loadEncryptionKeyText`, OS-keychain
+    // -backed under Tauri) — the backend never hands raw key material back
+    // out except right when a key is first created (`generateEncryptionKey`'s
+    // return value).
     const keyText = await loadEncryptionKeyText();
     if (keyText) setModal({ step: "show", keyText });
   }
