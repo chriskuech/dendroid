@@ -6,6 +6,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { base64ToBytes, bytesToBase64 } from "../crdt/base64";
+import type { EncryptionStatusDto, GeneratedEncryptionKey } from "../crdt/encryption";
 import type { HistoryEntryDto } from "../crdt/history";
 import type { DocBackend } from "./types";
 
@@ -48,5 +49,21 @@ export class TauriDocBackend implements DocBackend {
   dispose(): void {
     this.unlisten?.();
     this.unlisten = null;
+  }
+
+  encryptionStatus(): Promise<EncryptionStatusDto> {
+    return invoke<EncryptionStatusDto>("encryption_status");
+  }
+
+  generateEncryptionKey(): Promise<GeneratedEncryptionKey> {
+    return invoke<GeneratedEncryptionKey>("encryption_generate_key");
+  }
+
+  setEncryptionKey(keyText: string): Promise<EncryptionStatusDto> {
+    return invoke<EncryptionStatusDto>("encryption_set_key", { keyText });
+  }
+
+  removeEncryptionKey(): Promise<void> {
+    return invoke("encryption_remove_key");
   }
 }

@@ -19,6 +19,7 @@
 //!                                                   | poll_external (other sessions/replicas)
 //! ```
 
+pub mod crypto;
 pub mod doc;
 pub mod error;
 pub mod history;
@@ -34,6 +35,7 @@ pub mod outline;
 pub mod sqldb;
 pub mod storage;
 
+pub use crypto::EncryptionStatusDto;
 pub use doc::DendroidDocument;
 pub use error::{DendroidError, Result};
 pub use history::HistoryEntryDto;

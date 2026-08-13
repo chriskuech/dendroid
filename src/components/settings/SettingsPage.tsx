@@ -1,14 +1,16 @@
 import { useEffect, useRef, useState } from "react";
 import { useAppState } from "../../lib/AppState";
+import type { DendroidDocument } from "../../lib/crdt/document";
 import { pickFolder } from "../../lib/dialog";
 import { listMcpSkills, type McpSkill } from "../../lib/mcp";
 import { SYNC_PROVIDERS } from "../../lib/syncProviders";
 import { DEPTH_MIN, DEPTH_MAX, type Aesthetic, type ColorMode, type EditorMode } from "../../lib/types";
-import { CloseIcon, EncryptionIcon, QrKeyIcon } from "../icons";
+import { CloseIcon } from "../icons";
 import { Button } from "../ui/Button";
 import { Segmented } from "../ui/Segmented";
 import { Stepper } from "../ui/Stepper";
 import { Switch } from "../ui/Switch";
+import { EncryptionSection } from "./EncryptionSection";
 import "../../styles/settings.css";
 
 const SECTIONS = [
@@ -33,7 +35,7 @@ const AESTHETIC_META: Record<Aesthetic, { label: string; swatches: string[] }> =
   },
 };
 
-export function SettingsPage({ onClose }: { onClose: () => void }) {
+export function SettingsPage({ onClose, crdt = null }: { onClose: () => void; crdt?: DendroidDocument | null }) {
   const { workspace, settings, updateSettings, updateSyncConfig } = useAppState();
   const [active, setActive] = useState<SectionId>("appearance");
   const [copied, setCopied] = useState(false);
@@ -280,27 +282,7 @@ export function SettingsPage({ onClose }: { onClose: () => void }) {
             <span className="settings__block-hint">Providers are mutually exclusive.</span>
           </div>
 
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            <span className="settings__subsection-title">Encryption</span>
-            <div className="card-grid">
-              <div className="card" style={{ cursor: "default" }}>
-                <div className="card__head">
-                  <EncryptionIcon size={16} />
-                  <span className="card__title" style={{ color: "var(--text-2)" }}>
-                    No key set
-                  </span>
-                </div>
-                <span className="card__desc">Notes are stored unencrypted on this device.</span>
-                <Button variant="secondary" disabled style={{ width: "fit-content" }}>
-                  <QrKeyIcon size={16} />
-                  Scan key from another device
-                </Button>
-              </div>
-            </div>
-            <span className="settings__block-hint">
-              Optional end-to-end encryption is planned but not yet implemented — see the whitepaper.
-            </span>
-          </div>
+          <EncryptionSection crdt={crdt} />
         </div>
 
         <div
@@ -334,12 +316,6 @@ export function SettingsPage({ onClose }: { onClose: () => void }) {
                 {copied ? "Copied" : "Copy"}
               </Button>
             </div>
-          </div>
-          <div className="settings__danger">
-            <span className="settings__danger-copy">No encryption key is set on this device.</span>
-            <Button variant="destructive" disabled style={{ flex: "none" }}>
-              Remove key
-            </Button>
           </div>
         </div>
 

@@ -212,3 +212,88 @@
   color: var(--text-2);
   flex: 1;
 }
+
+/* Encryption pairing modal (EncryptionModal.tsx) — shares ConfirmDialog's
+ * backdrop class (`ui.css`) for the same overlay/blur look, but its own
+ * panel: several steps' worth of content (QR image, camera view, textarea)
+ * don't fit ConfirmDialog's fixed title/body/details/footer shape. */
+.encryption-modal {
+  width: 440px;
+  max-height: 80vh;
+  overflow: auto;
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  padding: 26px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.encryption-modal__title {
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text);
+}
+
+.encryption-modal__choices {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.encryption-modal__choices .btn {
+  justify-content: flex-start;
+}
+
+.encryption-modal__qr {
+  display: flex;
+  justify-content: center;
+  padding: 12px;
+  background: #fff;
+  width: fit-content;
+  margin: 0 auto;
+}
+
+.encryption-modal__qr img {
+  display: block;
+}
+
+.encryption-modal__fingerprint {
+  text-align: center;
+  font-size: 13px;
+  letter-spacing: 0.1em;
+  color: var(--text-2);
+}
+
+.encryption-modal__video {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  background: #000;
+  object-fit: cover;
+}
+
+.encryption-modal__textarea {
+  width: 100%;
+  min-height: 72px;
+  font-family: var(--font-brand);
+  font-size: 12px;
+  font-weight: 300;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--line-strong);
+  padding: 10px 12px;
+  resize: vertical;
+  outline: none;
+}
+
+.encryption-modal__textarea:focus {
+  border-color: var(--accent);
+}
+
+.encryption-modal__error {
+  font-size: 11px;
+  line-height: 1.7;
+  font-weight: 300;
+  color: var(--danger);
+}

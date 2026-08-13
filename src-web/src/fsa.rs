@@ -117,6 +117,23 @@ impl LedgerStorage for FsaLedgerStorage {
         promise::<JsValue>(writable.close()).await.map_err(|e| js_err(name, &e))?;
         Ok(())
     }
+
+    async fn write(&self, name: &str, bytes: &[u8]) -> Result<()> {
+        let handle = self.get_file(name, true).await?.expect("create: true");
+
+        // No `keep_existing_data` option here (unlike `append`) — a fresh
+        // writable stream truncates to empty by default, which is exactly
+        // what a full overwrite wants.
+        let writable = promise::<FileSystemWritableFileStream>(handle.create_writable()).await.map_err(|e| js_err(name, &e))?;
+
+        let array = Uint8Array::from(bytes);
+        promise::<JsValue>(writable.write_with_buffer_source(&array).map_err(|e| js_err(name, &e))?)
+            .await
+            .map_err(|e| js_err(name, &e))?;
+
+        promise::<JsValue>(writable.close()).await.map_err(|e| js_err(name, &e))?;
+        Ok(())
+    }
 }
 
 async fn get_or_create_dir(parent: &FileSystemDirectoryHandle, name: &str) -> Result<FileSystemDirectoryHandle> {

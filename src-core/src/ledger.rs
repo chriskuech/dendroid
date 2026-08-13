@@ -31,31 +31,67 @@ use chrono::Utc;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
+use crate::crypto::EncryptionKey;
 use crate::error::{DendroidError, Result};
 use crate::storage::LedgerStorage;
 
 /// The payload every existing (and, going forward, every ordinary
-/// markdown-tree) ledger line carries — a base64-encoded Loro update blob.
-/// Named and shaped so `#[serde(flatten)]`-ing it into `Envelope` produces
-/// byte-identical JSON to the hand-written struct this replaced (just an
-/// `update` key alongside `seq`/`ts`/`session_id`), so every ledger file
-/// ever written stays readable with zero migration.
+/// markdown-tree) ledger line carries — a base64-encoded Loro update blob,
+/// optionally encrypted (see `enc`). Named and shaped so `#[serde(flatten)]`
+/// -ing it into `Envelope` produces byte-identical JSON to the hand-written
+/// struct this replaced for a plaintext record (just an `update` key
+/// alongside `seq`/`ts`/`session_id`), so every ledger file ever written
+/// before encryption existed stays readable with zero migration.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LoroUpdate {
     update: String,
+    /// The encrypting key's fingerprint, present only when `update` is
+    /// ciphertext (`crypto::EncryptionKey::encrypt` output) rather than a
+    /// raw Loro update blob — see `new_encrypted`/`decode`. Carried mainly
+    /// so a human staring at raw ledger JSON can tell an encrypted line
+    /// apart from a plaintext one; `decode` doesn't actually need it to
+    /// match anything (a wrong key just fails the AEAD's own check).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    enc: Option<String>,
 }
 
 impl LoroUpdate {
     pub fn new(bytes: &[u8]) -> Self {
-        Self { update: STANDARD.encode(bytes) }
+        Self { update: STANDARD.encode(bytes), enc: None }
     }
 
-    pub fn decode(&self) -> Result<Vec<u8>> {
-        STANDARD.decode(&self.update).map_err(|e| DendroidError::LedgerRecord {
+    /// Same as `new`, but encrypts `bytes` with `key` first — what every
+    /// append becomes once a device has an encryption key set (see
+    /// `doc::DendroidDocument::append_delta`), and what re-encrypting
+    /// already-plaintext history produces (`rewrite_payloads`, driven by
+    /// `doc::DendroidDocument::set_key`).
+    pub fn new_encrypted(bytes: &[u8], key: &EncryptionKey) -> Self {
+        Self { update: STANDARD.encode(key.encrypt(bytes)), enc: Some(key.fingerprint()) }
+    }
+
+    /// Whether this record is ciphertext rather than a raw Loro update —
+    /// `rewrite_payloads`' re-encryption transform uses this to leave an
+    /// already-encrypted record untouched.
+    pub fn is_encrypted(&self) -> bool {
+        self.enc.is_some()
+    }
+
+    /// Decodes this record back into raw Loro update bytes. `key` is only
+    /// consulted when the record is actually encrypted (`enc.is_some()`);
+    /// a plaintext record decodes the same regardless of whether this
+    /// device has encryption enabled — see `doc::DendroidDocument::
+    /// import_records` for how a `None`/wrong key on an encrypted record
+    /// surfaces as a blocked-sync state rather than a dropped record.
+    pub fn decode(&self, key: Option<&EncryptionKey>) -> Result<Vec<u8>> {
+        let raw = STANDARD.decode(&self.update).map_err(|e| DendroidError::LedgerRecord {
             location: "<in-memory>".to_string(),
             line: 0,
             reason: format!("bad base64 payload: {e}"),
-        })
+        })?;
+        match &self.enc {
+            None => Ok(raw),
+            Some(_) => key.ok_or(DendroidError::EncryptionRequired)?.decrypt(&raw),
+        }
     }
 }
 
@@ -219,4 +255,50 @@ impl<P: DeserializeOwned> LedgerCursor<P> {
 
         Ok(records)
     }
+}
+
+/// Rewrites every existing ledger file's payloads through `transform`,
+/// preserving each record's own `seq`/`ts`/`session_id` — the one place
+/// this module breaks its own "never mutated in place" rule (see
+/// `LedgerStorage::write`). Used exactly once: `doc::DendroidDocument`
+/// turning encryption on for the first time re-encrypts every
+/// already-written plaintext record with the newly created/paired key
+/// (`transform` there leaves any already-encrypted record untouched).
+///
+/// A malformed line here is a hard error rather than the usual
+/// skip-and-warn (`LedgerCursor::poll`'s behavior) — this rewrite isn't an
+/// incremental tail that can afford to lose a line silently; if something
+/// can't be read back, better to fail the whole rewrite (leaving every
+/// file as it was, since nothing's written until each file's own rewrite
+/// completes) than to quietly drop a record while re-encrypting history.
+pub async fn rewrite_payloads<S, P, F>(storage: &S, mut transform: F) -> Result<()>
+where
+    S: LedgerStorage,
+    P: Serialize + DeserializeOwned,
+    F: FnMut(P) -> Result<P>,
+{
+    for name in storage.list_files().await? {
+        let bytes = storage.read_from(&name, 0).await?;
+        if bytes.is_empty() {
+            continue;
+        }
+
+        let mut out = Vec::with_capacity(bytes.len());
+        for (i, line) in bytes.split(|&b| b == b'\n').enumerate() {
+            if line.is_empty() {
+                continue;
+            }
+            let env: Envelope<P> = serde_json::from_slice(line)
+                .map_err(|e| DendroidError::LedgerRecord { location: name.clone(), line: i, reason: e.to_string() })?;
+            let payload = transform(env.payload)?;
+            let rewritten = Envelope { seq: env.seq, ts: env.ts, session_id: env.session_id, payload };
+            let line_json = serde_json::to_string(&rewritten)
+                .map_err(|e| DendroidError::LedgerRecord { location: name.clone(), line: i, reason: e.to_string() })?;
+            out.extend_from_slice(line_json.as_bytes());
+            out.push(b'\n');
+        }
+
+        storage.write(&name, &out).await?;
+    }
+    Ok(())
 }

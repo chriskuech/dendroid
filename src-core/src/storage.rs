@@ -42,4 +42,14 @@ pub trait LedgerStorage {
     /// promise that — native fsyncs; the web backend's writable-stream
     /// `close()` already flushes to disk.
     async fn append(&self, name: &str, bytes: &[u8]) -> Result<()>;
+
+    /// Overwrites `name`'s entire contents with `bytes` (creating it if it
+    /// doesn't exist yet). Unlike `append`, this breaks the ledger's
+    /// "never mutated in place, only appended" rule (see this module's own
+    /// doc comment and `ledger`'s) — the one deliberate exception is
+    /// `ledger::rewrite_payloads`, which `doc::DendroidDocument` uses
+    /// exactly once, to re-encrypt every already-written plaintext record
+    /// in place the moment a device turns encryption on. Nothing else in
+    /// this crate calls it.
+    async fn write(&self, name: &str, bytes: &[u8]) -> Result<()>;
 }

@@ -9,6 +9,7 @@
  * picked.
  */
 
+import type { EncryptionStatusDto, GeneratedEncryptionKey } from "../crdt/encryption";
 import type { HistoryEntryDto } from "../crdt/history";
 
 export interface DocBackend {
@@ -49,4 +50,30 @@ export interface DocBackend {
 
   /** Releases whatever this backend is holding (listeners, timers, wasm memory). */
   dispose(): void;
+
+  /** Current encryption state — whether a key is set, its fingerprint, and
+   * why sync is blocked (if it is). See `crdt/encryption.ts`'s
+   * `EncryptionStatusDto`. `DendroidDocument` polls this on an interval
+   * (see its own doc comment) since a blocked poll produces no document
+   * change for `onRemoteUpdate` to signal. */
+  encryptionStatus(): Promise<EncryptionStatusDto>;
+
+  /** Turns on encryption with a freshly generated key — "create a key",
+   * one of the two choices the enable-encryption prompt offers. Returns
+   * the key's own textual form for the caller to offer immediately as a
+   * QR code or copy-paste target. */
+  generateEncryptionKey(): Promise<GeneratedEncryptionKey>;
+
+  /** Turns on encryption with `keyText` — the other half of the
+   * enable-encryption prompt ("add one from a QR code"), a scanned QR's
+   * decoded contents, or a pasted textual key. Also how a previously
+   * generated key gets re-supplied at every app start once persisted (see
+   * `lib/crdt/document.ts`'s `open`) — idempotent, since there's nothing
+   * left to encrypt once everything already is. */
+  setEncryptionKey(keyText: string): Promise<EncryptionStatusDto>;
+
+  /** Turns encryption off on this device. Doesn't touch anything already
+   * on disk — every event already encrypted with the removed key stays
+   * that way. */
+  removeEncryptionKey(): Promise<void>;
 }

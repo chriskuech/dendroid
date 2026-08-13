@@ -23,7 +23,7 @@
 //! plays the role `AppDocState`'s `Session` does on the Tauri side.
 
 use base64::{engine::general_purpose::STANDARD, Engine as _};
-use dendroid_core::DendroidDocument;
+use dendroid_core::{DendroidDocument, EncryptionStatusDto};
 use wasm_bindgen::prelude::*;
 use web_sys::FileSystemDirectoryHandle;
 
@@ -121,6 +121,55 @@ impl WebDocument {
     pub async fn revert_to(&mut self, token: String) -> Result<(), JsValue> {
         self.inner.revert_to(&token).await.map_err(to_js)
     }
+
+    // --- Encryption ------------------------------------------------------
+    //
+    // Same contract as the Tauri build's `encryption_*` commands (`src-
+    // tauri/src/commands.rs`) — see `dendroid_core::doc::DendroidDocument`'s
+    // own "Encryption" section for what each of these actually does.
+
+    /// Current encryption state — see `EncryptionStatusDto`.
+    #[wasm_bindgen(js_name = encryptionStatus)]
+    pub fn encryption_status(&self) -> Result<JsValue, JsValue> {
+        serde_wasm_bindgen::to_value(&self.inner.encryption_status()).map_err(|e| JsValue::from_str(&e.to_string()))
+    }
+
+    /// Turns on encryption with a freshly generated key — "create a key".
+    /// Returns `{ keyText, status }`: `keyText` is what the caller offers
+    /// as a QR code / copy-paste target right away (see
+    /// `dendroid_core::crypto::EncryptionKey::to_text`).
+    #[wasm_bindgen(js_name = generateEncryptionKey)]
+    pub async fn generate_encryption_key(&mut self) -> Result<JsValue, JsValue> {
+        let (key_text, status) = self.inner.generate_encryption_key().await.map_err(to_js)?;
+        serde_wasm_bindgen::to_value(&GenerateKeyResult { key_text, status }).map_err(|e| JsValue::from_str(&e.to_string()))
+    }
+
+    /// Turns on encryption with `key_text` — a scanned QR code's decoded
+    /// contents, a pasted textual key, or (idempotently) the same key
+    /// re-supplied at every app start once it's been persisted on the JS
+    /// side. See `dendroid_core::doc::DendroidDocument::set_encryption_key`.
+    #[wasm_bindgen(js_name = setEncryptionKey)]
+    pub async fn set_encryption_key(&mut self, key_text: String) -> Result<JsValue, JsValue> {
+        let status = self.inner.set_encryption_key(&key_text).await.map_err(to_js)?;
+        serde_wasm_bindgen::to_value(&status).map_err(|e| JsValue::from_str(&e.to_string()))
+    }
+
+    /// Turns encryption off on this device — see that method's doc
+    /// comment for what does (and, importantly, doesn't) happen to
+    /// history already encrypted.
+    #[wasm_bindgen(js_name = removeEncryptionKey)]
+    pub fn remove_encryption_key(&mut self) {
+        self.inner.remove_encryption_key();
+    }
+}
+
+/// Wire shape for `generateEncryptionKey`'s return value — see that
+/// method's doc comment.
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct GenerateKeyResult {
+    key_text: String,
+    status: EncryptionStatusDto,
 }
 
 fn to_js(e: dendroid_core::DendroidError) -> JsValue {

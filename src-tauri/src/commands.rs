@@ -19,7 +19,8 @@
 
 use base64::{engine::general_purpose::STANDARD, Engine as _};
 use dendroid_core::{
-    ColumnDto, DatabaseDto, DbHistoryEntryDto, HeadingDto, HistoryEntryDto, QueryResultDto, TableDto, TableRowsDto,
+    ColumnDto, DatabaseDto, DbHistoryEntryDto, EncryptionStatusDto, HeadingDto, HistoryEntryDto, QueryResultDto,
+    TableDto, TableRowsDto,
 };
 use serde::Serialize;
 use serde_json::Value as JsonValue;
@@ -270,6 +271,87 @@ pub async fn doc_replace_content(
     if let Some(bytes) = delta {
         emit_update(window.app_handle(), &label, bytes);
     }
+    Ok(())
+}
+
+// --- Encryption ------------------------------------------------------
+//
+// See `dendroid_core::doc::DendroidDocument`'s own "Encryption" section
+// for what each of these actually does; these are thin decode/delegate
+// wrappers, same shape as `doc_*` above. `encryption_generate_key` and
+// `encryption_set_key` can both change the live document (draining
+// records that were previously blocked — see `DendroidDocument::
+// drain_pending`), so both broadcast afterward exactly like `doc_import_
+// update` does.
+
+/// Wire shape for `encryption_generate_key`'s response — `keyText` is what
+/// the caller offers immediately as a QR code / copy-paste target.
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GenerateKeyResult {
+    key_text: String,
+    status: EncryptionStatusDto,
+}
+
+/// Current encryption state — whether a key is set, its fingerprint, and
+/// why sync is blocked (if it is). What Settings' encryption panel polls/
+/// reads to render.
+#[tauri::command(rename_all = "camelCase")]
+pub async fn encryption_status(window: Window, state: State<'_, AppDocState>) -> Result<EncryptionStatusDto, String> {
+    let doc = session_doc(&state, window.label()).await?;
+    let doc = doc.lock().await;
+    Ok(doc.encryption_status())
+}
+
+/// Turns on encryption with a freshly generated key — "create a key", one
+/// of the two choices the enable-encryption prompt offers.
+#[tauri::command(rename_all = "camelCase")]
+pub async fn encryption_generate_key(window: Window, state: State<'_, AppDocState>) -> Result<GenerateKeyResult, String> {
+    let label = window.label().to_string();
+    let doc_handle = session_doc(&state, &label).await?;
+
+    let mut doc = doc_handle.lock().await;
+    let (key_text, status) = doc.generate_encryption_key().await.map_err(|e| e.to_string())?;
+    let delta = doc.export_updates_for_frontend().map_err(|e| e.to_string())?;
+    drop(doc);
+
+    if let Some(bytes) = delta {
+        emit_update(window.app_handle(), &label, bytes);
+    }
+    Ok(GenerateKeyResult { key_text, status })
+}
+
+/// Turns on encryption with `key_text` — the other half of the
+/// enable-encryption prompt ("add one from a QR code"), a scanned QR's
+/// decoded contents, or a pasted textual key. Also how the frontend
+/// re-supplies a previously-generated key at every app start (see `lib/
+/// crdt/document.ts`) — idempotent, since `DendroidDocument::
+/// set_encryption_key` has nothing left to encrypt once everything already
+/// is.
+#[tauri::command(rename_all = "camelCase")]
+pub async fn encryption_set_key(window: Window, state: State<'_, AppDocState>, key_text: String) -> Result<EncryptionStatusDto, String> {
+    let label = window.label().to_string();
+    let doc_handle = session_doc(&state, &label).await?;
+
+    let mut doc = doc_handle.lock().await;
+    let status = doc.set_encryption_key(&key_text).await.map_err(|e| e.to_string())?;
+    let delta = doc.export_updates_for_frontend().map_err(|e| e.to_string())?;
+    drop(doc);
+
+    if let Some(bytes) = delta {
+        emit_update(window.app_handle(), &label, bytes);
+    }
+    Ok(status)
+}
+
+/// Turns encryption off on this device — see `DendroidDocument::
+/// remove_encryption_key`'s doc comment for what does (and, importantly,
+/// doesn't) happen to history already encrypted with the removed key.
+#[tauri::command(rename_all = "camelCase")]
+pub async fn encryption_remove_key(window: Window, state: State<'_, AppDocState>) -> Result<(), String> {
+    let doc = session_doc(&state, window.label()).await?;
+    let mut doc = doc.lock().await;
+    doc.remove_encryption_key();
     Ok(())
 }
 

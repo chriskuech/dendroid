@@ -18,6 +18,18 @@ chrono = { version = "0.4", default-features = false, features = ["clock", "std"
 thiserror = "2.0"
 pulldown-cmark = { version = "0.13.4", default-features = false }
 
+# `crypto` (optional local ledger encryption): ChaCha20-Poly1305 is the AEAD
+# each event is encrypted with, `sha2` derives a short fingerprint from a
+# key for display, and `rand`'s `OsRng` generates keys/nonces. `getrandom`
+# is pulled in directly (not just transitively through `rand`) to turn on
+# its "js" feature — same reason `uuid` above enables its own "js" feature:
+# without it, the `wasm32-unknown-unknown` build (`dendroid-web`) has no
+# OS RNG to call and panics at runtime.
+chacha20poly1305 = "0.10"
+sha2 = "0.10"
+rand = "0.8"
+getrandom = { version = "0.2", features = ["js"] }
+
 # SQLite database support (`sqldb`) is native-only — `bundled` compiles
 # SQLite's C source in, so it needs a C toolchain, which the wasm32 target
 # this crate also builds for doesn't have. See `sqldb`'s module doc for the

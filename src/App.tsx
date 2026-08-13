@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { AppStateProvider, useAppState } from "./lib/AppState";
+import type { DendroidDocument } from "./lib/crdt/document";
 import { pickFolder } from "./lib/dialog";
 import { folderNameFromPath } from "./lib/path";
 import { WorkspaceOnboarding } from "./components/onboarding/WorkspaceOnboarding";
@@ -35,6 +36,10 @@ function Shell() {
   const { status, workspace, createWorkspace, beginNewWorkspace, cancelNewWorkspace, chromeFaded, chromeTransitionMs } =
     useAppState();
   const [settingsOpen, setSettingsOpen] = useState(false);
+  // Handed up from `Workspace` (a sibling below) once it's opened its own
+  // `DendroidDocument`, so `SettingsPage`'s encryption panel can drive the
+  // same live document — see `Workspace.tsx`'s `onDocumentReady` prop.
+  const [crdt, setCrdt] = useState<DendroidDocument | null>(null);
 
   useEffect(() => {
     if (!hasTauriBridge()) return;
@@ -107,7 +112,7 @@ function Shell() {
   return (
     <>
       {rootPath ? (
-        <Workspace rootPath={rootPath} />
+        <Workspace rootPath={rootPath} onDocumentReady={setCrdt} />
       ) : (
         <main className="home">
           <span className="home__loading">This workspace's sync provider isn't supported yet.</span>
@@ -132,7 +137,7 @@ function Shell() {
       >
         <SettingsIcon size={16} />
       </button>
-      {settingsOpen && <SettingsPage onClose={() => setSettingsOpen(false)} />}
+      {settingsOpen && <SettingsPage onClose={() => setSettingsOpen(false)} crdt={crdt} />}
     </>
   );
 }
