@@ -180,7 +180,7 @@ pub fn run() {
                 let state = window.state::<AppDocState>();
                 tauri::async_runtime::block_on(async {
                     state.sessions.lock().await.remove(&label);
-                    acp::stop_session(&state, &label).await;
+                    acp::stop_all_sessions_for_window(&state, &label).await;
 
                     let mut primary = state.primary_label.lock().await;
                     if primary.as_deref() == Some(label.as_str()) {

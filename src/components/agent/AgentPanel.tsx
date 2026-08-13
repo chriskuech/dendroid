@@ -1,219 +1,214 @@
-// A chat UI over an Agent Client Protocol (ACP) agent — see lib/acp.ts for
-// the Tauri bridge and src-tauri/src/acp.rs / src-acp for what actually
-// speaks the protocol to a spawned agent process. Connects lazily (the
-// first message sent) rather than the moment the drawer opens, so opening
-// it to look isn't itself an action with a side effect.
+// The chat drawer — see lib/acp.ts for the Tauri bridge and
+// src-tauri/src/acp.rs / src-acp for what actually speaks the protocol to a
+// spawned agent process. Manages three kinds of chat threads (lib/types.ts's
+// `ChatThread`): "human" (a person types, the agent replies — the whole of
+// what this drawer used to be), "cron" (runs on a schedule) and "trigger"
+// (fires on a database row insert/update/delete). See `ChatThread`'s doc
+// comment for the current scope: dendroid doesn't run a background
+// scheduler or hook into SQLite's own triggers yet, so cron/trigger threads
+// are created and configured here but only ever actually run via their
+// chat view's manual "Run now" (ThreadChat.tsx).
 //
-// `timeline` is one flat, ordered list rather than separate arrays for
-// messages/tool calls/permission prompts — the agent can interleave a tool
-// call between two message chunks, and a single array is the only way the
-// render order stays true to that.
+// This component owns every thread's live state — its saved `ChatThread`
+// list (lib/threads.ts), its streamed timeline, its connection status —
+// and is the sole `onAgentEvent` subscriber for the window, routing each
+// incoming event to the right thread by its `threadId` (see lib/acp.ts).
+// That's what lets a cron/trigger thread keep streaming in the background
+// while a different thread is the one actually shown. ThreadList.tsx,
+// NewThreadForm.tsx and ThreadChat.tsx are pure presentation over this
+// state; each screen swaps in for the others rather than living side by
+// side, since the drawer is a fixed ~320px column with no room to spare.
+//
+// Connects lazily (the first message sent, or "Run now") rather than the
+// moment a thread's chat view opens, so opening it to look isn't itself an
+// action with a side effect.
 //
 // If Settings' "Local MCP" server is enabled, its URL goes along on
-// connect so the agent can use it as an MCP server — see `handleSend`.
-// Which of its tools the agent actually sees is controlled entirely by
-// Settings' "Skills" section (`disabledSkills`), enforced server-side in
-// `src-mcp`; nothing here re-applies that filtering.
+// connect so the agent can use it as an MCP server. Which of its tools the
+// agent actually sees is controlled entirely by Settings' "Skills" section
+// (`disabledSkills`), enforced server-side in `src-mcp`; nothing here
+// re-applies that filtering.
 
-import { useCallback, useEffect, useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import {
   cancelPrompt,
+  onAgentEvent,
   respondPermission,
   sendPrompt,
   startAgent,
+  stopAgent,
   type AcpBridgeEvent,
   type AcpPermissionOption,
-  type AcpUpdate,
-  onAgentEvent,
 } from "../../lib/acp";
-import type { AgentSettings, McpSettings } from "../../lib/types";
+import { createThread, deleteThread as deleteThreadRecord, listThreads, type NewThreadInput } from "../../lib/threads";
+import type { AgentSettings, ChatThread, McpSettings } from "../../lib/types";
 import { AgentIcon, CloseIcon } from "../icons";
+import { NewThreadForm } from "./NewThreadForm";
+import { ThreadChat } from "./ThreadChat";
+import { ThreadList } from "./ThreadList";
+import { applyUpdate, finalizeStreaming, newTimelineId, type TimelineItem } from "./timeline";
 import "../../styles/agent.css";
 
-type TimelineItem =
-  | { id: string; kind: "message"; role: "user" | "agent"; text: string; streaming?: boolean }
-  | { id: string; kind: "thought"; text: string; streaming?: boolean }
-  | { id: string; kind: "toolCall"; toolCallId: string; title: string; status: string }
-  | { id: string; kind: "permission"; requestId: unknown; title: string; options: AcpPermissionOption[]; resolvedOptionId?: string }
-  | { id: string; kind: "system"; text: string };
-
 type Connection = "idle" | "connecting" | "connected" | "error";
-
-function newId(): string {
-  return crypto.randomUUID();
-}
-
-/** Best-effort text out of an ACP `ContentBlock` (or an array of them) —
- * `{type: "text", text: "..."}` is what dendroid's chat UI knows how to
- * render; anything else (image/audio/resource blocks) is silently skipped
- * rather than rendered as a JSON dump. */
-function extractText(content: unknown): string {
-  if (typeof content === "string") return content;
-  if (Array.isArray(content)) return content.map(extractText).join("");
-  if (content && typeof content === "object") {
-    const block = content as Record<string, unknown>;
-    if (typeof block.text === "string") return block.text;
-  }
-  return "";
-}
-
-function appendMessageChunk(prev: TimelineItem[], chunk: string): TimelineItem[] {
-  if (!chunk) return prev;
-  const last = prev[prev.length - 1];
-  if (last && last.kind === "message" && last.role === "agent" && last.streaming) {
-    return [...prev.slice(0, -1), { ...last, text: last.text + chunk }];
-  }
-  return [...prev, { id: newId(), kind: "message", role: "agent", text: chunk, streaming: true }];
-}
-
-function appendThoughtChunk(prev: TimelineItem[], chunk: string): TimelineItem[] {
-  if (!chunk) return prev;
-  const last = prev[prev.length - 1];
-  if (last && last.kind === "thought" && last.streaming) {
-    return [...prev.slice(0, -1), { ...last, text: last.text + chunk }];
-  }
-  return [...prev, { id: newId(), kind: "thought", text: chunk, streaming: true }];
-}
-
-function applyUpdate(prev: TimelineItem[], update: AcpUpdate): TimelineItem[] {
-  switch (update.sessionUpdate) {
-    case "agent_message_chunk":
-      return appendMessageChunk(prev, extractText(update.content));
-    case "agent_thought_chunk":
-      return appendThoughtChunk(prev, extractText(update.content));
-    case "tool_call":
-    case "tool_call_update": {
-      const toolCallId = String(update.toolCallId ?? update.id ?? "tool");
-      const title = typeof update.title === "string" ? update.title : "Tool call";
-      const status = typeof update.status === "string" ? update.status : "pending";
-      const idx = prev.findIndex((item) => item.kind === "toolCall" && item.toolCallId === toolCallId);
-      if (idx === -1) return [...prev, { id: newId(), kind: "toolCall", toolCallId, title, status }];
-      const next = [...prev];
-      next[idx] = { ...(next[idx] as Extract<TimelineItem, { kind: "toolCall" }>), title, status };
-      return next;
-    }
-    default:
-      // "plan" and any future update kind: nothing dendroid's chat UI
-      // renders yet, but not an error either — just skip it.
-      return prev;
-  }
-}
-
-function finalizeStreaming(prev: TimelineItem[]): TimelineItem[] {
-  return prev.map((item) => (("streaming" in item) && item.streaming ? { ...item, streaming: false } : item));
-}
 
 interface AgentPanelProps {
   cwd: string;
   agentSettings: AgentSettings;
   /** Settings' "Local MCP" config — when enabled, its URL is offered to
-   * the agent as an MCP server on connect (see `handleSend`'s `startAgent`
-   * call), so whatever's left enabled under Settings' "Skills" section
-   * becomes something this session can call. */
+   * the agent as an MCP server on connect, so whatever's left enabled
+   * under Settings' "Skills" section becomes something a thread's session
+   * can call. */
   mcpSettings: McpSettings;
   open: boolean;
   onClose: () => void;
 }
 
+function withEntry<T>(map: Record<string, T>, id: string, value: T): Record<string, T> {
+  return { ...map, [id]: value };
+}
+
 export function AgentPanel({ cwd, agentSettings, mcpSettings, open, onClose }: AgentPanelProps) {
-  const [connection, setConnection] = useState<Connection>("idle");
-  const [timeline, setTimeline] = useState<TimelineItem[]>([]);
-  const [input, setInput] = useState("");
-  const [busy, setBusy] = useState(false);
-  const timelineRef = useRef<HTMLDivElement>(null);
-  const connectionRef = useRef<Connection>("idle");
-  connectionRef.current = connection;
+  const [threads, setThreads] = useState<ChatThread[]>([]);
+  const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
+  const [timelines, setTimelines] = useState<Record<string, TimelineItem[]>>({});
+  const [connections, setConnections] = useState<Record<string, Connection>>({});
+  const [busy, setBusy] = useState<Record<string, boolean>>({});
+  // Mirrors `connections` synchronously — `handleSend` needs to know
+  // whether *this* thread is already connected without racing its own
+  // `setConnections` call, same reason the old single-thread version of
+  // this component kept a `connectionRef`.
+  const connectionsRef = useRef<Record<string, Connection>>({});
+  connectionsRef.current = connections;
+
+  useEffect(() => {
+    listThreads().then(setThreads);
+  }, []);
 
   useEffect(() => {
     return onAgentEvent((event: AcpBridgeEvent) => {
+      const id = event.threadId;
       if (event.kind === "update") {
-        setTimeline((prev) => applyUpdate(prev, event.payload));
+        setTimelines((prev) => withEntry(prev, id, applyUpdate(prev[id] ?? [], event.payload)));
       } else if (event.kind === "permissionRequest") {
         const title = (event.params.toolCall?.title as string | undefined) ?? "Agent requests permission";
-        setTimeline((prev) => [
-          ...prev,
-          { id: newId(), kind: "permission", requestId: event.requestId, title, options: event.params.options ?? [] },
-        ]);
+        const item: TimelineItem = {
+          id: newTimelineId(),
+          kind: "permission",
+          requestId: event.requestId,
+          title,
+          options: event.params.options ?? [],
+        };
+        setTimelines((prev) => withEntry(prev, id, [...(prev[id] ?? []), item]));
       } else if (event.kind === "closed") {
-        setConnection("idle");
-        setTimeline((prev) => [
-          ...finalizeStreaming(prev),
-          { id: newId(), kind: "system", text: event.error ? `Agent disconnected: ${event.error}` : "Agent disconnected" },
-        ]);
+        setConnections((prev) => withEntry(prev, id, "idle"));
+        const note: TimelineItem = {
+          id: newTimelineId(),
+          kind: "system",
+          text: event.error ? `Agent disconnected: ${event.error}` : "Agent disconnected",
+        };
+        setTimelines((prev) => withEntry(prev, id, [...finalizeStreaming(prev[id] ?? []), note]));
       }
     });
   }, []);
 
-  // Resets the whole conversation (and drops the connection) whenever the
-  // open workspace changes — a stale transcript talking about a different
-  // set of notes would just be confusing left in place.
+  // Resets every thread's live connection state whenever the open
+  // workspace changes — a stale transcript talking about a different set
+  // of notes would just be confusing left in place. The saved thread list
+  // itself isn't workspace-scoped (see lib/threads.ts's doc comment), so
+  // it's untouched here.
   useEffect(() => {
-    setConnection("idle");
-    setTimeline([]);
+    setActiveThreadId(null);
+    setCreating(false);
+    setTimelines({});
+    setConnections({});
+    setBusy({});
   }, [cwd]);
-
-  useEffect(() => {
-    if (!open) return;
-    const el = timelineRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
-  }, [open, timeline]);
 
   const configured = agentSettings.command.trim().length > 0;
 
-  const handleSend = useCallback(async () => {
-    const text = input.trim();
-    if (!text || busy || !configured) return;
-    setInput("");
-    setTimeline((prev) => [...prev, { id: newId(), kind: "message", role: "user", text }]);
-    setBusy(true);
-    try {
-      if (connectionRef.current !== "connected") {
-        setConnection("connecting");
-        const mcpUrl = mcpSettings.enabled ? `http://${mcpSettings.host}:${mcpSettings.port}/mcp` : null;
-        await startAgent(cwd, agentSettings, mcpUrl);
-        setConnection("connected");
-      }
-      const result = await sendPrompt(text);
-      setTimeline((prev) => finalizeStreaming(prev));
-      if (result?.stopReason && result.stopReason !== "end_turn") {
-        setTimeline((prev) => [...prev, { id: newId(), kind: "system", text: `Turn ended: ${result.stopReason}` }]);
-      }
-    } catch (err) {
-      setConnection("error");
-      setTimeline((prev) => [
-        ...finalizeStreaming(prev),
-        { id: newId(), kind: "system", text: `Error: ${err instanceof Error ? err.message : String(err)}` },
-      ]);
-    } finally {
-      setBusy(false);
-    }
-  }, [input, busy, configured, cwd, agentSettings, mcpSettings]);
+  const handleCreateThread = useCallback(async (input: NewThreadInput) => {
+    const thread = await createThread(input);
+    setThreads((prev) => [...prev, thread]);
+    setCreating(false);
+    setActiveThreadId(thread.id);
+  }, []);
 
-  const handleKeyDown = useCallback(
-    (e: KeyboardEvent<HTMLTextAreaElement>) => {
-      if (e.key === "Enter" && !e.shiftKey) {
-        e.preventDefault();
-        void handleSend();
-      }
+  const handleDeleteThread = useCallback(
+    async (id: string) => {
+      setThreads((prev) => prev.filter((t) => t.id !== id));
+      setTimelines((prev) => {
+        const { [id]: _removed, ...rest } = prev;
+        return rest;
+      });
+      setConnections((prev) => {
+        const { [id]: _removed, ...rest } = prev;
+        return rest;
+      });
+      if (activeThreadId === id) setActiveThreadId(null);
+      await stopAgent(id);
+      await deleteThreadRecord(id);
     },
-    [handleSend],
+    [activeThreadId],
   );
 
-  const handlePermissionChoice = useCallback(async (item: Extract<TimelineItem, { kind: "permission" }>, option: AcpPermissionOption) => {
-    setTimeline((prev) =>
-      prev.map((i) => (i.id === item.id && i.kind === "permission" ? { ...i, resolvedOptionId: option.optionId } : i)),
-    );
-    await respondPermission(item.requestId, { outcome: "selected", optionId: option.optionId });
-  }, []);
+  const handleSend = useCallback(
+    async (threadId: string, text: string) => {
+      const userMessage: TimelineItem = { id: newTimelineId(), kind: "message", role: "user", text };
+      setTimelines((prev) => withEntry(prev, threadId, [...(prev[threadId] ?? []), userMessage]));
+      setBusy((prev) => withEntry(prev, threadId, true));
+      try {
+        if (connectionsRef.current[threadId] !== "connected") {
+          setConnections((prev) => withEntry(prev, threadId, "connecting"));
+          const mcpUrl = mcpSettings.enabled ? `http://${mcpSettings.host}:${mcpSettings.port}/mcp` : null;
+          await startAgent(threadId, cwd, agentSettings, mcpUrl);
+          setConnections((prev) => withEntry(prev, threadId, "connected"));
+        }
+        const result = await sendPrompt(threadId, text);
+        setTimelines((prev) => withEntry(prev, threadId, finalizeStreaming(prev[threadId] ?? [])));
+        if (result?.stopReason && result.stopReason !== "end_turn") {
+          const note: TimelineItem = { id: newTimelineId(), kind: "system", text: `Turn ended: ${result.stopReason}` };
+          setTimelines((prev) => withEntry(prev, threadId, [...(prev[threadId] ?? []), note]));
+        }
+      } catch (err) {
+        setConnections((prev) => withEntry(prev, threadId, "error"));
+        const note: TimelineItem = { id: newTimelineId(), kind: "system", text: `Error: ${err instanceof Error ? err.message : String(err)}` };
+        setTimelines((prev) => withEntry(prev, threadId, [...finalizeStreaming(prev[threadId] ?? []), note]));
+      } finally {
+        setBusy((prev) => withEntry(prev, threadId, false));
+      }
+    },
+    [cwd, agentSettings, mcpSettings],
+  );
+
+  const handlePermissionChoice = useCallback(
+    async (threadId: string, item: Extract<TimelineItem, { kind: "permission" }>, option: AcpPermissionOption) => {
+      setTimelines((prev) =>
+        withEntry(
+          prev,
+          threadId,
+          (prev[threadId] ?? []).map((i) => (i.id === item.id && i.kind === "permission" ? { ...i, resolvedOptionId: option.optionId } : i)),
+        ),
+      );
+      await respondPermission(threadId, item.requestId, { outcome: "selected", optionId: option.optionId });
+    },
+    [],
+  );
 
   useEffect(() => {
     if (!open) return;
     function onKeyDown(e: globalThis.KeyboardEvent) {
-      if (e.key === "Escape") onClose();
+      if (e.key !== "Escape") return;
+      // Escape steps back one screen at a time — out of the new-thread
+      // form, or out of a thread's chat back to the list — and only
+      // closes the whole drawer once there's nowhere left to go back to.
+      if (creating) setCreating(false);
+      else if (activeThreadId) setActiveThreadId(null);
+      else onClose();
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [open, onClose]);
+  }, [open, onClose, creating, activeThreadId]);
 
   const style: CSSProperties = {
     transform: open ? "translateX(0)" : "translateX(100%)",
@@ -221,101 +216,38 @@ export function AgentPanel({ cwd, agentSettings, mcpSettings, open, onClose }: A
     pointerEvents: open ? "auto" : "none",
   };
 
-  const statusLabel =
-    connection === "connecting" ? "Connecting…" : connection === "connected" ? "Connected" : connection === "error" ? "Error" : "";
+  const activeThread = activeThreadId ? (threads.find((t) => t.id === activeThreadId) ?? null) : null;
 
   return (
     <>
       {open && <div className="agent-panel__backdrop" onClick={onClose} />}
       <div className="agent-panel" style={style} aria-hidden={!open}>
-        <div className="agent-panel__header">
-          <AgentIcon size={14} />
-          <span className="agent-panel__title">Agent</span>
-          {statusLabel && <span className={`agent-panel__status${connection === "error" ? " agent-panel__status--error" : ""}`}>{statusLabel}</span>}
-          <button type="button" className="agent-panel__close" onClick={onClose} aria-label="Close agent chat">
-            <CloseIcon size={16} />
-          </button>
-        </div>
-
-        {!configured ? (
-          <div className="agent-panel__configure">
-            <span>No agent command configured yet.</span>
-            <span>Set one under Settings → Agent to start chatting.</span>
-          </div>
+        {creating ? (
+          <NewThreadForm onCreate={(input) => void handleCreateThread(input)} onCancel={() => setCreating(false)} />
+        ) : activeThread ? (
+          <ThreadChat
+            key={activeThread.id}
+            thread={activeThread}
+            timeline={timelines[activeThread.id] ?? []}
+            connection={connections[activeThread.id] ?? "idle"}
+            busy={!!busy[activeThread.id]}
+            configured={configured}
+            onBack={() => setActiveThreadId(null)}
+            onClose={onClose}
+            onSend={(text) => void handleSend(activeThread.id, text)}
+            onCancel={() => void cancelPrompt(activeThread.id)}
+            onPermissionChoice={(item, option) => void handlePermissionChoice(activeThread.id, item, option)}
+          />
         ) : (
           <>
-            <div className="agent-panel__timeline" ref={timelineRef}>
-              {timeline.length === 0 && <div className="agent-panel__empty">Send a message to connect and start a session.</div>}
-              {timeline.map((item) => {
-                if (item.kind === "message") {
-                  return (
-                    <div key={item.id} className={`agent-message agent-message--${item.role}${item.streaming ? " is-streaming" : ""}`}>
-                      {item.text}
-                    </div>
-                  );
-                }
-                if (item.kind === "thought") {
-                  return (
-                    <div key={item.id} className={`agent-message agent-message--thought${item.streaming ? " is-streaming" : ""}`}>
-                      {item.text}
-                    </div>
-                  );
-                }
-                if (item.kind === "toolCall") {
-                  return (
-                    <div key={item.id} className="agent-tool-call">
-                      <span className={`agent-tool-call__dot agent-tool-call__dot--${item.status}`} />
-                      <span>{item.title}</span>
-                    </div>
-                  );
-                }
-                if (item.kind === "permission") {
-                  return (
-                    <div key={item.id} className="agent-permission">
-                      <span>{item.title}</span>
-                      <div className="agent-permission__actions">
-                        {item.options.map((option) => (
-                          <button
-                            key={option.optionId}
-                            type="button"
-                            className="btn btn--secondary"
-                            disabled={!!item.resolvedOptionId}
-                            onClick={() => void handlePermissionChoice(item, option)}
-                          >
-                            {item.resolvedOptionId === option.optionId ? `${option.name} ✓` : option.name}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                }
-                return (
-                  <div key={item.id} className="agent-message agent-message--system">
-                    {item.text}
-                  </div>
-                );
-              })}
+            <div className="agent-panel__header">
+              <AgentIcon size={14} />
+              <span className="agent-panel__title">Threads</span>
+              <button type="button" className="agent-panel__close" onClick={onClose} aria-label="Close agent chat">
+                <CloseIcon size={16} />
+              </button>
             </div>
-
-            <div className="agent-panel__composer">
-              <textarea
-                className="agent-panel__input"
-                value={input}
-                placeholder="Message the agent…"
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={handleKeyDown}
-                disabled={busy}
-              />
-              {busy ? (
-                <button type="button" className="btn btn--secondary" onClick={() => void cancelPrompt()}>
-                  Cancel
-                </button>
-              ) : (
-                <button type="button" className="btn btn--primary" onClick={() => void handleSend()} disabled={!input.trim()}>
-                  Send
-                </button>
-              )}
-            </div>
+            <ThreadList threads={threads} onSelect={setActiveThreadId} onNew={() => setCreating(true)} onDelete={(id) => void handleDeleteThread(id)} />
           </>
         )}
       </div>

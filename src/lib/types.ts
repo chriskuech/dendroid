@@ -55,6 +55,69 @@ export interface AgentSettings {
   args: string;
 }
 
+/** Which of the three things can start a chat thread with the ACP agent —
+ * see `lib/threads.ts` and `components/agent/AgentPanel.tsx`. */
+export type ThreadKind = "human" | "cron" | "trigger";
+
+/** Row-change kinds a "trigger" thread can fire on, mirroring SQL's own
+ * INSERT/UPDATE/DELETE vocabulary. */
+export type TriggerEvent = "insert" | "update" | "delete";
+
+/** A "cron" thread's config: when to run, and what to ask the agent to do
+ * each time. */
+export interface CronThreadConfig {
+  /** Standard 5-field cron expression (minute hour day-of-month month
+   * day-of-week), e.g. `"0 9 * * *"` for daily at 9am. Dendroid doesn't run
+   * a background scheduler that reads this yet — see `ChatThread`'s doc
+   * comment — so for now it's descriptive metadata plus what `runThreadNow`
+   * sends verbatim when the thread is run manually. */
+  schedule: string;
+  /** The prompt sent to the agent each time this thread runs. Framed as
+   * "skill" (matching the vocabulary Settings' "Skills" section already
+   * uses for MCP tools) rather than "prompt", since it names a specific
+   * task the agent repeats rather than a one-off message. */
+  skill: string;
+}
+
+/** A "trigger" thread's config: which table to watch, which row-change
+ * kinds fire it, and what to ask the agent to do each time. */
+export interface TriggerThreadConfig {
+  /** Which database (see `lib/db.ts`'s `DatabaseDto`) and table within it
+   * this thread watches. */
+  databaseId: string;
+  table: string;
+  /** Which row-change kinds fire this thread — at least one. */
+  events: TriggerEvent[];
+  /** The prompt sent to the agent on each fire; the triggering row change
+   * is appended to it as event JSON — see `lib/threads.ts`'s
+   * `buildTriggerEventJson`. */
+  skill: string;
+}
+
+/** One saved chat thread: a persisted identity + config for a conversation
+ * with the ACP agent (`lib/acp.ts`), independent of any particular
+ * window's live connection to it (`components/agent/AgentPanel.tsx` owns
+ * that). See `lib/threads.ts` for the CRUD around this list.
+ *
+ * Only "human" threads are message-driven the way the chat drawer always
+ * used to be — a person types, the agent replies. "cron" and "trigger"
+ * threads instead describe *when* dendroid should send their `skill` to
+ * the agent on the thread's behalf: a schedule, or a database row change.
+ * Dendroid doesn't yet run a background scheduler or hook into SQLite's own
+ * row-level triggers to fire these automatically; this type and the UX
+ * built on it (creating/configuring/deleting threads) are what an
+ * automatic-firing feature would be layered onto later. Until then, each
+ * thread's chat view has a manual "Run now" standing in for that — see
+ * `lib/threads.ts`'s `buildTriggerEventJson`. */
+export interface ChatThread {
+  id: string;
+  kind: ThreadKind;
+  title: string;
+  createdAt: string;
+  cron?: CronThreadConfig;
+  trigger?: TriggerThreadConfig;
+}
+
 export interface AppSettings {
   aesthetic: Aesthetic;
   colorMode: ColorMode;

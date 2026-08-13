@@ -67,13 +67,25 @@ pub struct AppDocState {
     /// The currently-running MCP server, if "Local MCP" is enabled — see
     /// `crate::mcp`.
     pub mcp_handle: Mutex<Option<McpHandle>>,
-    /// One agent session per *window* (like `sessions` above), keyed by
-    /// window label — the chat drawer's own document, unrelated to the
-    /// "primary" window concept `mcp_handle` uses. Present only once that
-    /// window's drawer has connected (`crate::acp::acp_start`); absent
-    /// otherwise, including after the window's session is stopped or the
-    /// window closes.
+    /// One agent session per *chat thread*, keyed by [`acp_key`] (window
+    /// label + thread id) rather than window label alone — the chat
+    /// drawer's own documents, unrelated to the "primary" window concept
+    /// `mcp_handle` uses. A window can hold several threads open against
+    /// the agent binary at once (see `components/agent/AgentPanel.tsx`),
+    /// each spawning its own agent process so their conversations stay
+    /// fully independent. Present for a given thread only once that
+    /// thread's ever connected (`crate::acp::acp_start`); absent otherwise,
+    /// including after that thread's session is stopped or the window
+    /// closes.
     pub acp_sessions: Mutex<HashMap<String, AcpSession>>,
+}
+
+/// Builds the composite key `AppDocState::acp_sessions` is keyed by — see
+/// that field's doc comment for why it's (window, thread) rather than just
+/// window. `::` can't appear in a Tauri window label or a `crypto.
+/// randomUUID()` thread id, so this can't collide across windows/threads.
+pub fn acp_key(window_label: &str, thread_id: &str) -> String {
+    format!("{window_label}::{thread_id}")
 }
 
 impl AppDocState {
