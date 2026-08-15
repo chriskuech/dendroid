@@ -1,0 +1,59 @@
+import type { AgentProvider } from "./types";
+
+export interface AgentProviderMeta {
+  kind: AgentProvider;
+  label: string;
+  description: string;
+  /** Preset `command`/`args` this provider runs. Only actually applied when
+   * `editable` is false — picking an editable provider ("custom") leaves
+   * whatever `AgentSettings.command`/`args` already held alone, so the
+   * user's typed-in values survive switching away and back. */
+  command: string;
+  args: string;
+  /** Whether Settings' Command/Arguments fields are user-editable for this
+   * provider, vs. locked (read-only) to the preset above. */
+  editable: boolean;
+}
+
+// Presets for Settings' Agent section (see SettingsPage.tsx). Picking one
+// fills in `AgentSettings.command`/`args`, which `lib/acp.ts`'s
+// `startAgent` then spawns verbatim — same mechanism as typing them in
+// under "Custom" by hand. Neither Claude Code nor Ollama speak ACP
+// natively, so both presets actually point at a small adapter process
+// sitting in front of them, not the model CLI/server itself.
+export const AGENT_PROVIDERS: Record<AgentProvider, AgentProviderMeta> = {
+  none: {
+    kind: "none",
+    label: "None",
+    description: "Agent chat is turned off.",
+    command: "",
+    args: "",
+    editable: false,
+  },
+  ollama: {
+    kind: "ollama",
+    label: "Ollama",
+    description:
+      'Local models via OpenCode’s ACP adapter ("npm i -g opencode"), pointed at Ollama running on this machine. Pick the model inside OpenCode’s own config.',
+    command: "opencode",
+    args: "acp",
+    editable: false,
+  },
+  claudeCode: {
+    kind: "claudeCode",
+    label: "Claude Code",
+    description:
+      'Anthropic’s Claude Code, via Zed’s ACP adapter ("npm i -g @zed-industries/claude-agent-acp"). Needs an ANTHROPIC_API_KEY in the environment, or an existing "claude login" session.',
+    command: "claude-agent-acp",
+    args: "",
+    editable: false,
+  },
+  custom: {
+    kind: "custom",
+    label: "Custom",
+    description: "Add settings directly — any Agent Client Protocol (ACP) agent, by its own command and arguments.",
+    command: "",
+    args: "",
+    editable: true,
+  },
+};

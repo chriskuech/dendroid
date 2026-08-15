@@ -39,13 +39,23 @@ export interface McpSettings {
   disabledSkills: string[];
 }
 
+/** Which preset (if any) filled in `AgentSettings.command`/`args` — see
+ * `lib/agentProviders.ts`'s `AGENT_PROVIDERS`. Purely a Settings UI concern:
+ * `lib/acp.ts`'s `startAgent` only ever looks at `command`/`args`
+ * themselves, so this doesn't reach the Rust side at all. "custom" is the
+ * "add settings directly" option — `command`/`args` are user-editable;
+ * every other kind locks them to that provider's preset. */
+export type AgentProvider = "none" | "ollama" | "claudeCode" | "custom";
+
 /** Configures the agent the chat drawer spawns — see `lib/acp.ts` and
  * `components/agent/AgentPanel.tsx`. Any Agent Client Protocol (ACP) agent
  * works: `command` is launched as a subprocess and spoken to over stdio, no
  * different from pointing an ACP-aware editor at the same binary. Unlike
  * `McpSettings` there's no "enabled" toggle — an empty `command` alone
- * means "not configured yet" (the drawer shows a prompt to set one). */
+ * means "not configured yet" (the drawer shows a prompt to set one), which
+ * is exactly what the "none" provider resolves to. */
 export interface AgentSettings {
+  provider: AgentProvider;
   /** Path to (or bare name on `PATH` of) an ACP-speaking agent binary. */
   command: string;
   /** Extra arguments passed to `command`, as one space-separated string
@@ -146,6 +156,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
     disabledSkills: [],
   },
   agent: {
+    provider: "none",
     command: "",
     args: "",
   },

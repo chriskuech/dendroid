@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { useAppState } from "../../lib/AppState";
+import { AGENT_PROVIDERS } from "../../lib/agentProviders";
 import type { DendroidDocument } from "../../lib/crdt/document";
 import { pickFolder } from "../../lib/dialog";
 import { listMcpSkills, type McpSkill } from "../../lib/mcp";
 import { SYNC_PROVIDERS } from "../../lib/syncProviders";
-import { DEPTH_MIN, DEPTH_MAX, type Aesthetic, type ColorMode, type EditorMode } from "../../lib/types";
+import { DEPTH_MIN, DEPTH_MAX, type Aesthetic, type AgentProvider, type ColorMode, type EditorMode } from "../../lib/types";
 import { CloseIcon } from "../icons";
 import { Button } from "../ui/Button";
 import { Segmented } from "../ui/Segmented";
@@ -55,6 +56,19 @@ export function SettingsPage({ onClose, crdt = null }: { onClose: () => void; cr
       ? settings.mcp.disabledSkills.filter((n) => n !== name)
       : [...settings.mcp.disabledSkills, name];
     updateSettings({ mcp: { ...settings.mcp, disabledSkills } });
+  }
+
+  function selectAgentProvider(provider: AgentProvider) {
+    const meta = AGENT_PROVIDERS[provider];
+    updateSettings({
+      agent: {
+        provider,
+        // Editable ("custom") keeps whatever was already typed in;
+        // everything else snaps command/args to its own preset.
+        command: meta.editable ? settings.agent.command : meta.command,
+        args: meta.editable ? settings.agent.args : meta.args,
+      },
+    });
   }
 
   useEffect(() => {
@@ -366,24 +380,43 @@ export function SettingsPage({ onClose, crdt = null }: { onClose: () => void; cr
           }}
         >
           <span className="settings__section-title">Agent</span>
-          <div className="field">
-            <span className="field__label">Command</span>
-            <input
-              className="field-input"
-              value={settings.agent.command}
-              placeholder="e.g. claude-code-acp"
-              onChange={(e) => updateSettings({ agent: { ...settings.agent, command: e.target.value } })}
+          <div className="settings__row">
+            <span className="settings__row-label">Provider</span>
+            <Segmented<AgentProvider>
+              value={settings.agent.provider}
+              onChange={selectAgentProvider}
+              options={(Object.keys(AGENT_PROVIDERS) as AgentProvider[]).map((provider) => ({
+                value: provider,
+                label: AGENT_PROVIDERS[provider].label,
+              }))}
             />
           </div>
-          <div className="field">
-            <span className="field__label">Arguments</span>
-            <input
-              className="field-input"
-              value={settings.agent.args}
-              placeholder="space-separated, optional"
-              onChange={(e) => updateSettings({ agent: { ...settings.agent, args: e.target.value } })}
-            />
-          </div>
+          <span className="settings__row-hint">{AGENT_PROVIDERS[settings.agent.provider].description}</span>
+
+          {settings.agent.provider !== "none" && (
+            <>
+              <div className="field">
+                <span className="field__label">Command</span>
+                <input
+                  className="field-input"
+                  value={settings.agent.command}
+                  placeholder="e.g. claude-agent-acp"
+                  readOnly={settings.agent.provider !== "custom"}
+                  onChange={(e) => updateSettings({ agent: { ...settings.agent, command: e.target.value } })}
+                />
+              </div>
+              <div className="field">
+                <span className="field__label">Arguments</span>
+                <input
+                  className="field-input"
+                  value={settings.agent.args}
+                  placeholder="space-separated, optional"
+                  readOnly={settings.agent.provider !== "custom"}
+                  onChange={(e) => updateSettings({ agent: { ...settings.agent, args: e.target.value } })}
+                />
+              </div>
+            </>
+          )}
           <span className="settings__block-hint">
             Any Agent Client Protocol (ACP) agent — launched over stdio the first time the chat drawer connects.
           </span>

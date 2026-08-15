@@ -38,7 +38,7 @@ vi.mock("../../lib/settingsStore", async () => {
   return { ...actual, loadThreads: vi.fn(), saveThreads: vi.fn() };
 });
 
-const agentSettings: AgentSettings = { command: "fake-agent", args: "" };
+const agentSettings: AgentSettings = { provider: "custom", command: "fake-agent", args: "" };
 const mcpSettings: McpSettings = { enabled: false, host: "127.0.0.1", port: 7717, disabledSkills: [] };
 
 beforeEach(() => {
@@ -84,7 +84,9 @@ describe("AgentPanel", () => {
 
   it("shows a configure prompt instead of the composer when no command is set", async () => {
     const user = userEvent.setup();
-    render(<AgentPanel cwd="/tmp/ws" agentSettings={{ command: "", args: "" }} mcpSettings={mcpSettings} open onClose={vi.fn()} />);
+    render(
+      <AgentPanel cwd="/tmp/ws" agentSettings={{ provider: "none", command: "", args: "" }} mcpSettings={mcpSettings} open onClose={vi.fn()} />,
+    );
     await user.click(await screen.findByRole("button", { name: /new thread/i }));
     await user.click(screen.getByRole("button", { name: /^create$/i }));
 

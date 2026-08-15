@@ -24,7 +24,7 @@
     "@tiptap/pm": "^3.29.2",
     "@tiptap/react": "^3.29.2",
     "@tiptap/starter-kit": "^3.29.2",
-    "@tiptap/suggestion": "^3",
+    "@tiptap/suggestion": "3.29.2",
     "jsqr": "^1.4.0",
     "loro-crdt": "^1.14.1",
     "loro-prosemirror": "^0.4.3",

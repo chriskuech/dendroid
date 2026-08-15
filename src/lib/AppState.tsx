@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { DEFAULT_SETTINGS, type AppSettings, type SyncConfig, type Workspace } from "./types";
+import { DEFAULT_SETTINGS, type AgentSettings, type AppSettings, type SyncConfig, type Workspace } from "./types";
 import { NARROW_QUERY } from "./layout";
 import { applyMcpConfig } from "./mcp";
 import { folderNameFromPath } from "./path";
@@ -110,7 +110,39 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
         loadAppSettings(),
       ]);
       if (cancelled) return;
-      if (savedSettings) setSettings({ ...DEFAULT_SETTINGS, ...savedSettings });
+      // A shallow `{ ...DEFAULT_SETTINGS, ...savedSettings }` would let a
+      // persisted `mcp`/`agent` object from before one of their fields
+      // existed (e.g. `mcp.disabledSkills`, added by the Skills settings
+      // section) wholesale replace the default and silently drop it —
+      // `undefined.includes(...)` in SettingsPage's Skills list, with no
+      // error boundary to catch it, so merge those nested objects a level
+      // deeper too.
+      if (savedSettings) {
+        // Pre-provider-picker installs persisted `agent.command`/`args`
+        // with no `provider` field at all. Merging those over
+        // DEFAULT_SETTINGS.agent (provider: "none") would keep the old
+        // command around but flip the picker to "None", which hides it in
+        // Settings and reads as agent chat having been turned off — so
+        // anyone with a real command already saved is a "Custom" agent,
+        // not a fresh, unconfigured one.
+        const savedAgent = savedSettings.agent;
+        // Widened to `Partial` for this check alone: `AgentSettings` itself
+        // says `provider` always exists, so without this TS narrows the
+        // "old shape" branch below to `never` — the whole point here is
+        // handling saved JSON that predates the field and doesn't actually
+        // conform.
+        const legacyAgent = savedAgent as Partial<AgentSettings> | undefined;
+        const agent = { ...DEFAULT_SETTINGS.agent, ...savedAgent };
+        if (legacyAgent && !("provider" in legacyAgent) && legacyAgent.command) {
+          agent.provider = "custom";
+        }
+        setSettings({
+          ...DEFAULT_SETTINGS,
+          ...savedSettings,
+          mcp: { ...DEFAULT_SETTINGS.mcp, ...savedSettings.mcp },
+          agent,
+        });
+      }
       if (initialRoot) {
         setWorkspace({
           id: crypto.randomUUID(),
