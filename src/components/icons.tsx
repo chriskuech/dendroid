@@ -371,6 +371,52 @@ export function TriggerIcon(props: IconProps) {
   );
 }
 
+/** A lightning bolt, stepped 1px per row like `GraphIcon`'s/`TriggerIcon`'s
+ * diagonals with a wide bar at the kink — the Automations sidebar tab (see
+ * `components/sidebar/Sidebar.tsx`) and its "Triggers" section/rows. Reads
+ * as "fires automatically" the way `TriggerIcon`'s λ reads as "a handler",
+ * just at the level of the whole feature rather than one saved trigger. */
+export function AutomationIcon(props: IconProps) {
+  return (
+    <PixelIcon {...props}>
+      <rect x={9} y={2} width={3} height={1} />
+      <rect x={8} y={3} width={1} height={1} />
+      <rect x={7} y={4} width={1} height={1} />
+      <rect x={6} y={5} width={1} height={1} />
+      <rect x={5} y={6} width={1} height={1} />
+      <rect x={4} y={7} width={6} height={1} />
+      <rect x={9} y={8} width={1} height={1} />
+      <rect x={8} y={9} width={1} height={1} />
+      <rect x={7} y={10} width={1} height={1} />
+      <rect x={6} y={11} width={1} height={1} />
+      <rect x={5} y={12} width={1} height={1} />
+      <rect x={4} y={13} width={3} height={1} />
+    </PixelIcon>
+  );
+}
+
+/** A four-pointed sparkle — the Automations tab's "Skills" section and its
+ * rows (`components/automations/SkillList.tsx`): a saved, reusable prompt,
+ * the same "spark of capability" shorthand a sparkle/magic-wand glyph
+ * conventionally stands for elsewhere. Built from the same blocky rects
+ * `DatabaseIcon`/`EncryptionIcon` use rather than 1px diagonals, since a
+ * sparkle's points are themselves small filled squares, not lines. */
+export function SkillIcon(props: IconProps) {
+  return (
+    <PixelIcon {...props}>
+      <rect x={7} y={2} width={2} height={2} />
+      <rect x={7} y={12} width={2} height={2} />
+      <rect x={2} y={7} width={2} height={2} />
+      <rect x={12} y={7} width={2} height={2} />
+      <rect x={7} y={7} width={2} height={2} />
+      <rect x={5} y={5} width={1} height={1} />
+      <rect x={10} y={5} width={1} height={1} />
+      <rect x={5} y={10} width={1} height={1} />
+      <rect x={10} y={10} width={1} height={1} />
+    </PixelIcon>
+  );
+}
+
 /** A right-pointing triangle — "run now", the manual stand-in for a
  * cron/trigger thread's automatic firing (see `ChatThread`'s doc comment
  * in `lib/types.ts`). */
@@ -382,6 +428,30 @@ export function PlayIcon(props: IconProps) {
       <rect x={7} y={5} width={1} height={6} />
       <rect x={8} y={6} width={1} height={4} />
       <rect x={9} y={7} width={1} height={2} />
+    </PixelIcon>
+  );
+}
+
+/** A pencil, tip pointing down-left — the "edit" affordance on an
+ * automation/skill row (`components/automations/*`), where a row's own
+ * click is already claimed by something else (opening a skill's runs, in
+ * an `AutomationList` row's case) so editing needs its own explicit
+ * button, unlike e.g. `DatabaseListView`'s rows where a click alone is
+ * enough. Stepped 1px per row like `GraphIcon`'s diagonals, same shaft/tip
+ * split every pencil glyph uses. */
+export function PencilIcon(props: IconProps) {
+  return (
+    <PixelIcon {...props}>
+      <rect x={10} y={2} width={2} height={2} />
+      <rect x={9} y={4} width={1} height={1} />
+      <rect x={8} y={5} width={1} height={1} />
+      <rect x={7} y={6} width={1} height={1} />
+      <rect x={6} y={7} width={1} height={1} />
+      <rect x={5} y={8} width={1} height={1} />
+      <rect x={4} y={9} width={1} height={1} />
+      <rect x={3} y={10} width={1} height={1} />
+      <rect x={2} y={11} width={2} height={2} />
+      <rect x={2} y={13} width={2} height={1} />
     </PixelIcon>
   );
 }

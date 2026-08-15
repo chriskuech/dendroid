@@ -13,6 +13,7 @@ import { buildTriggerEventJson } from "../../lib/threads";
 import type { ChatThread, TriggerEvent } from "../../lib/types";
 import { BackIcon, CloseIcon, PlayIcon } from "../icons";
 import { ThreadKindIcon } from "./ThreadKindIcon";
+import { Timeline } from "./Timeline";
 import type { TimelineItem } from "./timeline";
 
 type Connection = "idle" | "connecting" | "connected" | "error";
@@ -133,55 +134,7 @@ export function ThreadChat({ thread, timeline, connection, busy, configured, onB
                 {thread.kind === "human" ? "Send a message to connect and start a session." : "Send a message, or use Run now to test this thread."}
               </div>
             )}
-            {timeline.map((item) => {
-              if (item.kind === "message") {
-                return (
-                  <div key={item.id} className={`agent-message agent-message--${item.role}${item.streaming ? " is-streaming" : ""}`}>
-                    {item.text}
-                  </div>
-                );
-              }
-              if (item.kind === "thought") {
-                return (
-                  <div key={item.id} className={`agent-message agent-message--thought${item.streaming ? " is-streaming" : ""}`}>
-                    {item.text}
-                  </div>
-                );
-              }
-              if (item.kind === "toolCall") {
-                return (
-                  <div key={item.id} className="agent-tool-call">
-                    <span className={`agent-tool-call__dot agent-tool-call__dot--${item.status}`} />
-                    <span>{item.title}</span>
-                  </div>
-                );
-              }
-              if (item.kind === "permission") {
-                return (
-                  <div key={item.id} className="agent-permission">
-                    <span>{item.title}</span>
-                    <div className="agent-permission__actions">
-                      {item.options.map((option) => (
-                        <button
-                          key={option.optionId}
-                          type="button"
-                          className="btn btn--secondary"
-                          disabled={!!item.resolvedOptionId}
-                          onClick={() => onPermissionChoice(item, option)}
-                        >
-                          {item.resolvedOptionId === option.optionId ? `${option.name} ✓` : option.name}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                );
-              }
-              return (
-                <div key={item.id} className="agent-message agent-message--system">
-                  {item.text}
-                </div>
-              );
-            })}
+            <Timeline timeline={timeline} onPermissionChoice={onPermissionChoice} />
           </div>
 
           <div className="agent-panel__composer">

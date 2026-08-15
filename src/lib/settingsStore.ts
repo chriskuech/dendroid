@@ -15,12 +15,14 @@
 // falls back to this file's usual `settings.json`/in-memory store outside
 // Tauri, where there's no keychain to ask.
 
-import type { AppSettings, ChatThread, Workspace } from "./types";
+import type { AppSettings, Automation, ChatThread, Skill, Workspace } from "./types";
 
 const STORE_FILE = "settings.json";
 const WORKSPACE_KEY = "workspace";
 const APP_SETTINGS_KEY = "appSettings";
 const THREADS_KEY = "chatThreads";
+const SKILLS_KEY = "skills";
+const AUTOMATIONS_KEY = "automations";
 /** Fallback slot for the encryption key's textual form, used only when
  * there's no OS keychain to ask (see `loadEncryptionKeyText` and friends,
  * below) — a plain browser tab/web build has no keychain equivalent, so it
@@ -104,6 +106,36 @@ export async function loadThreads(): Promise<ChatThread[]> {
 export async function saveThreads(threads: ChatThread[]): Promise<void> {
   const store = await getStore();
   await store.set(THREADS_KEY, threads);
+  await store.save();
+}
+
+/** The full list of saved skills (`lib/types.ts`'s `Skill`) — see
+ * `lib/skills.ts` for the CRUD built on top of this. Same "one flat list,
+ * not workspace-scoped" simplification `loadThreads`/`saveThreads` already
+ * make. Defaults to `[]`, same reasoning as `loadThreads`. */
+export async function loadSkills(): Promise<Skill[]> {
+  const store = await getStore();
+  return (await store.get<Skill[]>(SKILLS_KEY)) ?? [];
+}
+
+export async function saveSkills(skills: Skill[]): Promise<void> {
+  const store = await getStore();
+  await store.set(SKILLS_KEY, skills);
+  await store.save();
+}
+
+/** The full list of saved automations (`lib/types.ts`'s `Automation`) —
+ * see `lib/automations.ts` for the CRUD built on top of this, and
+ * `syncAutomationsEngine` for how this list actually reaches the Rust-side
+ * background engine that fires them. */
+export async function loadAutomations(): Promise<Automation[]> {
+  const store = await getStore();
+  return (await store.get<Automation[]>(AUTOMATIONS_KEY)) ?? [];
+}
+
+export async function saveAutomations(automations: Automation[]): Promise<void> {
+  const store = await getStore();
+  await store.set(AUTOMATIONS_KEY, automations);
   await store.save();
 }
 

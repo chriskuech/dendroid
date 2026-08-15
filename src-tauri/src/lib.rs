@@ -1,10 +1,13 @@
 // Platform-agnostic logic lives in the `dendroid-core` crate (src-core/).
 
 mod acp;
+mod automation;
 mod commands;
 mod keychain;
 mod mcp;
 mod state;
+
+use automation::AutomationEngine;
 
 use std::time::Duration;
 
@@ -146,6 +149,7 @@ pub fn run() {
         .plugin(tauri_plugin_store::Builder::default().build())
         .plugin(tauri_plugin_dialog::init())
         .manage(AppDocState::new())
+        .manage(AutomationEngine::new())
         .menu(build_menu)
         .on_menu_event(|app, event| {
             let Some(label) = focused_window_label(app) else {
@@ -251,6 +255,12 @@ pub fn run() {
                     commands::emit_db_update(&handle, &label);
                 }
             });
+
+            // The automation engine's own cron scheduler — see
+            // `automation::spawn_cron_loop`. Its data-trigger half doesn't
+            // need a setup-time hook of its own; it's called directly from
+            // `commands::db_exec` whenever a write actually happens.
+            automation::spawn_cron_loop(app.handle().clone());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -287,6 +297,10 @@ pub fn run() {
             acp::acp_send_prompt,
             acp::acp_cancel,
             acp::acp_respond_permission,
+            automation::automations_sync,
+            automation::automation_run_now,
+            automation::automation_runs_list,
+            automation::automation_run_get,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

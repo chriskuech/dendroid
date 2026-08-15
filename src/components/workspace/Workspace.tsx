@@ -21,6 +21,7 @@ import { DendroidDocument } from "../../lib/crdt/document";
 import type { OutlineEntry } from "../../lib/crdt/outline";
 import { getDatabase, onDatabasesChanged, type DatabaseDto } from "../../lib/db";
 import { applyMcpConfig } from "../../lib/mcp";
+import { setAutomationsCwd, syncAutomationsEngine } from "../../lib/automationsEngine";
 import { Sidebar, type SidebarView } from "../sidebar/Sidebar";
 import { AgentPanel } from "../agent/AgentPanel";
 import { AgentIcon, LogoIcon, WarningIcon } from "../icons";
@@ -146,6 +147,22 @@ export function Workspace({ rootPath, onDocumentReady }: WorkspaceProps) {
   useEffect(() => {
     if (ready) void applyMcpConfig(settings.mcp);
   }, [ready, settings.mcp]);
+
+  // Tells the automation engine (src-tauri/src/automation.rs) which cwd to
+  // spawn its agent processes in, and re-syncs it whenever this workspace's
+  // root or the configured agent command/args change — see
+  // lib/automationsEngine.ts's doc comment for why this lives here rather
+  // than in the automations tab itself (automations aren't workspace-scoped,
+  // but the engine still needs *some* cwd to launch the agent binary in).
+  useEffect(() => {
+    if (!ready) return;
+    setAutomationsCwd(rootPath);
+    return () => setAutomationsCwd(null);
+  }, [ready, rootPath]);
+
+  useEffect(() => {
+    if (ready) void syncAutomationsEngine();
+  }, [ready, settings.agent]);
 
   const selectHeading = useCallback((headingId: string) => {
     const editor = editorRef.current?.editor;
