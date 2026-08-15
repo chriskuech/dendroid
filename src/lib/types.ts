@@ -242,7 +242,7 @@ export interface AutomationRunSummary {
 
 /** Full detail for one run — `automation_run_get`'s response. `updates` is
  * every raw `session/update` payload the agent streamed, in arrival order;
- * `components/agent/timeline.ts`'s `applyUpdate` folds them into the same
+ * `components/agent/timelineUpdates.ts`'s `applyUpdate` folds them into the same
  * `TimelineItem[]` shape a live thread's chat renders, so
  * `AutomationRunChat.tsx` can reuse `Timeline.tsx` unchanged. */
 export interface AutomationRun extends AutomationRunSummary {

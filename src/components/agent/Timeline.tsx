@@ -9,7 +9,7 @@
 // live buttons.
 
 import type { AcpPermissionOption } from "../../lib/acp";
-import type { TimelineItem } from "./timeline";
+import type { TimelineItem } from "./timelineUpdates";
 
 interface TimelineProps {
   timeline: TimelineItem[];

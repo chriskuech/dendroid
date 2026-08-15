@@ -14,7 +14,7 @@ import type { ChatThread, TriggerEvent } from "../../lib/types";
 import { BackIcon, CloseIcon, PlayIcon } from "../icons";
 import { ThreadKindIcon } from "./ThreadKindIcon";
 import { Timeline } from "./Timeline";
-import type { TimelineItem } from "./timeline";
+import type { TimelineItem } from "./timelineUpdates";
 
 type Connection = "idle" | "connecting" | "connected" | "error";
 

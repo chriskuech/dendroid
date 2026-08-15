@@ -2,14 +2,14 @@
 // initiated. `run.updates` is every raw `session/update` payload the agent
 // streamed while this run was live (see lib/types.ts's `AutomationRun`);
 // folding it through the same `applyUpdate`/`finalizeStreaming` a *live*
-// thread's chat uses (components/agent/timeline.ts) reconstructs the exact
+// thread's chat uses (components/agent/timelineUpdates.ts) reconstructs the exact
 // same `TimelineItem[]` shape, so `Timeline.tsx` renders it identically —
 // just once, from a finished array, instead of incrementally off events.
 
 import { useEffect, useState } from "react";
 import { getAutomationRun } from "../../lib/automationsEngine";
 import type { AutomationRun } from "../../lib/types";
-import { applyUpdate, finalizeStreaming, type TimelineItem } from "../agent/timeline";
+import { applyUpdate, finalizeStreaming, type TimelineItem } from "../agent/timelineUpdates";
 import { Timeline } from "../agent/Timeline";
 
 interface AutomationRunChatProps {

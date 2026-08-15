@@ -46,7 +46,7 @@ import { AgentIcon, CloseIcon } from "../icons";
 import { NewThreadForm } from "./NewThreadForm";
 import { ThreadChat } from "./ThreadChat";
 import { ThreadList } from "./ThreadList";
-import { applyUpdate, finalizeStreaming, newTimelineId, type TimelineItem } from "./timeline";
+import { applyUpdate, finalizeStreaming, newTimelineId, type TimelineItem } from "./timelineUpdates";
 import "../../styles/agent.css";
 
 type Connection = "idle" | "connecting" | "connected" | "error";
