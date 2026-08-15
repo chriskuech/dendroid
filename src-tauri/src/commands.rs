@@ -29,6 +29,7 @@ use std::sync::Arc;
 use tauri::{AppHandle, Emitter, Manager, State, WebviewUrl, WebviewWindowBuilder, Window};
 use tokio::sync::Mutex;
 
+use crate::automation::AutomationEngine;
 use crate::state::{AppDocState, Session};
 
 pub const UPDATE_EVENT: &str = "crdt://update";
@@ -404,10 +405,20 @@ pub async fn db_delete(window: Window, state: State<'_, AppDocState>, id: String
 /// `id` and ledgers it — see `dendroid_core::sqldb::SqlWorkspace::exec`.
 /// What every basic-table-UI action (insert/update/delete a row, create/
 /// alter/drop a table) and the "Run SQL" console both go through.
+///
+/// Also the data-trigger engine's only hook into database writes: after a
+/// successful non-batch statement, `crate::automation::detect_write` makes
+/// a best-effort guess at which table/row-change kind it was and, if it
+/// matches a configured automation's `data` watch, fires it
+/// (`crate::automation::fire_data_triggers`). Batch statements (the "Run
+/// SQL" console's multi-statement path) are skipped entirely — see
+/// `detect_write`'s doc comment for why one statement's shape is as far as
+/// this goes.
 #[tauri::command(rename_all = "camelCase")]
 pub async fn db_exec(
     window: Window,
     state: State<'_, AppDocState>,
+    engine: State<'_, AutomationEngine>,
     id: String,
     sql: String,
     params: Option<Vec<JsonValue>>,
@@ -415,12 +426,20 @@ pub async fn db_exec(
 ) -> Result<(), String> {
     let label = window.label().to_string();
     let sql_handle = session_sql(&state, &label).await?;
+    let is_batch = batch.unwrap_or(false);
+    let bound_params = params.unwrap_or_default();
 
     let mut db = sql_handle.lock().await;
-    db.exec(&id, &sql, params.unwrap_or_default(), batch.unwrap_or(false)).await.map_err(|e| e.to_string())?;
+    db.exec(&id, &sql, bound_params.clone(), is_batch).await.map_err(|e| e.to_string())?;
     drop(db);
 
     emit_db_update(window.app_handle(), &label);
+
+    if !is_batch {
+        if let Some((event, table)) = crate::automation::detect_write(&sql) {
+            crate::automation::fire_data_triggers(window.app_handle().clone(), &engine, &id, &table, &event, bound_params).await;
+        }
+    }
     Ok(())
 }
 

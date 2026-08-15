@@ -1,0 +1,282 @@
+/* The sidebar's Automations tab — components/automations/*. Mirrors
+ * database.css's list/row shapes (see DatabaseListView.tsx's own comment
+ * for why every sidebar-shaped list in dendroid reads the same) plus
+ * agent.css's thread-form/thread-chat conventions for the add/edit forms
+ * and read-only run transcript, since those are the closest existing
+ * analogues (a cron/trigger thread's config form, a chat timeline). */
+
+.automation-view {
+  width: 280px;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-right: 1px solid var(--line);
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.automation-view--drawer {
+  position: absolute;
+  inset: 0;
+  width: auto;
+  border-right: none;
+  background: var(--bg);
+}
+
+.automation-view__header {
+  height: 44px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 14px;
+  color: var(--text-2);
+  border-bottom: 1px solid var(--line);
+}
+
+.automation-view__label {
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.automation-view__close {
+  margin-left: auto;
+  display: flex;
+  padding: 0;
+  background: transparent;
+  border: none;
+  color: var(--text-2);
+  cursor: pointer;
+}
+
+.automation-view__close:hover {
+  color: var(--text);
+}
+
+.automation-view__tabs {
+  flex: none;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.automation-view__tabs .segmented {
+  width: 100%;
+}
+
+.automation-view__body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.automation-view__status {
+  padding: 14px;
+  font-size: 12px;
+  font-weight: 300;
+  color: var(--text-2);
+  line-height: 1.5;
+}
+
+.automation-view__status--error {
+  color: var(--danger);
+}
+
+/* --- Skill/Trigger lists (SkillList.tsx, AutomationList.tsx) --- */
+
+.automation-list {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.automation-list__rows {
+  flex: 1;
+  overflow-y: auto;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.automation-list__new {
+  flex: none;
+  padding: 10px;
+  border-top: 1px solid var(--line);
+}
+
+.automation-list__new-btn {
+  width: 100%;
+  justify-content: center;
+  gap: 6px;
+}
+
+.automation-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  cursor: pointer;
+  color: var(--text-2);
+}
+
+.automation-row:hover {
+  background: var(--raised);
+  color: var(--text);
+}
+
+.automation-row--disabled {
+  opacity: 0.5;
+}
+
+.automation-row__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.automation-row__title {
+  font-size: 12px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.automation-row__sub {
+  font-size: 10px;
+  color: var(--text-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.automation-row__enabled {
+  flex: none;
+  cursor: pointer;
+}
+
+.automation-row__edit,
+.automation-row__delete {
+  flex: none;
+  display: flex;
+  padding: 2px;
+  color: var(--text-3);
+  opacity: 0;
+  transition: opacity 100ms;
+}
+
+.automation-row:hover .automation-row__edit,
+.automation-row:hover .automation-row__delete {
+  opacity: 1;
+}
+
+.automation-row__edit:hover {
+  color: var(--accent);
+}
+
+.automation-row__delete:hover {
+  color: var(--danger);
+}
+
+/* --- Skill/Automation forms (SkillForm.tsx, AutomationForm.tsx) --- */
+
+.automation-form {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+}
+
+.automation-form__body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.automation-form__section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  background: var(--raised);
+}
+
+.automation-form__toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.automation-form__section-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-left: 22px;
+}
+
+/* --- Run history + transcript (AutomationRunsView.tsx, AutomationRunChat.tsx) --- */
+
+.automation-runs {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.automation-runs__toolbar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 10px;
+  border-bottom: 1px solid var(--line);
+  background: var(--raised);
+}
+
+.automation-runs__run-btn {
+  flex: none;
+}
+
+.automation-runs__status {
+  flex: none;
+  font-size: 9.5px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+
+.automation-runs__status--done {
+  color: var(--text-2);
+}
+
+.automation-runs__status--running {
+  color: var(--accent);
+}
+
+.automation-runs__status--error {
+  color: var(--danger);
+}
+
+.automation-run-chat {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}

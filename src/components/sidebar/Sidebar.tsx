@@ -16,10 +16,11 @@ import { MindMapView } from "../mindmap/MindMapView";
 import { HistoryView } from "../history/HistoryView";
 import { DatabaseHistoryView } from "../history/DatabaseHistoryView";
 import { DatabaseListView } from "../database/DatabaseListView";
-import { CloseIcon, DatabaseIcon, GraphIcon, HistoryIcon, LogoIcon } from "../icons";
+import { AutomationsView } from "../automations/AutomationsView";
+import { AutomationIcon, CloseIcon, DatabaseIcon, GraphIcon, HistoryIcon, LogoIcon } from "../icons";
 import "../../styles/sidebar.css";
 
-export type SidebarView = "tree" | "mindmap" | "history" | "database";
+export type SidebarView = "tree" | "mindmap" | "history" | "database" | "automation";
 
 interface SidebarProps {
   view: SidebarView;
@@ -126,6 +127,16 @@ export function Sidebar({
         >
           <DatabaseIcon size={16} />
         </button>
+        <button
+          type="button"
+          role="tab"
+          className={`sidebar__rail-btn${view === "automation" ? " is-active" : ""}`}
+          aria-label="Automations"
+          aria-selected={view === "automation"}
+          onClick={() => onViewChange("automation")}
+        >
+          <AutomationIcon size={16} />
+        </button>
       </div>
       <div className="sidebar__content">
         {view === "tree" ? (
@@ -144,6 +155,8 @@ export function Sidebar({
           <MindMapView entries={entries} onSelectHeading={onSelectHeading} />
         ) : view === "database" ? (
           <DatabaseListView selectedId={selectedDatabaseId} onSelect={onSelectDatabase} />
+        ) : view === "automation" ? (
+          <AutomationsView />
         ) : selectedDatabaseId ? (
           <DatabaseHistoryView databaseId={selectedDatabaseId} />
         ) : crdt ? (

@@ -29,8 +29,13 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 uuid = "1.24.0"
 base64 = "0.23"
-tokio = { version = "1", features = ["sync"] }
+tokio = { version = "1", features = ["sync", "time", "rt", "fs"] }
 tokio-util = "0.7"
+
+# The automation engine's cron matcher (`automation::cron_matches`) needs
+# local-time field access (`Local::now().hour()`/`.minute()`/...) — same
+# crate `dendroid-core` already depends on, kept at the same version.
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
 
 # OS-keychain-backed storage for the encryption key (see `keychain.rs`) —
 # macOS Keychain and Windows Credential Manager come from this crate's own

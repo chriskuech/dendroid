@@ -997,6 +997,7 @@ name = "dendroid"
 version = "0.1.0"
 dependencies = [
  "base64 0.23.1",
+ "chrono",
  "dendroid-acp",
  "dendroid-core",
  "dendroid-mcp",
