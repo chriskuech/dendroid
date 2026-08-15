@@ -74,7 +74,8 @@
 .sidebar__content > .tree-view,
 .sidebar__content > .mindmap-view,
 .sidebar__content > .history-view,
-.sidebar__content > .database-list {
+.sidebar__content > .database-list,
+.sidebar__content > .automation-view {
   width: auto;
   border-right: none;
   flex: 1;

@@ -118,6 +118,128 @@ export interface ChatThread {
   trigger?: TriggerThreadConfig;
 }
 
+/** A reusable, user-authored prompt (Automations tab's "Skills" section) —
+ * distinct from `McpSettings.disabledSkills` (which toggles *MCP tool*
+ * skills a connected agent can call, see `lib/mcp.ts`'s `listMcpSkills`).
+ * This kind of skill is instead a saved block of instructions an
+ * `Automation` sends the agent verbatim each time it fires, the same role
+ * `CronThreadConfig.skill`/`TriggerThreadConfig.skill` used to play as a
+ * one-off freeform string before automations grew a dedicated, reusable
+ * list of these to pick from. */
+export interface Skill {
+  id: string;
+  name: string;
+  description: string;
+  /** Sent to the agent as its prompt each time an `Automation` referencing
+   * this skill fires — the trigger's own event JSON (see
+   * `lib/threads.ts`'s `buildTriggerEventJson`) is appended after it for
+   * data-triggered fires. */
+  instructions: string;
+  createdAt: string;
+}
+
+/** A friendlier, form-driven alternative to typing a raw cron string —
+ * compiles to one via `lib/automations.ts`'s `cronScheduleToExpression`.
+ * Only the fields a given `frequency` actually uses are read when
+ * compiling (e.g. "hourly" ignores `hour`), but all four are always kept
+ * around so switching frequency in the form doesn't lose whatever the
+ * other fields were set to. */
+export type CronFrequency = "hourly" | "daily" | "weekly";
+
+export interface CronSchedule {
+  frequency: CronFrequency;
+  /** Minute of the hour (0-59) — every frequency uses this. */
+  minute: number;
+  /** Hour of the day (0-23) — "daily"/"weekly" only. */
+  hour: number;
+  /** Day of the week (0 = Sunday .. 6 = Saturday) — "weekly" only. */
+  weekday: number;
+}
+
+/** An `Automation`'s data-watch half — which database/table/row-change
+ * kinds fire it. Same shape `TriggerThreadConfig` already used, split out
+ * so `Automation` can carry it alongside (rather than instead of) a cron
+ * schedule — see `Automation`'s doc comment. */
+export interface AutomationDataTrigger {
+  databaseId: string;
+  table: string;
+  events: TriggerEvent[];
+}
+
+/** One row change (or best-effort approximation of one — see
+ * `src-tauri/src/automation.rs`'s `detect_write`) that fired an
+ * `AutomationRun`. */
+export interface AutomationEvent {
+  database: string;
+  table: string;
+  event: TriggerEvent;
+  /** Bound statement params, positionally — the closest thing to "the
+   * row" the engine has without a full round trip back to the table (see
+   * `detect_write`'s doc comment for why this is best-effort). */
+  params?: unknown[];
+  firedAt: string;
+}
+
+/** A saved automation (the Automations tab's "Triggers" section): a name,
+ * a `Skill` to run, and *when* to run it — a cron schedule, a database
+ * watch, or both at once (whichever is set is checked; if both are set,
+ * either firing condition fires it independently). Unlike a "cron"/
+ * "trigger" `ChatThread` (see that type's doc comment), this one *is*
+ * actually driven automatically — `src-tauri/src/automation.rs`'s
+ * background engine, kept in sync with this list via `lib/automations.ts`'s
+ * `syncAutomationsEngine`. Each firing is recorded as a standalone
+ * `AutomationRunSummary`/`AutomationRun` (its own ACP chat), rather than
+ * appending to one long-lived conversation — see `AutomationRunSummary`'s
+ * doc comment for why. */
+export interface Automation {
+  id: string;
+  name: string;
+  skillId: string;
+  cron?: CronSchedule;
+  data?: AutomationDataTrigger;
+  /** A disabled automation stays configured but the engine skips it —
+   * cheaper than deleting-and-recreating for "pause this for a while". */
+  enabled: boolean;
+  createdAt: string;
+}
+
+/** How an `AutomationRun` was started — mirrors
+ * `src-tauri/src/automation.rs`'s `RunReason`. `"manual"` is the
+ * Automations tab's own "Run now" (distinct from a `ChatThread`'s
+ * identically-named affordance — this one persists like any other run). */
+export type AutomationRunReason = "cron" | "data" | "manual";
+
+export type AutomationRunStatus = "running" | "done" | "error";
+
+/** One row of `automation_runs_list` — everything a run list needs to
+ * render without paying for `updates`' full transcript. Each firing gets
+ * its own run (and so its own spawned agent process/session) rather than
+ * reusing one — the "ACP chats initiated by the trigger" the Automations
+ * tab drills into are genuinely separate conversations, one per fire, the
+ * same way a cron job's separate invocations don't share a terminal
+ * session. */
+export interface AutomationRunSummary {
+  id: string;
+  automationId: string;
+  automationName: string;
+  reason: AutomationRunReason;
+  event?: AutomationEvent;
+  firedAt: string;
+  status: AutomationRunStatus;
+  error?: string;
+  stopReason?: string;
+}
+
+/** Full detail for one run — `automation_run_get`'s response. `updates` is
+ * every raw `session/update` payload the agent streamed, in arrival order;
+ * `components/agent/timeline.ts`'s `applyUpdate` folds them into the same
+ * `TimelineItem[]` shape a live thread's chat renders, so
+ * `AutomationRunChat.tsx` can reuse `Timeline.tsx` unchanged. */
+export interface AutomationRun extends AutomationRunSummary {
+  prompt: string;
+  updates: unknown[];
+}
+
 export interface AppSettings {
   aesthetic: Aesthetic;
   colorMode: ColorMode;
