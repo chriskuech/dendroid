@@ -1,0 +1,556 @@
+/* Tree + editor shell. See comp/Dendroid Screens.dc.html section "03 Tree"
+ * and "01 Editor" for the visual reference (row height, active-row accent
+ * border, heading typography) — this uses the app's real theme tokens
+ * (theme.css) in place of the comp's hardcoded terminal-dark hex values. */
+
+.workspace {
+  display: flex;
+  height: 100vh;
+}
+
+/* <900px: the tree stops sitting beside the editor and becomes a
+ * full-screen drawer over it (`ui/OverlayPanel.tsx`, portaled to
+ * `document.body` and positioned against the viewport, not this element)
+ * — the shell just switches from a row (sidebar | editor) to a column
+ * (topbar above editor). */
+.workspace--narrow {
+  flex-direction: column;
+}
+
+.workspace__topbar {
+  height: 48px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 0 20px;
+}
+
+.workspace__hamburger {
+  display: flex;
+  padding: 0;
+  background: transparent;
+  border: none;
+  color: var(--text-2);
+  cursor: pointer;
+}
+
+.workspace__hamburger:hover {
+  color: var(--text);
+}
+
+.workspace__breadcrumb {
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--line-strong);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workspace__status {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+
+.workspace__status--error {
+  color: var(--danger);
+}
+
+.workspace__editor {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+}
+
+/* --- Tree --- */
+/* Root shape + header are `.side-panel`/`.side-panel__header` (ui/ui.css) —
+ * TreeView's root div carries both classes. Only what's specific to this
+ * view's rows lives here. */
+
+.tree-view__rows {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px 0;
+}
+
+.tree-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 28px;
+  padding-right: 10px;
+  border-left: 1px solid transparent;
+  cursor: pointer;
+}
+
+.tree-row:hover {
+  background: var(--raised);
+}
+
+.tree-row__chevron {
+  width: 14px;
+  height: 14px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--line-strong);
+  cursor: pointer;
+  transition:
+    transform 0.12s ease,
+    color 0.12s ease;
+}
+
+.tree-row__chevron:hover {
+  color: var(--text-2);
+}
+
+/* Base render is the collapsed (right-pointing) chevron; rotate to point
+ * down once expanded — same convention as `.heading-fold-toggle` in the
+ * editor, so both surfaces read the same way. */
+.tree-row__chevron.is-expanded {
+  transform: rotate(90deg);
+}
+
+/* Reserves the same width on leaf rows so titles across a tree stay
+ * aligned whether or not a row has children to fold. */
+.tree-row__chevron--empty {
+  cursor: default;
+  visibility: hidden;
+}
+
+.tree-row__title {
+  font-size: 12.5px;
+  font-weight: 300;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tree-row__level {
+  margin-left: auto;
+  font-size: 10px;
+  color: var(--line-strong);
+  flex: none;
+}
+
+.tree-row__reroot {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--line-strong);
+  cursor: pointer;
+  opacity: 0;
+  transition:
+    opacity 0.12s ease,
+    color 0.12s ease;
+}
+
+.tree-row:hover .tree-row__reroot {
+  opacity: 1;
+}
+
+.tree-row__reroot:hover {
+  color: var(--text-2);
+}
+
+/* The current root's own toggle stays accent-colored and visible even
+ * without hovering — same "always show current state" call as
+ * `.tree-row__chevron.is-expanded`, and one of the few places this system
+ * spends its accent color (see comp/Dendroid Design System.dc.html
+ * section 03). */
+.tree-row__reroot.is-root {
+  opacity: 1;
+  color: var(--accent);
+}
+
+/* Boxes the root row together with whatever visible descendant rows
+ * follow it (see `rootGroupRange` in TreeView.tsx) — left/right border on
+ * every row in the group, top/bottom only on the first/last, so adjacent
+ * rows read as one continuous rectangle rather than each getting its own
+ * box. A lone root with no visible children is both first and last, which
+ * closes the box on all four sides same as before. */
+.tree-row--root-group {
+  border-left: 1px solid var(--accent);
+  border-right: 1px solid var(--accent);
+}
+
+.tree-row--root-group-first {
+  border-top: 1px solid var(--accent);
+}
+
+.tree-row--root-group-last {
+  border-bottom: 1px solid var(--accent);
+}
+
+.tree-view__empty {
+  padding: 10px 14px;
+  font-size: 11px;
+  color: var(--text-3);
+}
+
+/* An `@`-link row (see TreeView.tsx) — same shape as a heading row, just
+ * with the title styled like the editor's own `.link-ref-label` so both
+ * surfaces read as the same kind of thing. */
+.tree-row--link .tree-row__title {
+  font-family: var(--font-brand);
+  color: var(--accent);
+}
+
+.tree-row--orphaned .tree-row__title {
+  color: var(--text-3);
+  text-decoration: line-through;
+}
+
+/* A synthesized row inside an expanded link's read-only preview — dimmer
+ * than a real heading row, and not its own drop target for reroot/collapse
+ * (it stands in for a heading that's rendered for real elsewhere in the
+ * tree). */
+.tree-row--preview .tree-row__title {
+  color: var(--text-3);
+  font-style: italic;
+}
+
+/* --- Editor --- */
+
+.doc-editor {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 48px 40px 140px;
+  font-family: var(--font-editor);
+}
+
+:is(.doc-editor, .link-ref-preview__embed) .ProseMirror {
+  outline: none;
+  font-size: 15px;
+  line-height: 1.7;
+  color: var(--text);
+}
+
+:is(.doc-editor, .link-ref-preview__embed) .ProseMirror h1,
+:is(.doc-editor, .link-ref-preview__embed) .ProseMirror h2,
+:is(.doc-editor, .link-ref-preview__embed) .ProseMirror h3 {
+  position: relative;
+}
+
+:is(.doc-editor, .link-ref-preview__embed) .ProseMirror h1 {
+  font-size: 25px;
+  font-weight: 500;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+  margin: 0 0 18px;
+}
+
+:is(.doc-editor, .link-ref-preview__embed) .ProseMirror h2 {
+  font-size: 19px;
+  font-weight: 500;
+  line-height: 1.35;
+  margin: 28px 0 12px;
+}
+
+:is(.doc-editor, .link-ref-preview__embed) .ProseMirror h3 {
+  font-size: 16px;
+  font-weight: 500;
+  margin: 24px 0 10px;
+}
+
+/* Root-relative level sizing — a class docRoot.ts's buildDecorations sets
+ * on every heading left visible once the view is rerooted, resolving each
+ * one's *effective* level (its literal level minus the root's, so the root
+ * itself is always level 1 — "#") rather than its literal h1-h3 tag. Same
+ * three sizes as the tag-based rules above, just keyed off the decoration
+ * class instead of the tag, and via three classes beats a class + a tag on
+ * specificity, so these always win over the tag-based rules when both
+ * apply. */
+:is(.doc-editor, .link-ref-preview__embed) .ProseMirror .doc-root-level-1 {
+  font-size: 25px;
+  font-weight: 500;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+  margin: 0 0 18px;
+}
+
+:is(.doc-editor, .link-ref-preview__embed) .ProseMirror .doc-root-level-2 {
+  font-size: 19px;
+  font-weight: 500;
+  line-height: 1.35;
+  margin: 28px 0 12px;
+}
+
+:is(.doc-editor, .link-ref-preview__embed) .ProseMirror .doc-root-level-3 {
+  font-size: 16px;
+  font-weight: 500;
+  margin: 24px 0 10px;
+}
+
+/* Fold chevron — a widget decoration headingFold.ts injects at the start
+ * of each heading (see TOGGLE_CLASS there). Plain CSS triangle rather than
+ * an inline SVG since the decoration builds its DOM outside React; the
+ * rotation convention matches `.tree-row__chevron`. */
+.heading-fold-toggle {
+  position: absolute;
+  left: -22px;
+  top: 50%;
+  width: 14px;
+  height: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0;
+  transform: translateY(-50%) rotate(90deg);
+  transition:
+    opacity 0.12s ease,
+    transform 0.12s ease;
+}
+
+.heading-fold-toggle::before {
+  content: "";
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 4px 0 4px 6px;
+  border-color: transparent transparent transparent var(--line-strong);
+}
+
+.heading-fold-toggle:hover::before {
+  border-left-color: var(--text-2);
+}
+
+.heading-fold-toggle.is-collapsed {
+  opacity: 1;
+  transform: translateY(-50%) rotate(0deg);
+}
+
+:is(.doc-editor, .link-ref-preview__embed) .ProseMirror h1:hover .heading-fold-toggle,
+:is(.doc-editor, .link-ref-preview__embed) .ProseMirror h2:hover .heading-fold-toggle,
+:is(.doc-editor, .link-ref-preview__embed) .ProseMirror h3:hover .heading-fold-toggle {
+  opacity: 1;
+}
+
+.heading-fold-toggle--empty {
+  pointer-events: none;
+  opacity: 0 !important;
+}
+
+/* A collapsed heading's nested section — its subheadings and their body
+ * content — decorated node-by-node by headingFold.ts. */
+:is(.doc-editor, .link-ref-preview__embed) .ProseMirror .heading-fold-hidden {
+  display: none;
+}
+
+/* Reroot toggle — a widget decoration docRoot.ts injects at the end of
+ * each heading (see TOGGLE_CLASS there). A CSS box + center dot standing
+ * in for the "set root" glyph (comp/Dendroid Design System.dc.html)
+ * rather than an inline SVG, for the same reason `.heading-fold-toggle`
+ * is a CSS triangle: the decoration builds its DOM outside React. */
+.heading-reroot-toggle {
+  position: absolute;
+  right: -22px;
+  top: 50%;
+  width: 10px;
+  height: 10px;
+  transform: translateY(-50%);
+  cursor: pointer;
+  opacity: 0;
+  border: 1px solid var(--line-strong);
+  transition:
+    opacity 0.12s ease,
+    border-color 0.12s ease;
+}
+
+.heading-reroot-toggle::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 4px;
+  height: 4px;
+  background: var(--line-strong);
+  transform: translate(-50%, -50%);
+  transition: background-color 0.12s ease;
+}
+
+.heading-reroot-toggle:hover {
+  border-color: var(--text-2);
+}
+
+.heading-reroot-toggle:hover::before {
+  background: var(--text-2);
+}
+
+/* The current root's own toggle stays visible and accent-colored even
+ * without hovering — same convention as `.heading-fold-toggle.is-collapsed`
+ * and the tree view's boxed root row. */
+.heading-reroot-toggle.is-root {
+  opacity: 1;
+  border-color: var(--accent);
+}
+
+.heading-reroot-toggle.is-root::before {
+  background: var(--accent);
+}
+
+:is(.doc-editor, .link-ref-preview__embed) .ProseMirror h1:hover .heading-reroot-toggle,
+:is(.doc-editor, .link-ref-preview__embed) .ProseMirror h2:hover .heading-reroot-toggle,
+:is(.doc-editor, .link-ref-preview__embed) .ProseMirror h3:hover .heading-reroot-toggle {
+  opacity: 1;
+}
+
+/* Everything outside the rooted heading's subtree — hidden the same way a
+ * collapsed section is (display: none, view state rather than content). */
+:is(.doc-editor, .link-ref-preview__embed) .ProseMirror .doc-root-hidden {
+  display: none;
+}
+
+:is(.doc-editor, .link-ref-preview__embed) .ProseMirror p {
+  margin: 0 0 20px;
+}
+
+:is(.doc-editor, .link-ref-preview__embed) .ProseMirror code {
+  font-family: var(--font-brand);
+  font-size: 13px;
+  background: var(--raised);
+  border: 1px solid var(--line);
+  padding: 1px 5px;
+}
+
+:is(.doc-editor, .link-ref-preview__embed) .ProseMirror blockquote {
+  margin: 0 0 20px;
+  padding: 2px 0 2px 18px;
+  border-left: 1px solid var(--line-strong);
+  color: var(--text-2);
+  font-style: italic;
+}
+
+:is(.doc-editor, .link-ref-preview__embed) .ProseMirror p.is-editor-empty:first-child::before,
+:is(.doc-editor, .link-ref-preview__embed) .ProseMirror h1.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+  color: var(--text-3);
+}
+
+/* --- `@`-links (linkRef.ts) --- */
+
+/* The chip is the entirety of a `linkRef` node's visible rendering — the
+ * node's own `toDOM` is an empty shell (see linkRef.ts's header comment),
+ * same "decoration renders everything visible" idiom as the fold/reroot
+ * toggles above. */
+.link-ref-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  vertical-align: baseline;
+  cursor: pointer;
+}
+
+.link-ref-toggle {
+  width: 10px;
+  height: 10px;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.link-ref-toggle::before {
+  content: "";
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 3px 0 3px 5px;
+  border-color: transparent transparent transparent var(--line-strong);
+  transition: transform 0.12s ease;
+}
+
+.link-ref-toggle.is-expanded::before {
+  transform: rotate(90deg);
+}
+
+.link-ref-toggle--empty {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.link-ref-label {
+  font-family: var(--font-brand);
+  font-size: 0.92em;
+  color: var(--accent);
+  border-bottom: 1px solid var(--accent-dim);
+}
+
+.link-ref-label:hover {
+  color: var(--accent-strong);
+  border-bottom-color: var(--accent-strong);
+}
+
+.link-ref-chip--orphaned .link-ref-label {
+  color: var(--text-3);
+  text-decoration: line-through;
+  border-bottom-color: transparent;
+  cursor: default;
+}
+
+/* The expanded preview — a widget decoration inserted right after the
+ * chip. `display: block` forces it onto its own line despite living in
+ * inline content, same trick used to break a paragraph's flow without
+ * needing a real block-level node. Usually hosts a live nested editor
+ * (`.link-ref-preview__embed`, see linkRef.ts's header comment); falls
+ * back to the plain read-only rows below (`.link-ref-preview__row`) only
+ * when no container id resolves for the target. */
+.link-ref-preview {
+  display: block;
+  margin: 4px 0 4px 18px;
+  padding: 6px 0 6px 10px;
+  border-left: 1px solid var(--line);
+  font-size: 0.85em;
+  color: var(--text-2);
+}
+
+.link-ref-preview__row {
+  padding: 2px 0 2px 10px;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.link-ref-preview__row:hover {
+  color: var(--text);
+}
+
+.link-ref-preview__row--empty {
+  color: var(--text-3);
+  cursor: default;
+  font-style: italic;
+}
+
+/* The live nested editor (`embeddedEditor.ts`) — same `.ProseMirror`
+ * content styling as the main editor (see the `:is(.doc-editor,
+ * .link-ref-preview__embed)` rules above), just scaled down to read as
+ * "nested inside a reference" rather than a second full document. Its own
+ * fold chevrons/placeholder still work the same way; there's no reroot
+ * toggle at all (`DocRoot` isn't part of an embedded editor's extension
+ * set — rerooting a view that's already scoped to one section is
+ * meaningless), so nothing needs hiding for that. */
+.link-ref-preview__embed {
+  font-size: 0.92em;
+}
+
+.link-ref-preview__embed .ProseMirror {
+  outline: none;
+  cursor: text;
+}

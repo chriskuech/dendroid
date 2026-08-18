@@ -1,0 +1,692 @@
+/* Shared primitives — see comp/Dendroid Design System.dc.html section 06. */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  height: 32px;
+  font-family: var(--font-brand);
+  font-size: 12px;
+  font-weight: 300;
+  letter-spacing: 0.06em;
+  line-height: 1;
+  border-radius: 0;
+  padding: 0 16px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: border-color 120ms cubic-bezier(0.2, 0, 0, 1), background 120ms cubic-bezier(0.2, 0, 0, 1),
+    color 120ms cubic-bezier(0.2, 0, 0, 1), opacity 120ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.btn--primary {
+  font-weight: 400;
+  color: var(--accent-on);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.btn--primary:hover:not(:disabled) {
+  background: var(--accent-strong);
+  border-color: var(--accent-strong);
+}
+
+.btn--secondary {
+  color: var(--text);
+  background: transparent;
+  border-color: var(--line-strong);
+}
+.btn--secondary:hover:not(:disabled) {
+  border-color: var(--text-3);
+}
+
+.btn--quiet {
+  color: var(--text-2);
+  background: transparent;
+  border-color: transparent;
+  padding: 0 12px;
+}
+.btn--quiet:hover:not(:disabled) {
+  color: var(--text);
+}
+
+.btn--destructive {
+  color: var(--danger);
+  background: transparent;
+  border-color: var(--danger-dim);
+}
+.btn--destructive:hover:not(:disabled) {
+  border-color: var(--danger);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.field__label {
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+
+.field__hint {
+  font-size: 11px;
+  line-height: 1.7;
+  font-weight: 300;
+  color: var(--text-3);
+}
+
+.field-input {
+  height: 32px;
+  font-family: var(--font-brand);
+  font-size: 12px;
+  font-weight: 300;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: 0;
+  padding: 0 12px;
+  outline: none;
+  width: 100%;
+  transition: border-color 120ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.field-input::placeholder {
+  color: var(--text-3);
+}
+
+.field-input:focus {
+  border-color: var(--accent);
+}
+
+.field-input:disabled,
+.field-input[readonly] {
+  color: var(--text-2);
+}
+
+/* Read-only fields (the sync path display, MCP host/port) are focusable so
+ * their value can be selected/copied, but they aren't editable — giving
+ * them the same accent focus ring as a real input falsely invites typing.
+ * Keep the ring neutral instead of reusing the "you're now editing" cue. */
+.field-input[readonly]:focus {
+  border-color: var(--line-strong);
+}
+
+.switch {
+  width: 34px;
+  height: 16px;
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  position: relative;
+  cursor: pointer;
+  flex: none;
+  padding: 0;
+  border-radius: 0;
+  transition: border-color 120ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.switch:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.switch[data-state="checked"] {
+  border-color: var(--accent);
+}
+
+.switch__thumb {
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  height: 12px;
+  width: 12px;
+  background: var(--text-3);
+  transition: left 140ms cubic-bezier(0.2, 0, 0, 1), background 120ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.switch[data-state="checked"] .switch__thumb {
+  left: 19px;
+  background: var(--accent);
+}
+
+.segmented {
+  display: inline-flex;
+  border: 1px solid var(--line-strong);
+  width: fit-content;
+}
+
+.segmented__option {
+  font-family: var(--font-brand);
+  font-size: 11px;
+  font-weight: 300;
+  letter-spacing: 0.08em;
+  padding: 7px 16px;
+  color: var(--text-2);
+  background: transparent;
+  border: none;
+  border-left: 1px solid var(--line-strong);
+  cursor: pointer;
+  border-radius: 0;
+}
+
+.segmented__option:first-child {
+  border-left: none;
+}
+
+.segmented__option:hover:not(:disabled):not([data-state="on"]) {
+  color: var(--text);
+}
+
+.segmented__option[data-state="on"] {
+  font-weight: 400;
+  color: var(--accent-on);
+  background: var(--text);
+}
+
+.segmented__option:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.stepper {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--line-strong);
+  width: fit-content;
+}
+
+.stepper__btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  background: transparent;
+  border: none;
+  color: var(--text-2);
+  cursor: pointer;
+  padding: 0;
+}
+
+.stepper__btn:hover:not(:disabled) {
+  color: var(--text);
+}
+
+.stepper__btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.35;
+}
+
+.stepper__value {
+  min-width: 44px;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--text);
+  border-left: 1px solid var(--line-strong);
+  border-right: 1px solid var(--line-strong);
+  line-height: 30px;
+}
+
+.badge {
+  font-size: 9px;
+  font-weight: 400;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  border: 1px solid var(--line-strong);
+  padding: 3px 7px;
+  white-space: nowrap;
+}
+
+.card-grid {
+  display: flex;
+  gap: 1px;
+  background: var(--line);
+  border: 1px solid var(--line);
+  max-width: 640px;
+}
+
+.card {
+  flex: 1;
+  background: var(--bg);
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  text-align: left;
+  font-family: var(--font-brand);
+}
+
+.card:disabled {
+  cursor: not-allowed;
+}
+
+/* Background alone (bg -> surface) is too close in lightness to read as a
+ * state change against a near-black backdrop — add the hairline the rest of
+ * the system uses to carry structure, so hovering an unselected card is
+ * actually perceptible. */
+.card:hover:not(:disabled):not(.card--selected) {
+  background: var(--surface);
+  border-color: var(--line);
+}
+
+.card--selected {
+  background: var(--raised);
+  border: 1px solid var(--accent);
+  margin: -1px;
+}
+
+.card__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.card__dot {
+  width: 6px;
+  height: 6px;
+  flex: none;
+  background: var(--line-strong);
+}
+
+.card--selected .card__dot {
+  background: var(--accent);
+}
+
+.card__title {
+  font-size: 12px;
+  font-weight: 300;
+  color: var(--text-2);
+}
+
+.card--selected .card__title {
+  font-weight: 400;
+  color: var(--text);
+}
+
+.card__desc {
+  font-size: 11px;
+  line-height: 1.7;
+  font-weight: 300;
+  color: var(--text-3);
+}
+
+.card--selected .card__desc {
+  color: var(--text-2);
+}
+
+.card__swatches {
+  display: flex;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.card__swatch {
+  width: 20px;
+  height: 8px;
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line);
+  max-width: 640px;
+}
+
+.panel-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.panel-row:last-child {
+  border-bottom: none;
+}
+
+.panel-row__dot {
+  width: 6px;
+  height: 6px;
+  flex: none;
+  border: 1px solid var(--line-strong);
+  background: transparent;
+}
+
+.panel-row__dot--on {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.panel-row__title {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text);
+}
+
+.panel-row__title--muted {
+  font-weight: 300;
+  color: var(--text-2);
+}
+
+.panel-row__sub {
+  font-size: 11px;
+  font-weight: 300;
+  color: var(--text-3);
+}
+
+.panel-row__status {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 300;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+/* Confirm dialog — comp/Dendroid Screens.dc.html section "05 Confirmation".
+ * Deblur motion: entrance is a slower blurred backdrop plus a faster,
+ * slightly-delayed blurred panel; exit reverses both at the faster speed
+ * with no delay (see ui/ConfirmDialog.tsx's inline transition strings —
+ * durations live there since they differ between the opening and closing
+ * direction, which a static class can't express). */
+.confirm-dialog__backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: rgba(0, 0, 0, 0.55);
+}
+
+@keyframes confirm-dialog-backdrop-in {
+  from {
+    opacity: 0;
+    backdrop-filter: blur(0px);
+    -webkit-backdrop-filter: blur(0px);
+  }
+  to {
+    opacity: 1;
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+  }
+}
+
+/* Radix's Presence only waits out an exit animation before unmounting, not
+ * a plain transition — so unlike the old hand-rolled version (whose
+ * backdrop/panel stayed in the DOM, opacity/blur toggled by hand, so it
+ * could animate a symmetric-but-faster close too), this only animates in.
+ * ConfirmDialog.tsx's doc comment has the fuller reasoning: AlertDialog is
+ * always modal, and force-mounting a modal Content to get an exit
+ * animation would leave the rest of the page hidden from assistive tech
+ * forever instead of only while actually open. */
+.confirm-dialog__backdrop[data-state="open"] {
+  animation: confirm-dialog-backdrop-in 200ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+@keyframes confirm-dialog-panel-in {
+  from {
+    opacity: 0;
+    filter: blur(10px);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+  }
+}
+
+/* Radix renders Overlay and Content as siblings, not one nested in the
+ * other — so unlike the old hand-rolled markup, the panel can't rely on
+ * its backdrop's flexbox to center it and has to do that itself. */
+.confirm-dialog {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 41;
+  width: 420px;
+  background: var(--surface);
+  border: 1px solid var(--danger-dim);
+  padding: 26px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.confirm-dialog[data-state="open"] {
+  animation: confirm-dialog-panel-in 240ms cubic-bezier(0.2, 0, 0, 1) 40ms both;
+}
+
+.confirm-dialog__header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.confirm-dialog__title {
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--danger);
+}
+
+.confirm-dialog__esc {
+  margin-left: auto;
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--line-strong);
+}
+
+.confirm-dialog__body {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.85;
+  font-weight: 300;
+  color: var(--text-2);
+  text-wrap: pretty;
+}
+
+.confirm-dialog__details {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  background: var(--line);
+  border: 1px solid var(--line);
+}
+
+.confirm-dialog__detail {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  background: var(--bg);
+  padding: 10px 12px;
+}
+
+.confirm-dialog__detail-label {
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  width: 88px;
+  flex: none;
+}
+
+.confirm-dialog__detail-value {
+  font-size: 12px;
+  font-weight: 300;
+  color: var(--text);
+}
+
+.confirm-dialog__footer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.confirm-dialog__cmd-enter {
+  margin-left: auto;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--line-strong);
+}
+
+/* Side panel — the fixed-width column shape shared by every screen the
+ * left Sidebar swaps in (Tree/Mind map/History/Databases/Automations,
+ * ux/sidebar/Sidebar.tsx) and every screen the right AgentPanel swaps in
+ * (Threads/New thread/Thread chat). Each of those used to define its own
+ * copy of this same width/border/background/header block under its own
+ * BEM prefix (`.tree-view__header`, `.agent-panel__header`, …), which is
+ * how the two ended up reading as unrelated components.
+ *
+ * Structural sizing only here — no border, no background. `.side-panel` is
+ * never rendered standalone: it's always nested inside a shell that already
+ * paints those (`.sidebar`'s persistent column, or `.overlay-panel`'s
+ * drawer — ui/OverlayPanel.tsx), and painting a second, independent
+ * background here is exactly what let the two drawers' content quietly
+ * diverge (`--surface` under the tree views vs. `--bg` under the agent
+ * screens) even after the shells themselves were unified. See
+ * ui/SidePanelHeader.tsx for the header markup this pairs with. */
+.side-panel {
+  width: 280px;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.side-panel__header {
+  height: 44px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px;
+  color: var(--text-2);
+  border-bottom: 1px solid var(--line);
+}
+
+/* `flex: 1` so status text/close/back buttons are always pushed flush right
+ * regardless of which are present — no per-header margin-left/right: auto
+ * needed (and no risk of forgetting one, which is how the agent drawer's
+ * own close button used to end up stranded next to its title instead). */
+.side-panel__label {
+  flex: 1;
+  min-width: 0;
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.side-panel__status {
+  flex: none;
+  font-size: 10px;
+  color: var(--text-3);
+  white-space: nowrap;
+}
+
+.side-panel__status--error {
+  color: var(--danger);
+}
+
+.side-panel__icon-btn {
+  flex: none;
+  display: flex;
+  padding: 0;
+  background: transparent;
+  border: none;
+  color: var(--text-2);
+  cursor: pointer;
+}
+
+.side-panel__icon-btn:hover {
+  color: var(--text);
+}
+
+/* Overlay panel — the fixed-position, edge-anchored sliding drawer shared
+ * by AgentPanel (always) and Workspace's <900px tree drawer — see
+ * ui/OverlayPanel.tsx's doc comment. `data-state` is stamped by Radix on
+ * both Overlay and Content regardless of `forceMount`, so open/close motion
+ * lives entirely here rather than as inline styles a caller could drift
+ * out of sync with the other. */
+.overlay-panel__backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+  background: rgba(0, 0, 0, 0.4);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 200ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.overlay-panel__backdrop[data-state="open"] {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.overlay-panel {
+  position: fixed;
+  inset: 0;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  pointer-events: none;
+  transition: transform 200ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.overlay-panel--left {
+  inset: 0 auto 0 0;
+  border-right: 1px solid var(--line);
+  transform: translateX(-100%);
+}
+
+.overlay-panel--right {
+  inset: 0 0 0 auto;
+  border-left: 1px solid var(--line);
+  transform: translateX(100%);
+}
+
+.overlay-panel[data-state="open"] {
+  transform: translateX(0);
+  pointer-events: auto;
+}
+
+/* Banner — see ui/Banner.tsx's doc comment for why this exists alongside
+ * (not instead of) the per-panel inline `*__status--error` convention.
+ * Fixed rather than a flex child of whatever renders it — `Workspace`'s
+ * own layout is a `display: flex; height: 100vh` sidebar/editor row (or
+ * column, narrow), and this needs to sit above that regardless of which,
+ * without threading a new wrapper through both layouts. */
+.banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 25;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 20px;
+  border-bottom: 1px solid var(--danger-dim);
+  background: var(--surface);
+  color: var(--danger);
+}
+
+.banner__text {
+  font-size: 12px;
+  line-height: 1.6;
+  font-weight: 300;
+}

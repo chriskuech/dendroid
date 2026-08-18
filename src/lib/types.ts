@@ -30,7 +30,7 @@ export interface McpSettings {
   enabled: boolean;
   host: string;
   port: number;
-  /** Names of skills (MCP tools — see `lib/mcp.ts`'s `listMcpSkills`) the
+  /** Names of skills (MCP tools — see `adapters/mcp`'s `listMcpSkills`) the
    * "Skills" settings section has turned off. Enforced server-side, in
    * `src-mcp`'s `ToolRouter` (a disabled skill is hidden from `tools/list`
    * and rejected if called anyway) — not filtered here, so this is just
@@ -40,15 +40,15 @@ export interface McpSettings {
 }
 
 /** Which preset (if any) filled in `AgentSettings.command`/`args` — see
- * `lib/agentProviders.ts`'s `AGENT_PROVIDERS`. Purely a Settings UI concern:
- * `lib/acp.ts`'s `startAgent` only ever looks at `command`/`args`
+ * `ux/settings/agentProviders.ts`'s `AGENT_PROVIDERS`. Purely a Settings UI concern:
+ * `adapters/acp`'s `startAgent` only ever looks at `command`/`args`
  * themselves, so this doesn't reach the Rust side at all. "custom" is the
  * "add settings directly" option — `command`/`args` are user-editable;
  * every other kind locks them to that provider's preset. */
 export type AgentProvider = "none" | "ollama" | "claudeCode" | "custom";
 
-/** Configures the agent the chat drawer spawns — see `lib/acp.ts` and
- * `components/agent/AgentPanel.tsx`. Any Agent Client Protocol (ACP) agent
+/** Configures the agent the chat drawer spawns — see `adapters/acp` and
+ * `ux/agent/AgentPanel.tsx`. Any Agent Client Protocol (ACP) agent
  * works: `command` is launched as a subprocess and spoken to over stdio, no
  * different from pointing an ACP-aware editor at the same binary. Unlike
  * `McpSettings` there's no "enabled" toggle — an empty `command` alone
@@ -60,13 +60,13 @@ export interface AgentSettings {
   command: string;
   /** Extra arguments passed to `command`, as one space-separated string
    * (split on whitespace before reaching the Rust side — see
-   * `lib/acp.ts`'s `startAgent`), so the settings field can just be a
+   * `adapters/acp`'s `startAgent`), so the settings field can just be a
    * plain text input rather than a dynamic list. */
   args: string;
 }
 
 /** Which of the three things can start a chat thread with the ACP agent —
- * see `lib/threads.ts` and `components/agent/AgentPanel.tsx`. */
+ * see `ux/agent/threads.ts` and `ux/agent/AgentPanel.tsx`. */
 export type ThreadKind = "human" | "cron" | "trigger";
 
 /** Row-change kinds a "trigger" thread can fire on, mirroring SQL's own
@@ -92,22 +92,22 @@ export interface CronThreadConfig {
 /** A "trigger" thread's config: which table to watch, which row-change
  * kinds fire it, and what to ask the agent to do each time. */
 export interface TriggerThreadConfig {
-  /** Which database (see `lib/db.ts`'s `DatabaseDto`) and table within it
+  /** Which database (see `adapters/db`'s `DatabaseDto`) and table within it
    * this thread watches. */
   databaseId: string;
   table: string;
   /** Which row-change kinds fire this thread — at least one. */
   events: TriggerEvent[];
   /** The prompt sent to the agent on each fire; the triggering row change
-   * is appended to it as event JSON — see `lib/threads.ts`'s
+   * is appended to it as event JSON — see `ux/agent/threads.ts`'s
    * `buildTriggerEventJson`. */
   skill: string;
 }
 
 /** One saved chat thread: a persisted identity + config for a conversation
- * with the ACP agent (`lib/acp.ts`), independent of any particular
- * window's live connection to it (`components/agent/AgentPanel.tsx` owns
- * that). See `lib/threads.ts` for the CRUD around this list.
+ * with the ACP agent (`adapters/acp`), independent of any particular
+ * window's live connection to it (`ux/agent/AgentPanel.tsx` owns
+ * that). See `ux/agent/threads.ts` for the CRUD around this list.
  *
  * Only "human" threads are message-driven the way the chat drawer always
  * used to be — a person types, the agent replies. "cron" and "trigger"
@@ -118,7 +118,7 @@ export interface TriggerThreadConfig {
  * built on it (creating/configuring/deleting threads) are what an
  * automatic-firing feature would be layered onto later. Until then, each
  * thread's chat view has a manual "Run now" standing in for that — see
- * `lib/threads.ts`'s `buildTriggerEventJson`. */
+ * `ux/agent/threads.ts`'s `buildTriggerEventJson`. */
 export interface ChatThread {
   id: string;
   kind: ThreadKind;
@@ -130,7 +130,7 @@ export interface ChatThread {
 
 /** A reusable, user-authored prompt (Automations tab's "Skills" section) —
  * distinct from `McpSettings.disabledSkills` (which toggles *MCP tool*
- * skills a connected agent can call, see `lib/mcp.ts`'s `listMcpSkills`).
+ * skills a connected agent can call, see `adapters/mcp`'s `listMcpSkills`).
  * This kind of skill is instead a saved block of instructions an
  * `Automation` sends the agent verbatim each time it fires, the same role
  * `CronThreadConfig.skill`/`TriggerThreadConfig.skill` used to play as a
@@ -142,14 +142,14 @@ export interface Skill {
   description: string;
   /** Sent to the agent as its prompt each time an `Automation` referencing
    * this skill fires — the trigger's own event JSON (see
-   * `lib/threads.ts`'s `buildTriggerEventJson`) is appended after it for
+   * `ux/agent/threads.ts`'s `buildTriggerEventJson`) is appended after it for
    * data-triggered fires. */
   instructions: string;
   createdAt: string;
 }
 
 /** A friendlier, form-driven alternative to typing a raw cron string —
- * compiles to one via `lib/automations.ts`'s `cronScheduleToExpression`.
+ * compiles to one via `ux/automations/automations.ts`'s `cronScheduleToExpression`.
  * Only the fields a given `frequency` actually uses are read when
  * compiling (e.g. "hourly" ignores `hour`), but all four are always kept
  * around so switching frequency in the form doesn't lose whatever the
@@ -196,7 +196,7 @@ export interface AutomationEvent {
  * either firing condition fires it independently). Unlike a "cron"/
  * "trigger" `ChatThread` (see that type's doc comment), this one *is*
  * actually driven automatically — `src-tauri/src/automation.rs`'s
- * background engine, kept in sync with this list via `lib/automations.ts`'s
+ * background engine, kept in sync with this list via `ux/automations/automations.ts`'s
  * `syncAutomationsEngine`. Each firing is recorded as a standalone
  * `AutomationRunSummary`/`AutomationRun` (its own ACP chat), rather than
  * appending to one long-lived conversation — see `AutomationRunSummary`'s
@@ -242,7 +242,7 @@ export interface AutomationRunSummary {
 
 /** Full detail for one run — `automation_run_get`'s response. `updates` is
  * every raw `session/update` payload the agent streamed, in arrival order;
- * `components/agent/timelineUpdates.ts`'s `applyUpdate` folds them into the same
+ * `ux/agent/timelineUpdates.ts`'s `applyUpdate` folds them into the same
  * `TimelineItem[]` shape a live thread's chat renders, so
  * `AutomationRunChat.tsx` can reuse `Timeline.tsx` unchanged. */
 export interface AutomationRun extends AutomationRunSummary {
@@ -258,7 +258,7 @@ export interface AppSettings {
   descendantDepth: number;
   useSystemFont: boolean;
   /** Plays a soft typewriter key sound on every keypress within the
-   * editor — see `lib/typewriterSound.ts` and Editor.tsx's `onKeyDownCapture`. */
+   * editor — see `ux/editor/typewriterSound.ts` and Editor.tsx's `onKeyDownCapture`. */
   auralFeedback: boolean;
   mcp: McpSettings;
   agent: AgentSettings;

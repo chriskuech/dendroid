@@ -1,6 +1,6 @@
 // `subtreeRows` is the one piece of logic every "expand a target's subtree"
-// surface shares — the editor's `@`-link preview (`lib/tiptap/linkRef.ts`),
-// the tree view's `@`-link preview (`components/tree/TreeView.tsx`), and
+// surface shares — the editor's `@`-link preview (`ux/editor/tiptap/linkRef.ts`),
+// the tree view's `@`-link preview (`ux/tree/TreeView.tsx`), and
 // the tree view's own ordinary-children rendering. Its `maxDepth` cutoff is
 // also the *only* thing standing between an `@`-link and an unbounded (or,
 // for a link that targets one of its own ancestors, genuinely cyclical)

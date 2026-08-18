@@ -7,7 +7,7 @@ function resolveMode(colorMode: ColorMode, systemPrefersDark: boolean): "dark" |
 }
 
 /** Applies [data-aesthetic]/[data-mode]/[data-system-font] to <html> and keeps
- * "system" in sync with the OS color scheme. See src/styles/theme.css for the
+ * "system" in sync with the OS color scheme. See src/theme.css for the
  * palettes and font tokens. */
 export function useTheme(aesthetic: Aesthetic, colorMode: ColorMode, useSystemFont: boolean) {
   const [systemPrefersDark, setSystemPrefersDark] = useState(

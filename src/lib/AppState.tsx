@@ -1,9 +1,9 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { DEFAULT_SETTINGS, type AgentSettings, type AppSettings, type SyncConfig, type Workspace } from "./types";
 import { NARROW_QUERY } from "./layout";
-import { applyMcpConfig } from "./mcp";
+import { useMcp } from "../adapters/mcp/context";
+import { useSettingsStore } from "../adapters/settingsStore/context";
 import { folderNameFromPath } from "./path";
-import { loadAppSettings, loadWorkspace, saveAppSettings, saveWorkspace } from "./settingsStore";
 import { useMediaQuery } from "./useMediaQuery";
 import { useTheme } from "./useTheme";
 import { useZenChrome } from "./useZenChrome";
@@ -63,6 +63,8 @@ interface AppStateValue {
 const AppStateContext = createContext<AppStateValue | null>(null);
 
 export function AppStateProvider({ children }: { children: ReactNode }) {
+  const settingsStore = useSettingsStore();
+  const mcp = useMcp();
   const [status, setStatus] = useState<Status>("loading");
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
@@ -106,8 +108,8 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       // single-workspace `settingsStore` — see `__DENDROID_INITIAL_WORKSPACE_ROOT__`.
       const initialRoot = window.__DENDROID_INITIAL_WORKSPACE_ROOT__;
       const [ws, savedSettings] = await Promise.all([
-        initialRoot ? Promise.resolve(null) : loadWorkspace(),
-        loadAppSettings(),
+        initialRoot ? Promise.resolve(null) : settingsStore.loadWorkspace(),
+        settingsStore.loadAppSettings(),
       ]);
       if (cancelled) return;
       // A shallow `{ ...DEFAULT_SETTINGS, ...savedSettings }` would let a
@@ -159,7 +161,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [settingsStore]);
 
   const resolvedMode = useTheme(settings.aesthetic, settings.colorMode, settings.useSystemFont);
 
@@ -175,20 +177,23 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   // to serve yet.
   useEffect(() => {
     if (status !== "ready") return;
-    void applyMcpConfig(settings.mcp);
-  }, [status, settings.mcp]);
+    void mcp.applyMcpConfig(settings.mcp);
+  }, [status, settings.mcp, mcp]);
 
-  const createWorkspace = useCallback(async (input: { name: string; sync: SyncConfig }) => {
-    const ws: Workspace = {
-      id: crypto.randomUUID(),
-      name: input.name,
-      sync: input.sync,
-      createdAt: new Date().toISOString(),
-    };
-    if (!isSecondaryWindow.current) await saveWorkspace(ws);
-    setWorkspace(ws);
-    setStatus("ready");
-  }, []);
+  const createWorkspace = useCallback(
+    async (input: { name: string; sync: SyncConfig }) => {
+      const ws: Workspace = {
+        id: crypto.randomUUID(),
+        name: input.name,
+        sync: input.sync,
+        createdAt: new Date().toISOString(),
+      };
+      if (!isSecondaryWindow.current) await settingsStore.saveWorkspace(ws);
+      setWorkspace(ws);
+      setStatus("ready");
+    },
+    [settingsStore],
+  );
 
   const beginNewWorkspace = useCallback(() => {
     setStatus("onboarding");
@@ -198,22 +203,28 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     setStatus((prev) => (prev === "onboarding" && workspace ? "ready" : prev));
   }, [workspace]);
 
-  const updateSettings = useCallback((patch: Partial<AppSettings>) => {
-    setSettings((prev) => {
-      const next = { ...prev, ...patch };
-      void saveAppSettings(next);
-      return next;
-    });
-  }, []);
+  const updateSettings = useCallback(
+    (patch: Partial<AppSettings>) => {
+      setSettings((prev) => {
+        const next = { ...prev, ...patch };
+        void settingsStore.saveAppSettings(next);
+        return next;
+      });
+    },
+    [settingsStore],
+  );
 
-  const updateSyncConfig = useCallback((sync: SyncConfig) => {
-    setWorkspace((prev) => {
-      if (!prev) return prev;
-      const next = { ...prev, sync };
-      if (!isSecondaryWindow.current) void saveWorkspace(next);
-      return next;
-    });
-  }, []);
+  const updateSyncConfig = useCallback(
+    (sync: SyncConfig) => {
+      setWorkspace((prev) => {
+        if (!prev) return prev;
+        const next = { ...prev, sync };
+        if (!isSecondaryWindow.current) void settingsStore.saveWorkspace(next);
+        return next;
+      });
+    },
+    [settingsStore],
+  );
 
   const value = useMemo<AppStateValue>(
     () => ({

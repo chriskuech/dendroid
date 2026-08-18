@@ -1,0 +1,514 @@
+// 1px, non-antialiased pixel icons on a 16x16 grid — see comp/Dendroid
+// Design System.dc.html section 02. Never scale to a non-integer multiple
+// of 16; shape-rendering:crispEdges only stays sharp at integer zoom.
+
+import type { SVGProps } from "react";
+
+export interface IconProps extends Omit<SVGProps<SVGSVGElement>, "viewBox" | "shapeRendering"> {
+  size?: number;
+}
+
+function PixelIcon({ size = 16, fill = "currentColor", children, ...rest }: IconProps & { children: React.ReactNode }) {
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      width={size}
+      height={size}
+      fill={fill}
+      shapeRendering="crispEdges"
+      style={{ display: "block", flex: "none" }}
+      {...rest}
+    >
+      {children}
+    </svg>
+  );
+}
+
+export function LogoIcon(props: IconProps) {
+  return (
+    <PixelIcon {...props}>
+      <rect x={8} y={1} width={1} height={3} />
+      <rect x={4} y={4} width={9} height={1} />
+      <rect x={4} y={5} width={1} height={3} />
+      <rect x={12} y={5} width={1} height={3} />
+      <rect x={2} y={8} width={5} height={1} />
+      <rect x={10} y={8} width={5} height={1} />
+      <rect x={2} y={9} width={1} height={3} />
+      <rect x={6} y={9} width={1} height={3} />
+      <rect x={10} y={9} width={1} height={3} />
+      <rect x={14} y={9} width={1} height={3} />
+    </PixelIcon>
+  );
+}
+
+export function CloseIcon(props: IconProps) {
+  return (
+    <PixelIcon {...props}>
+      <rect x={4} y={4} width={1} height={1} />
+      <rect x={5} y={5} width={1} height={1} />
+      <rect x={6} y={6} width={1} height={1} />
+      <rect x={7} y={7} width={2} height={2} />
+      <rect x={9} y={9} width={1} height={1} />
+      <rect x={10} y={10} width={1} height={1} />
+      <rect x={11} y={11} width={1} height={1} />
+      <rect x={11} y={4} width={1} height={1} />
+      <rect x={10} y={5} width={1} height={1} />
+      <rect x={9} y={6} width={1} height={1} />
+      <rect x={6} y={9} width={1} height={1} />
+      <rect x={5} y={10} width={1} height={1} />
+      <rect x={4} y={11} width={1} height={1} />
+    </PixelIcon>
+  );
+}
+
+export function ConfirmIcon(props: IconProps) {
+  return (
+    <PixelIcon {...props}>
+      <rect x={4} y={8} width={1} height={1} />
+      <rect x={5} y={9} width={1} height={1} />
+      <rect x={6} y={10} width={1} height={1} />
+      <rect x={7} y={9} width={1} height={1} />
+      <rect x={8} y={8} width={1} height={1} />
+      <rect x={9} y={7} width={1} height={1} />
+      <rect x={10} y={6} width={1} height={1} />
+      <rect x={11} y={5} width={1} height={1} />
+    </PixelIcon>
+  );
+}
+
+export function IncrementIcon(props: IconProps) {
+  return (
+    <PixelIcon {...props}>
+      <rect x={3} y={7} width={10} height={1} />
+      <rect x={7} y={3} width={1} height={10} />
+    </PixelIcon>
+  );
+}
+
+export function DecrementIcon(props: IconProps) {
+  return (
+    <PixelIcon {...props}>
+      <rect x={3} y={7} width={10} height={1} />
+    </PixelIcon>
+  );
+}
+
+/** Right-pointing disclosure chevron — rotate 90deg via CSS for the
+ * expanded state (see `.tree-row__chevron`, `.heading-fold-toggle`). */
+export function ChevronIcon(props: IconProps) {
+  return (
+    <PixelIcon {...props}>
+      <rect x={6} y={4} width={1} height={1} />
+      <rect x={7} y={5} width={1} height={1} />
+      <rect x={8} y={6} width={1} height={1} />
+      <rect x={9} y={7} width={1} height={1} />
+      <rect x={9} y={8} width={1} height={1} />
+      <rect x={8} y={9} width={1} height={1} />
+      <rect x={7} y={10} width={1} height={1} />
+      <rect x={6} y={11} width={1} height={1} />
+    </PixelIcon>
+  );
+}
+
+/** Left-pointing disclosure chevron — the mirror image of `ChevronIcon`,
+ * used as-is (not via a CSS rotation) since `ChevronIcon` itself gets
+ * rotated for its own expanded state and stacking two transforms isn't
+ * worth it for one more icon. The chat drawer's "back to threads" button
+ * (`ux/agent/ThreadChat.tsx`). */
+export function BackIcon(props: IconProps) {
+  return (
+    <PixelIcon {...props}>
+      <rect x={9} y={4} width={1} height={1} />
+      <rect x={8} y={5} width={1} height={1} />
+      <rect x={7} y={6} width={1} height={1} />
+      <rect x={6} y={7} width={1} height={1} />
+      <rect x={6} y={8} width={1} height={1} />
+      <rect x={7} y={9} width={1} height={1} />
+      <rect x={8} y={10} width={1} height={1} />
+      <rect x={9} y={11} width={1} height={1} />
+    </PixelIcon>
+  );
+}
+
+/** Box around a node — "set root" from comp/Dendroid Design System.dc.html
+ * section 02. Doubles as the current-root indicator (the boxed tree row,
+ * the editor's end-of-heading toggle) since it's literally a box around a
+ * node. */
+export function RerootIcon(props: IconProps) {
+  return (
+    <PixelIcon {...props}>
+      <rect x={3} y={3} width={10} height={1} />
+      <rect x={3} y={12} width={10} height={1} />
+      <rect x={3} y={4} width={1} height={8} />
+      <rect x={12} y={4} width={1} height={8} />
+      <rect x={7} y={7} width={2} height={2} />
+    </PixelIcon>
+  );
+}
+
+export function SyncProviderIcon(props: IconProps) {
+  return (
+    <PixelIcon {...props}>
+      <rect x={2} y={3} width={12} height={1} />
+      <rect x={2} y={12} width={12} height={1} />
+      <rect x={2} y={4} width={1} height={8} />
+      <rect x={13} y={4} width={1} height={8} />
+      <rect x={5} y={6} width={6} height={1} />
+      <rect x={5} y={9} width={6} height={1} />
+    </PixelIcon>
+  );
+}
+
+export function EncryptionIcon(props: IconProps) {
+  return (
+    <PixelIcon {...props}>
+      <rect x={7} y={3} width={2} height={1} />
+      <rect x={6} y={4} width={1} height={1} />
+      <rect x={9} y={4} width={1} height={1} />
+      <rect x={6} y={5} width={1} height={2} />
+      <rect x={9} y={5} width={1} height={2} />
+      <rect x={4} y={7} width={8} height={1} />
+      <rect x={4} y={13} width={8} height={1} />
+      <rect x={4} y={8} width={1} height={5} />
+      <rect x={11} y={8} width={1} height={5} />
+      <rect x={7} y={9} width={2} height={2} />
+    </PixelIcon>
+  );
+}
+
+export function QrKeyIcon(props: IconProps) {
+  return (
+    <PixelIcon {...props}>
+      <rect x={2} y={2} width={4} height={1} />
+      <rect x={2} y={5} width={4} height={1} />
+      <rect x={2} y={3} width={1} height={2} />
+      <rect x={5} y={3} width={1} height={2} />
+      <rect x={10} y={2} width={4} height={1} />
+      <rect x={10} y={5} width={4} height={1} />
+      <rect x={10} y={3} width={1} height={2} />
+      <rect x={13} y={3} width={1} height={2} />
+      <rect x={2} y={10} width={4} height={1} />
+      <rect x={2} y={13} width={4} height={1} />
+      <rect x={2} y={11} width={1} height={2} />
+      <rect x={5} y={11} width={1} height={2} />
+      <rect x={8} y={2} width={1} height={1} />
+      <rect x={8} y={4} width={1} height={1} />
+      <rect x={7} y={7} width={1} height={1} />
+      <rect x={9} y={8} width={1} height={1} />
+      <rect x={12} y={7} width={1} height={1} />
+      <rect x={2} y={8} width={1} height={1} />
+      <rect x={4} y={8} width={1} height={1} />
+      <rect x={10} y={10} width={1} height={1} />
+      <rect x={12} y={12} width={1} height={1} />
+      <rect x={8} y={12} width={1} height={1} />
+      <rect x={14} y={14} width={1} height={1} />
+    </PixelIcon>
+  );
+}
+
+/** Three-node mini-graph — comp/Dendroid Design System.dc.html section 02,
+ * labeled "graph". Reserved for the mindmap tab (see comp/whitepaper.md's
+ * "Graph" section) — a node at top connected by pixel-stepped diagonals to
+ * two nodes at bottom-left/bottom-right. */
+export function GraphIcon(props: IconProps) {
+  return (
+    <PixelIcon {...props}>
+      <rect x={7} y={2} width={2} height={2} />
+      <rect x={2} y={8} width={2} height={2} />
+      <rect x={12} y={8} width={2} height={2} />
+      <rect x={7} y={4} width={1} height={1} />
+      <rect x={6} y={5} width={1} height={1} />
+      <rect x={5} y={6} width={1} height={1} />
+      <rect x={4} y={7} width={1} height={1} />
+      <rect x={8} y={4} width={1} height={1} />
+      <rect x={9} y={5} width={1} height={1} />
+      <rect x={10} y={6} width={1} height={1} />
+      <rect x={11} y={7} width={1} height={1} />
+    </PixelIcon>
+  );
+}
+
+/** A clock face, stepped into an octagon out of plain rects like the rest
+ * of this set (no true circle at this grid size) — the history/rollback
+ * tab and its confirmation dialog. Not in comp/Dendroid Design System —
+ * the History feature came after that reference was drawn. */
+export function HistoryIcon(props: IconProps) {
+  return (
+    <PixelIcon {...props}>
+      <rect x={6} y={2} width={4} height={1} />
+      <rect x={4} y={3} width={2} height={1} />
+      <rect x={10} y={3} width={2} height={1} />
+      <rect x={3} y={4} width={1} height={1} />
+      <rect x={12} y={4} width={1} height={1} />
+      <rect x={2} y={5} width={1} height={6} />
+      <rect x={13} y={5} width={1} height={6} />
+      <rect x={3} y={11} width={1} height={1} />
+      <rect x={12} y={11} width={1} height={1} />
+      <rect x={4} y={12} width={2} height={1} />
+      <rect x={10} y={12} width={2} height={1} />
+      <rect x={6} y={13} width={4} height={1} />
+      {/* Hands, meeting at center: minute hand up, hour hand right. */}
+      <rect x={7} y={5} width={1} height={3} />
+      <rect x={8} y={7} width={3} height={1} />
+    </PixelIcon>
+  );
+}
+
+/** A stacked-disk cylinder — the database tab (see
+ * ux/sidebar/Sidebar.tsx) and its rows/headers. Corners of the top
+ * and bottom rims are nicked by one pixel to read as an ellipse rather
+ * than a plain box, the same trick a pixel-art cylinder always uses; the
+ * two internal bands read as disk seams. */
+export function DatabaseIcon(props: IconProps) {
+  return (
+    <PixelIcon {...props}>
+      <rect x={4} y={2} width={8} height={1} />
+      <rect x={3} y={3} width={1} height={1} />
+      <rect x={12} y={3} width={1} height={1} />
+      <rect x={2} y={4} width={1} height={8} />
+      <rect x={13} y={4} width={1} height={8} />
+      <rect x={3} y={12} width={1} height={1} />
+      <rect x={12} y={12} width={1} height={1} />
+      <rect x={4} y={13} width={8} height={1} />
+      <rect x={3} y={6} width={10} height={1} />
+      <rect x={3} y={9} width={10} height={1} />
+    </PixelIcon>
+  );
+}
+
+/** An open trash can, lid + two ridge lines — the "delete database"/"delete
+ * row" affordance and its confirmation dialog. */
+export function TrashIcon(props: IconProps) {
+  return (
+    <PixelIcon {...props}>
+      <rect x={5} y={3} width={6} height={1} />
+      <rect x={4} y={4} width={8} height={1} />
+      <rect x={4} y={5} width={1} height={9} />
+      <rect x={11} y={5} width={1} height={9} />
+      <rect x={4} y={13} width={8} height={1} />
+      <rect x={6} y={6} width={1} height={6} />
+      <rect x={9} y={6} width={1} height={6} />
+    </PixelIcon>
+  );
+}
+
+/** A speech bubble — three dots standing in for message text, a small
+ * stepped tail bottom-left — the agent chat drawer's toggle button and
+ * message rail (see `ux/agent/AgentPanel.tsx`). Corners nicked by
+ * one pixel each, the same "reads as rounded" trick `DatabaseIcon` uses. */
+export function AgentIcon(props: IconProps) {
+  return (
+    <PixelIcon {...props}>
+      <rect x={4} y={2} width={8} height={1} />
+      <rect x={3} y={3} width={1} height={1} />
+      <rect x={12} y={3} width={1} height={1} />
+      <rect x={2} y={4} width={1} height={5} />
+      <rect x={13} y={4} width={1} height={5} />
+      <rect x={3} y={9} width={1} height={1} />
+      <rect x={12} y={9} width={1} height={1} />
+      <rect x={4} y={10} width={8} height={1} />
+      <rect x={5} y={11} width={2} height={1} />
+      <rect x={4} y={12} width={2} height={1} />
+      <rect x={6} y={6} width={1} height={1} />
+      <rect x={8} y={6} width={1} height={1} />
+      <rect x={10} y={6} width={1} height={1} />
+    </PixelIcon>
+  );
+}
+
+/** A clock face — deliberately the same shape as `HistoryIcon` (both read
+ * as "a clock"), just under its own name so a "cron thread" row in
+ * `ux/agent/AgentPanel.tsx` doesn't render a component literally
+ * named after the History feature. See `ChatThread`'s doc comment
+ * (`lib/types.ts`) for what a cron thread is. */
+export function CronIcon(props: IconProps) {
+  return (
+    <PixelIcon {...props}>
+      <rect x={6} y={2} width={4} height={1} />
+      <rect x={4} y={3} width={2} height={1} />
+      <rect x={10} y={3} width={2} height={1} />
+      <rect x={3} y={4} width={1} height={1} />
+      <rect x={12} y={4} width={1} height={1} />
+      <rect x={2} y={5} width={1} height={6} />
+      <rect x={13} y={5} width={1} height={6} />
+      <rect x={3} y={11} width={1} height={1} />
+      <rect x={12} y={11} width={1} height={1} />
+      <rect x={4} y={12} width={2} height={1} />
+      <rect x={10} y={12} width={2} height={1} />
+      <rect x={6} y={13} width={4} height={1} />
+      {/* Hands, meeting at center: minute hand up, hour hand right. */}
+      <rect x={7} y={5} width={1} height={3} />
+      <rect x={8} y={7} width={3} height={1} />
+    </PixelIcon>
+  );
+}
+
+/** A lambda (λ) glyph — event-handler/function iconography, borrowed here
+ * for "trigger" threads (fire the configured skill whenever a row is
+ * inserted/updated/deleted on a watched table; see `ChatThread`'s doc
+ * comment in `lib/types.ts`). A long left leg reaching the baseline, a
+ * shorter right leg crossing over it partway down, both stepped 1px per
+ * row like `GraphIcon`'s diagonals. */
+export function TriggerIcon(props: IconProps) {
+  return (
+    <PixelIcon {...props}>
+      <rect x={7} y={2} width={1} height={3} />
+      <rect x={6} y={5} width={1} height={1} />
+      <rect x={6} y={6} width={1} height={1} />
+      <rect x={5} y={7} width={1} height={1} />
+      <rect x={5} y={8} width={1} height={1} />
+      <rect x={4} y={9} width={1} height={1} />
+      <rect x={4} y={10} width={1} height={1} />
+      <rect x={3} y={11} width={1} height={1} />
+      <rect x={3} y={12} width={1} height={2} />
+      <rect x={8} y={5} width={1} height={1} />
+      <rect x={9} y={6} width={1} height={1} />
+      <rect x={9} y={7} width={1} height={1} />
+      <rect x={10} y={8} width={1} height={1} />
+      <rect x={10} y={9} width={1} height={1} />
+      <rect x={11} y={10} width={1} height={2} />
+    </PixelIcon>
+  );
+}
+
+/** A lightning bolt, stepped 1px per row like `GraphIcon`'s/`TriggerIcon`'s
+ * diagonals with a wide bar at the kink — the Automations sidebar tab (see
+ * `ux/sidebar/Sidebar.tsx`) and its "Triggers" section/rows. Reads
+ * as "fires automatically" the way `TriggerIcon`'s λ reads as "a handler",
+ * just at the level of the whole feature rather than one saved trigger. */
+export function AutomationIcon(props: IconProps) {
+  return (
+    <PixelIcon {...props}>
+      <rect x={9} y={2} width={3} height={1} />
+      <rect x={8} y={3} width={1} height={1} />
+      <rect x={7} y={4} width={1} height={1} />
+      <rect x={6} y={5} width={1} height={1} />
+      <rect x={5} y={6} width={1} height={1} />
+      <rect x={4} y={7} width={6} height={1} />
+      <rect x={9} y={8} width={1} height={1} />
+      <rect x={8} y={9} width={1} height={1} />
+      <rect x={7} y={10} width={1} height={1} />
+      <rect x={6} y={11} width={1} height={1} />
+      <rect x={5} y={12} width={1} height={1} />
+      <rect x={4} y={13} width={3} height={1} />
+    </PixelIcon>
+  );
+}
+
+/** A four-pointed sparkle — the Automations tab's "Skills" section and its
+ * rows (`ux/automations/SkillList.tsx`): a saved, reusable prompt,
+ * the same "spark of capability" shorthand a sparkle/magic-wand glyph
+ * conventionally stands for elsewhere. Built from the same blocky rects
+ * `DatabaseIcon`/`EncryptionIcon` use rather than 1px diagonals, since a
+ * sparkle's points are themselves small filled squares, not lines. */
+export function SkillIcon(props: IconProps) {
+  return (
+    <PixelIcon {...props}>
+      <rect x={7} y={2} width={2} height={2} />
+      <rect x={7} y={12} width={2} height={2} />
+      <rect x={2} y={7} width={2} height={2} />
+      <rect x={12} y={7} width={2} height={2} />
+      <rect x={7} y={7} width={2} height={2} />
+      <rect x={5} y={5} width={1} height={1} />
+      <rect x={10} y={5} width={1} height={1} />
+      <rect x={5} y={10} width={1} height={1} />
+      <rect x={10} y={10} width={1} height={1} />
+    </PixelIcon>
+  );
+}
+
+/** A right-pointing triangle — "run now", the manual stand-in for a
+ * cron/trigger thread's automatic firing (see `ChatThread`'s doc comment
+ * in `lib/types.ts`). */
+export function PlayIcon(props: IconProps) {
+  return (
+    <PixelIcon {...props}>
+      <rect x={5} y={3} width={1} height={10} />
+      <rect x={6} y={4} width={1} height={8} />
+      <rect x={7} y={5} width={1} height={6} />
+      <rect x={8} y={6} width={1} height={4} />
+      <rect x={9} y={7} width={1} height={2} />
+    </PixelIcon>
+  );
+}
+
+/** A pencil, tip pointing down-left — the "edit" affordance on an
+ * automation/skill row (`ux/automations/*`), where a row's own
+ * click is already claimed by something else (opening a skill's runs, in
+ * an `AutomationList` row's case) so editing needs its own explicit
+ * button, unlike e.g. `DatabaseListView`'s rows where a click alone is
+ * enough. Stepped 1px per row like `GraphIcon`'s diagonals, same shaft/tip
+ * split every pencil glyph uses. */
+export function PencilIcon(props: IconProps) {
+  return (
+    <PixelIcon {...props}>
+      <rect x={10} y={2} width={2} height={2} />
+      <rect x={9} y={4} width={1} height={1} />
+      <rect x={8} y={5} width={1} height={1} />
+      <rect x={7} y={6} width={1} height={1} />
+      <rect x={6} y={7} width={1} height={1} />
+      <rect x={5} y={8} width={1} height={1} />
+      <rect x={4} y={9} width={1} height={1} />
+      <rect x={3} y={10} width={1} height={1} />
+      <rect x={2} y={11} width={2} height={2} />
+      <rect x={2} y={13} width={2} height={1} />
+    </PixelIcon>
+  );
+}
+
+export function SettingsIcon(props: IconProps) {
+  return (
+    <PixelIcon {...props}>
+      <rect x={2} y={4} width={12} height={1} />
+      <rect x={2} y={11} width={12} height={1} />
+      <rect x={5} y={3} width={3} height={3} />
+      <rect x={8} y={10} width={3} height={3} />
+    </PixelIcon>
+  );
+}
+
+/** A camera outline — "scan a QR code" (Settings' pairing flow, and the
+ * live camera scanner modal it opens). */
+export function CameraIcon(props: IconProps) {
+  return (
+    <PixelIcon {...props}>
+      <rect x={2} y={5} width={12} height={1} />
+      <rect x={2} y={12} width={12} height={1} />
+      <rect x={2} y={6} width={1} height={6} />
+      <rect x={13} y={6} width={1} height={6} />
+      <rect x={6} y={3} width={4} height={1} />
+      <rect x={5} y={4} width={1} height={1} />
+      <rect x={10} y={4} width={1} height={1} />
+      <rect x={11} y={5} width={2} height={1} />
+      <rect x={6} y={7} width={1} height={4} />
+      <rect x={9} y={7} width={1} height={4} />
+      <rect x={7} y={7} width={2} height={1} />
+      <rect x={7} y={10} width={2} height={1} />
+    </PixelIcon>
+  );
+}
+
+/** A warning triangle — the blocked-sync error banner (`ui/Banner.tsx`,
+ * used by `Workspace.tsx` when an encrypted event arrives and this device
+ * can't decrypt it). */
+export function WarningIcon(props: IconProps) {
+  return (
+    <PixelIcon {...props}>
+      <rect x={7} y={2} width={2} height={1} />
+      <rect x={6} y={3} width={1} height={1} />
+      <rect x={9} y={3} width={1} height={1} />
+      <rect x={5} y={4} width={1} height={1} />
+      <rect x={10} y={4} width={1} height={1} />
+      <rect x={4} y={5} width={1} height={2} />
+      <rect x={11} y={5} width={1} height={2} />
+      <rect x={3} y={7} width={1} height={2} />
+      <rect x={12} y={7} width={1} height={2} />
+      <rect x={2} y={9} width={1} height={2} />
+      <rect x={13} y={9} width={1} height={2} />
+      <rect x={2} y={11} width={12} height={1} />
+      <rect x={2} y={12} width={12} height={1} />
+      <rect x={7} y={6} width={2} height={4} />
+      <rect x={7} y={11} width={2} height={1} />
+    </PixelIcon>
+  );
+}

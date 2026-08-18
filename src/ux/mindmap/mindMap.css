@@ -1,0 +1,82 @@
+/* Mind map — a graph visualization of the same outline TreeView renders
+ * (see components/mindmap/MindMapView.tsx). Parent/child structure and
+ * `@`-links draw as two differently-colored kinds of arrow; nodes are
+ * click-and-drag draggable, and double-clicking one opens it in the editor
+ * the same way a tree row click does. */
+
+/* Root shape + header are `.side-panel`/`.side-panel__header` (ui/ui.css) —
+ * the root div below carries both classes. */
+
+.mindmap-view__canvas {
+  flex: 1;
+  overflow: auto;
+}
+
+.mindmap-view__empty {
+  padding: 14px;
+  font-size: 11px;
+  color: var(--text-3);
+}
+
+.mindmap-view__svg {
+  display: block;
+  user-select: none;
+}
+
+.mindmap-edge {
+  stroke-width: 1;
+  fill: none;
+}
+
+/* Parent/child structure — a neutral hairline, same tone as the tree's own
+ * chevrons/dividers. Links get the app's accent instead (see below), the
+ * same color convention `.tree-row--link`/`.link-ref-label` already use for
+ * `@`-links, so the two arrow kinds read as "structure" vs "reference"
+ * consistently across both views. */
+.mindmap-edge--tree {
+  stroke: var(--line-strong);
+}
+
+.mindmap-edge--link {
+  stroke: var(--accent);
+  stroke-dasharray: 3 3;
+}
+
+.mindmap-arrowhead {
+  stroke: none;
+}
+
+.mindmap-arrowhead--tree {
+  fill: var(--line-strong);
+}
+
+.mindmap-arrowhead--link {
+  fill: var(--accent);
+}
+
+.mindmap-node {
+  cursor: grab;
+  touch-action: none;
+}
+
+.mindmap-node:active {
+  cursor: grabbing;
+}
+
+.mindmap-node__dot {
+  fill: var(--surface);
+  stroke: var(--text-2);
+  stroke-width: 1;
+  transition: stroke 0.12s ease;
+}
+
+.mindmap-node:hover .mindmap-node__dot {
+  stroke: var(--accent);
+}
+
+.mindmap-node__label {
+  font-size: 11px;
+  font-weight: 300;
+  fill: var(--text);
+  dominant-baseline: middle;
+}
