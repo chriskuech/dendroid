@@ -1,3 +1,5 @@
+import * as ToggleGroup from "@radix-ui/react-toggle-group";
+
 interface SegmentedOption<T extends string> {
   value: T;
   label: string;
@@ -12,20 +14,22 @@ interface SegmentedProps<T extends string> {
 
 export function Segmented<T extends string>({ value, onChange, options }: SegmentedProps<T>) {
   return (
-    <div className="segmented" role="radiogroup">
+    <ToggleGroup.Root
+      type="single"
+      className="segmented"
+      value={value}
+      // Radix fires onValueChange with "" when re-clicking the active
+      // option would deselect it — this control has no "none" state, so
+      // that click is a no-op instead of clearing the value.
+      onValueChange={(next) => {
+        if (next) onChange(next as T);
+      }}
+    >
       {options.map((opt) => (
-        <button
-          key={opt.value}
-          type="button"
-          role="radio"
-          aria-checked={value === opt.value}
-          disabled={opt.disabled}
-          className={`segmented__option${value === opt.value ? " segmented__option--active" : ""}`}
-          onClick={() => onChange(opt.value)}
-        >
+        <ToggleGroup.Item key={opt.value} value={opt.value} disabled={opt.disabled} className="segmented__option">
           {opt.label}
-        </button>
+        </ToggleGroup.Item>
       ))}
-    </div>
+    </ToggleGroup.Root>
   );
 }

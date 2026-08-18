@@ -43,6 +43,7 @@ import {
 import { createThread, deleteThread as deleteThreadRecord, listThreads, type NewThreadInput } from "../../lib/threads";
 import type { AgentSettings, ChatThread, McpSettings } from "../../lib/types";
 import { AgentIcon, CloseIcon } from "../icons";
+import { Dialog, DialogContent, DialogOverlay, DialogPortal, DialogTitle } from "../ui/Dialog";
 import { NewThreadForm } from "./NewThreadForm";
 import { ThreadChat } from "./ThreadChat";
 import { ThreadList } from "./ThreadList";
@@ -195,21 +196,6 @@ export function AgentPanel({ cwd, agentSettings, mcpSettings, open, onClose }: A
     [],
   );
 
-  useEffect(() => {
-    if (!open) return;
-    function onKeyDown(e: globalThis.KeyboardEvent) {
-      if (e.key !== "Escape") return;
-      // Escape steps back one screen at a time — out of the new-thread
-      // form, or out of a thread's chat back to the list — and only
-      // closes the whole drawer once there's nowhere left to go back to.
-      if (creating) setCreating(false);
-      else if (activeThreadId) setActiveThreadId(null);
-      else onClose();
-    }
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [open, onClose, creating, activeThreadId]);
-
   const style: CSSProperties = {
     transform: open ? "translateX(0)" : "translateX(100%)",
     transition: "transform 200ms cubic-bezier(0.2, 0, 0, 1)",
@@ -219,9 +205,35 @@ export function AgentPanel({ cwd, agentSettings, mcpSettings, open, onClose }: A
   const activeThread = activeThreadId ? (threads.find((t) => t.id === activeThreadId) ?? null) : null;
 
   return (
-    <>
-      {open && <div className="agent-panel__backdrop" onClick={onClose} />}
-      <div className="agent-panel" style={style} aria-hidden={!open}>
+    // `modal={false}`: this drawer force-mounts its Content (below) so its
+    // slide transition can animate all the way out on close instead of
+    // vanishing the instant `open` flips — Radix's modal Content hides the
+    // rest of the page from assistive tech via a mount-only effect that
+    // would otherwise fire once and never revert while force-mounted. The
+    // Overlay (also force-mounted, but shown/hidden with `open`) still
+    // blocks clicks to the page behind it while the drawer is open, so
+    // outside-click protection isn't lost by going non-modal.
+    <Dialog open={open} onOpenChange={(next) => !next && onClose()} modal={false}>
+      <DialogPortal>
+        <DialogOverlay className="agent-panel__backdrop" onClick={onClose} />
+        <DialogContent
+          forceMount
+          className="agent-panel"
+          style={style}
+          aria-describedby={undefined}
+          // Escape steps back one screen at a time — out of the new-thread
+          // form, or out of a thread's chat back to the list — and only
+          // closes the whole drawer once there's nowhere left to go back
+          // to. Radix's default (close on Escape) is overridden with this
+          // custom multi-step behavior instead.
+          onEscapeKeyDown={(e) => {
+            e.preventDefault();
+            if (creating) setCreating(false);
+            else if (activeThreadId) setActiveThreadId(null);
+            else onClose();
+          }}
+        >
+          <DialogTitle className="sr-only">Agent chat</DialogTitle>
         {creating ? (
           <NewThreadForm onCreate={(input) => void handleCreateThread(input)} onCancel={() => setCreating(false)} />
         ) : activeThread ? (
@@ -250,7 +262,8 @@ export function AgentPanel({ cwd, agentSettings, mcpSettings, open, onClose }: A
             <ThreadList threads={threads} onSelect={setActiveThreadId} onNew={() => setCreating(true)} onDelete={(id) => void handleDeleteThread(id)} />
           </>
         )}
-      </div>
-    </>
+        </DialogContent>
+      </DialogPortal>
+    </Dialog>
   );
 }

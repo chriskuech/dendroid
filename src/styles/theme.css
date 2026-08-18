@@ -90,6 +90,22 @@
   box-sizing: border-box;
 }
 
+/* Visually-hidden but still in the accessibility tree — for a Radix
+ * Dialog's required Title when the visible heading it labels lives inside
+ * a child component instead of next to the Title itself (see
+ * AgentPanel.tsx, Workspace.tsx's narrow-viewport tree drawer). */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 html,
 body,
 #root {

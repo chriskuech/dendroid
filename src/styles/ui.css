@@ -137,7 +137,7 @@
   opacity: 0.45;
 }
 
-.switch--on {
+.switch[data-state="checked"] {
   border-color: var(--accent);
 }
 
@@ -151,7 +151,7 @@
   transition: left 140ms cubic-bezier(0.2, 0, 0, 1), background 120ms cubic-bezier(0.2, 0, 0, 1);
 }
 
-.switch--on .switch__thumb {
+.switch[data-state="checked"] .switch__thumb {
   left: 19px;
   background: var(--accent);
 }
@@ -180,11 +180,11 @@
   border-left: none;
 }
 
-.segmented__option:hover:not(:disabled):not(.segmented__option--active) {
+.segmented__option:hover:not(:disabled):not([data-state="on"]) {
   color: var(--text);
 }
 
-.segmented__option--active {
+.segmented__option[data-state="on"] {
   font-weight: 400;
   color: var(--accent-on);
   background: var(--text);
@@ -403,13 +403,54 @@
   position: fixed;
   inset: 0;
   z-index: 40;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   background: rgba(0, 0, 0, 0.55);
 }
 
+@keyframes confirm-dialog-backdrop-in {
+  from {
+    opacity: 0;
+    backdrop-filter: blur(0px);
+    -webkit-backdrop-filter: blur(0px);
+  }
+  to {
+    opacity: 1;
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+  }
+}
+
+/* Radix's Presence only waits out an exit animation before unmounting, not
+ * a plain transition — so unlike the old hand-rolled version (whose
+ * backdrop/panel stayed in the DOM, opacity/blur toggled by hand, so it
+ * could animate a symmetric-but-faster close too), this only animates in.
+ * ConfirmDialog.tsx's doc comment has the fuller reasoning: AlertDialog is
+ * always modal, and force-mounting a modal Content to get an exit
+ * animation would leave the rest of the page hidden from assistive tech
+ * forever instead of only while actually open. */
+.confirm-dialog__backdrop[data-state="open"] {
+  animation: confirm-dialog-backdrop-in 200ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+@keyframes confirm-dialog-panel-in {
+  from {
+    opacity: 0;
+    filter: blur(10px);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+  }
+}
+
+/* Radix renders Overlay and Content as siblings, not one nested in the
+ * other — so unlike the old hand-rolled markup, the panel can't rely on
+ * its backdrop's flexbox to center it and has to do that itself. */
 .confirm-dialog {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 41;
   width: 420px;
   background: var(--surface);
   border: 1px solid var(--danger-dim);
@@ -417,6 +458,10 @@
   display: flex;
   flex-direction: column;
   gap: 20px;
+}
+
+.confirm-dialog[data-state="open"] {
+  animation: confirm-dialog-panel-in 240ms cubic-bezier(0.2, 0, 0, 1) 40ms both;
 }
 
 .confirm-dialog__header {
