@@ -20,6 +20,7 @@ import type { DendroidDocument } from "../../lib/crdt/document";
 import type { EncryptionStatusDto } from "../../lib/crdt/encryption";
 import { CameraIcon, CloseIcon, EncryptionIcon, QrKeyIcon } from "../icons";
 import { Button } from "../ui/Button";
+import { Dialog, DialogClose, DialogContent, DialogOverlay, DialogPortal, DialogTitle } from "../ui/Dialog";
 import "../../styles/settings.css";
 
 type Step = "choose" | "generating" | "show" | "scan" | "paste";
@@ -57,14 +58,6 @@ export function EncryptionModal({
   const [copied, setCopied] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
-
-  useEffect(() => {
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
-    }
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [onClose]);
 
   // Render (or re-render) the QR code whenever there's key text to show.
   useEffect(() => {
@@ -184,21 +177,30 @@ export function EncryptionModal({
   }
 
   return (
-    <div className="confirm-dialog__backdrop" onClick={onClose} style={{ opacity: 1, backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)" }}>
-      <div className="encryption-modal" onClick={(e) => e.stopPropagation()}>
-        <div className="confirm-dialog__header">
-          <EncryptionIcon size={16} style={{ color: "var(--accent)" }} />
-          <span className="encryption-modal__title">
-            {step === "choose" && "Enable encryption"}
-            {step === "generating" && "Creating a key…"}
-            {step === "show" && "Pair a device"}
-            {step === "scan" && "Scan a QR code"}
-            {step === "paste" && "Add a key"}
-          </span>
-          <button type="button" className="settings__header-close" onClick={onClose} aria-label="Close">
-            <CloseIcon size={16} />
-          </button>
-        </div>
+    <Dialog open onOpenChange={(next) => !next && onClose()}>
+      <DialogPortal>
+        <DialogOverlay
+          className="confirm-dialog__backdrop"
+          style={{ opacity: 1, backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)" }}
+        />
+        <DialogContent className="encryption-modal" aria-describedby={undefined}>
+          <div className="confirm-dialog__header">
+            <EncryptionIcon size={16} style={{ color: "var(--accent)" }} />
+            <DialogTitle asChild>
+              <span className="encryption-modal__title">
+                {step === "choose" && "Enable encryption"}
+                {step === "generating" && "Creating a key…"}
+                {step === "show" && "Pair a device"}
+                {step === "scan" && "Scan a QR code"}
+                {step === "paste" && "Add a key"}
+              </span>
+            </DialogTitle>
+            <DialogClose asChild>
+              <button type="button" className="settings__header-close" aria-label="Close">
+                <CloseIcon size={16} />
+              </button>
+            </DialogClose>
+          </div>
 
         {step === "choose" && (
           <>
@@ -284,7 +286,8 @@ export function EncryptionModal({
         )}
 
         {error && <div className="encryption-modal__error">{error}</div>}
-      </div>
-    </div>
+        </DialogContent>
+      </DialogPortal>
+    </Dialog>
   );
 }

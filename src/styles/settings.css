@@ -217,7 +217,15 @@
  * backdrop class (`ui.css`) for the same overlay/blur look, but its own
  * panel: several steps' worth of content (QR image, camera view, textarea)
  * don't fit ConfirmDialog's fixed title/body/details/footer shape. */
+/* Shares `.confirm-dialog__backdrop` — see that class's comment in ui.css
+ * for why this has to center itself (Radix renders it as its backdrop's
+ * sibling, not its child). */
 .encryption-modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 41;
   width: 440px;
   max-height: 80vh;
   overflow: auto;

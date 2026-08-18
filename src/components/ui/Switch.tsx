@@ -1,3 +1,4 @@
+import * as SwitchPrimitive from "@radix-ui/react-switch";
 import type { CSSProperties } from "react";
 
 interface SwitchProps {
@@ -10,16 +11,8 @@ interface SwitchProps {
 
 export function Switch({ checked, onChange, disabled, ...rest }: SwitchProps) {
   return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      disabled={disabled}
-      className={`switch${checked ? " switch--on" : ""}`}
-      onClick={() => onChange(!checked)}
-      {...rest}
-    >
-      <span className="switch__thumb" />
-    </button>
+    <SwitchPrimitive.Root checked={checked} onCheckedChange={onChange} disabled={disabled} className="switch" {...rest}>
+      <SwitchPrimitive.Thumb className="switch__thumb" />
+    </SwitchPrimitive.Root>
   );
 }

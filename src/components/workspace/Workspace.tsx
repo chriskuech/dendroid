@@ -28,6 +28,7 @@ import { AgentIcon, LogoIcon, WarningIcon } from "../icons";
 import { Editor, type EditorHandle } from "../editor/Editor";
 import { DatabaseView } from "../database/DatabaseView";
 import { Banner } from "../ui/Banner";
+import { Dialog, DialogContent, DialogOverlay, DialogPortal, DialogTitle } from "../ui/Dialog";
 import "../../styles/workspace.css";
 
 interface WorkspaceProps {
@@ -215,15 +216,6 @@ export function Workspace({ rootPath, onDocumentReady }: WorkspaceProps) {
     if (!isNarrow) setDrawerOpen(false);
   }, [isNarrow]);
 
-  useEffect(() => {
-    if (!isNarrow || !drawerOpen) return;
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") setDrawerOpen(false);
-    }
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [isNarrow, drawerOpen]);
-
   // "Dendroid / Notes are a graph" style breadcrumb (comp/Dendroid
   // Screens.dc.html section "03 Tree", <900px variant) — workspace name,
   // plus whatever heading the editor is currently rooted to.
@@ -335,40 +327,57 @@ export function Workspace({ rootPath, onDocumentReady }: WorkspaceProps) {
       </div>
 
       {isNarrow && (
-        <>
-          <div
-            className="workspace__drawer-backdrop"
-            onClick={() => setDrawerOpen(false)}
-            style={{
-              opacity: drawerOpen ? 1 : 0,
-              pointerEvents: drawerOpen ? "auto" : "none",
-              backdropFilter: `blur(${drawerOpen ? 12 : 0}px)`,
-              WebkitBackdropFilter: `blur(${drawerOpen ? 12 : 0}px)`,
-              // Same asymmetric in/out timing as ConfirmDialog's backdrop —
-              // see its comment for why this can't be a static CSS rule.
-              transition: drawerOpen
-                ? "opacity 200ms cubic-bezier(0.2, 0, 0, 1), backdrop-filter 200ms cubic-bezier(0.2, 0, 0, 1)"
-                : "opacity 130ms cubic-bezier(0.2, 0, 0, 1), backdrop-filter 130ms cubic-bezier(0.2, 0, 0, 1)",
-            }}
-          />
-          <Sidebar
-            {...treeViewProps}
-            crdt={crdtRef.current}
-            view={sidebarView}
-            onViewChange={setSidebarView}
-            selectedDatabaseId={selectedDatabaseId}
-            onSelectDatabase={setSelectedDatabaseId}
-            onClose={() => setDrawerOpen(false)}
-            drawerStyle={{
-              opacity: drawerOpen ? 1 : 0,
-              pointerEvents: drawerOpen ? "auto" : "none",
-              filter: `blur(${drawerOpen ? 0 : 10}px)`,
-              transition: drawerOpen
-                ? "opacity 240ms cubic-bezier(0.2, 0, 0, 1) 40ms, filter 240ms cubic-bezier(0.2, 0, 0, 1) 40ms"
-                : "opacity 130ms cubic-bezier(0.2, 0, 0, 1), filter 130ms cubic-bezier(0.2, 0, 0, 1)",
-            }}
-          />
-        </>
+        // `modal={false}` — see AgentPanel.tsx's identical comment: this
+        // drawer force-mounts Content/Overlay below for its deblur
+        // transition, and a force-mounted *modal* Content would hide the
+        // rest of the page from assistive tech once and never revert.
+        <Dialog open={drawerOpen} onOpenChange={(next) => !next && setDrawerOpen(false)} modal={false}>
+          <DialogPortal>
+            <DialogOverlay
+              forceMount
+              className="workspace__drawer-backdrop"
+              onClick={() => setDrawerOpen(false)}
+              style={{
+                opacity: drawerOpen ? 1 : 0,
+                pointerEvents: drawerOpen ? "auto" : "none",
+                backdropFilter: `blur(${drawerOpen ? 12 : 0}px)`,
+                WebkitBackdropFilter: `blur(${drawerOpen ? 12 : 0}px)`,
+                // Same asymmetric in/out timing as ConfirmDialog's backdrop —
+                // see its comment for why this can't be a static CSS rule.
+                transition: drawerOpen
+                  ? "opacity 200ms cubic-bezier(0.2, 0, 0, 1), backdrop-filter 200ms cubic-bezier(0.2, 0, 0, 1)"
+                  : "opacity 130ms cubic-bezier(0.2, 0, 0, 1), backdrop-filter 130ms cubic-bezier(0.2, 0, 0, 1)",
+              }}
+            />
+            {/* A plain (unstyled) wrapper: Sidebar's own `drawerStyle`
+             * already makes it self-positioning (`position: fixed`), and an
+             * ordinary block div with no transform/filter of its own
+             * doesn't change what that's positioned relative to. Not
+             * `asChild`: Sidebar is a plain function component, not a
+             * `forwardRef` one, so Radix's ref wouldn't reach its DOM node
+             * through that path. */}
+            <DialogContent forceMount aria-describedby={undefined}>
+              <DialogTitle className="sr-only">Tree</DialogTitle>
+              <Sidebar
+                {...treeViewProps}
+                crdt={crdtRef.current}
+                view={sidebarView}
+                onViewChange={setSidebarView}
+                selectedDatabaseId={selectedDatabaseId}
+                onSelectDatabase={setSelectedDatabaseId}
+                onClose={() => setDrawerOpen(false)}
+                drawerStyle={{
+                  opacity: drawerOpen ? 1 : 0,
+                  pointerEvents: drawerOpen ? "auto" : "none",
+                  filter: `blur(${drawerOpen ? 0 : 10}px)`,
+                  transition: drawerOpen
+                    ? "opacity 240ms cubic-bezier(0.2, 0, 0, 1) 40ms, filter 240ms cubic-bezier(0.2, 0, 0, 1) 40ms"
+                    : "opacity 130ms cubic-bezier(0.2, 0, 0, 1), filter 130ms cubic-bezier(0.2, 0, 0, 1)",
+                }}
+              />
+            </DialogContent>
+          </DialogPortal>
+        </Dialog>
       )}
 
       <button

@@ -1,8 +1,22 @@
 // The destructive-confirmation pattern from comp/Dendroid Screens.dc.html
-// section "05 Confirmation" — same deblur motion as the settings/search
-// overlays, a danger hairline instead of the neutral one, the destructive
-// verb kept on the destructive button, and Cancel (never the destructive
-// action) getting the initial focus so a stray Enter can't confirm it.
+// section "05 Confirmation" — a blurred-in backdrop and panel, a danger
+// hairline instead of the neutral one, the destructive verb kept on the
+// destructive button, and Cancel (never the destructive action) getting
+// the initial focus so a stray Enter can't confirm it.
+//
+// Built on Radix's AlertDialog (rather than Dialog) since every call site
+// is a destructive-choice confirmation — that gets us the ARIA alertdialog
+// role, a focus trap, and native Escape-to-close for free. The entrance
+// blur/fade is a plain CSS @keyframes animation keyed off Radix's own
+// `data-state="open"` (see ui.css) rather than the old hand-rolled version's
+// JS-computed inline transition — AlertDialog is always modal, and a modal
+// Content only reverts the "hide the rest of the page from assistive tech"
+// effect it applies while open if it's actually allowed to unmount on
+// close, which a keyframe-driven exit would need force-mounting to avoid
+// (see AgentPanel.tsx's `modal={false}` comment for the bug that causes).
+// Closing is instant instead of an exit transition — a smaller trade than
+// hiding the whole app from screen readers whenever any confirm dialog
+// exists on the page, mounted or not.
 //
 // Originally built with no call site (Settings' "Remove key" is disabled
 // until encryption itself exists — see whitepaper.md) as ready
@@ -13,7 +27,8 @@
 // `icon` was pulled out to a prop then, so each caller reads as itself
 // instead of every confirmation looking like a key removal.
 
-import { useEffect, useRef, type ComponentType } from "react";
+import * as AlertDialog from "@radix-ui/react-alert-dialog";
+import { useRef, type ComponentType } from "react";
 import type { IconProps } from "../icons";
 import { Button } from "./Button";
 import "../../styles/ui.css";
@@ -39,61 +54,28 @@ export interface ConfirmDialogProps {
 export function ConfirmDialog({ open, icon: Icon, title, body, details, confirmLabel, onConfirm, onCancel }: ConfirmDialogProps) {
   const cancelRef = useRef<HTMLButtonElement>(null);
 
-  useEffect(() => {
-    if (open) cancelRef.current?.focus();
-  }, [open]);
-
-  useEffect(() => {
-    if (!open) return;
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") {
-        onCancel();
-      } else if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
-        onConfirm();
-      }
-    }
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [open, onCancel, onConfirm]);
-
   return (
-    <div
-      className="confirm-dialog__backdrop"
-      onClick={onCancel}
-      style={{
-        opacity: open ? 1 : 0,
-        pointerEvents: open ? "auto" : "none",
-        backdropFilter: `blur(${open ? 14 : 0}px)`,
-        WebkitBackdropFilter: `blur(${open ? 14 : 0}px)`,
-        // Entrance and exit both animate opacity + blur, but exit is
-        // uniformly faster with no stagger — "exits are always faster than
-        // entrances" (comp/Dendroid Design System.dc.html's Motion section).
-        transition: open
-          ? "opacity 200ms cubic-bezier(0.2, 0, 0, 1), backdrop-filter 200ms cubic-bezier(0.2, 0, 0, 1)"
-          : "opacity 130ms cubic-bezier(0.2, 0, 0, 1), backdrop-filter 130ms cubic-bezier(0.2, 0, 0, 1)",
-      }}
-    >
-      <div
+    <AlertDialog.Root open={open} onOpenChange={(next) => !next && onCancel()}>
+      <AlertDialog.Overlay className="confirm-dialog__backdrop" onClick={onCancel} />
+      <AlertDialog.Content
         className="confirm-dialog"
-        // Stops a click inside the panel from bubbling to the backdrop's
-        // own onClick and dismissing the dialog it was meant to interact
-        // with — same result as the comp's flat backdrop/panel siblings,
-        // just via event handling instead of DOM structure.
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          opacity: open ? 1 : 0,
-          filter: `blur(${open ? 0 : 10}px)`,
-          transition: open
-            ? "opacity 240ms cubic-bezier(0.2, 0, 0, 1) 40ms, filter 240ms cubic-bezier(0.2, 0, 0, 1) 40ms"
-            : "opacity 130ms cubic-bezier(0.2, 0, 0, 1), filter 130ms cubic-bezier(0.2, 0, 0, 1)",
+        // Cancel — never the destructive action — gets the initial focus so
+        // a stray Enter can't confirm it; Radix's default (first tabbable
+        // element) would already land here, but this makes it explicit.
+        onOpenAutoFocus={(e) => {
+          e.preventDefault();
+          cancelRef.current?.focus();
+        }}
+        onKeyDown={(e) => {
+          if ((e.metaKey || e.ctrlKey) && e.key === "Enter") onConfirm();
         }}
       >
         <div className="confirm-dialog__header">
           <Icon size={16} style={{ color: "var(--danger)" }} />
-          <span className="confirm-dialog__title">{title}</span>
+          <AlertDialog.Title className="confirm-dialog__title">{title}</AlertDialog.Title>
           <span className="confirm-dialog__esc">esc</span>
         </div>
-        <p className="confirm-dialog__body">{body}</p>
+        <AlertDialog.Description className="confirm-dialog__body">{body}</AlertDialog.Description>
         {details && details.length > 0 && (
           <div className="confirm-dialog__details">
             {details.map((d) => (
@@ -105,15 +87,22 @@ export function ConfirmDialog({ open, icon: Icon, title, body, details, confirmL
           </div>
         )}
         <div className="confirm-dialog__footer">
-          <Button ref={cancelRef} variant="secondary" onClick={onCancel}>
-            Cancel
-          </Button>
+          <AlertDialog.Cancel ref={cancelRef} asChild>
+            <Button variant="secondary">Cancel</Button>
+          </AlertDialog.Cancel>
+          {/* Deliberately a plain Button, not AlertDialog.Action: Action is
+           * DialogPrimitive.Close underneath, which fires Root's
+           * onOpenChange(false) as a side effect of any click — that would
+           * call onCancel() right after onConfirm() ran. The caller already
+           * closes the dialog itself (by flipping `open` to false) once its
+           * confirm handler resolves, so Action's auto-close isn't needed
+           * here and only Cancel/Escape should route through onCancel. */}
           <Button variant="destructive" onClick={onConfirm}>
             {confirmLabel}
           </Button>
           <span className="confirm-dialog__cmd-enter">⌘↵</span>
         </div>
-      </div>
-    </div>
+      </AlertDialog.Content>
+    </AlertDialog.Root>
   );
 }
