@@ -8,7 +8,7 @@
 //                                                                     |
 //                                          Rust DendroidDocument (native, over
 //                                    Tauri IPC — or wasm, over the File System
-//                                     Access API on web; see `lib/platform`)
+//                                     Access API on web; see `adapters/platform`)
 //                                       appends to the ledger file for this
 //                                                    session
 //                                                                     |
@@ -19,8 +19,8 @@
 // Every change this mirror learns about that it didn't originate itself
 // arrives the same way: import the bytes `onRemoteUpdate` hands over.
 // Which platform backend is actually behind that call (Tauri IPC, wasm)
-// is `lib/platform`'s problem, not this module's — see
-// `platform/types.ts`'s `DocBackend` for the shared contract.
+// is `adapters/platform`'s problem, not this module's — see
+// `adapters/platform/types.ts`'s `DocBackend` for the shared contract.
 //
 // There's no separate structural tree here either. `loroDoc.getMap("doc")`
 // *is* the ProseMirror document — the same container `loro-prosemirror`'s
@@ -33,9 +33,9 @@
 // the stable `id` these snapshots key rows by.
 
 import { LoroDoc, getType, isContainer, type ContainerID, type LoroList, type LoroMap, type LoroText } from "loro-crdt";
-import { createDocBackend } from "../platform";
-import type { DocBackend } from "../platform/types";
-import { clearEncryptionKeyText, loadEncryptionKeyText, saveEncryptionKeyText } from "../settingsStore";
+import { createDocBackend } from "../../adapters/platform";
+import type { DocBackend } from "../../adapters/platform/types";
+import { adapter as settingsStore } from "../../adapters/settingsStore";
 import type { EncryptionStatusDto, GeneratedEncryptionKey } from "./encryption";
 import type { HistoryEntryDto } from "./history";
 import type { HeadingDto, OutlineEntry } from "./outline";
@@ -50,7 +50,7 @@ const NO_BACKEND_WARNING =
  * document change to signal, so there's nothing for `onRemoteUpdate` to
  * fire on. Polled on this interval instead — see `open()`'s status
  * subscription below. Same cadence as the wasm backend's own external-poll
- * interval (`lib/platform/wasm.ts`); no need to check more often than
+ * interval (`adapters/platform/wasm.ts`); no need to check more often than
  * sync itself runs. */
 const ENCRYPTION_STATUS_POLL_MS = 1500;
 
@@ -135,12 +135,12 @@ export class DendroidDocument {
 
     // Re-supply this device's encryption key (if it's ever set one) so
     // encrypted history decrypts right away rather than sitting blocked
-    // until Settings is opened — see `settingsStore.ts`'s
+    // until Settings is opened — see `adapters/settingsStore`'s
     // `loadEncryptionKeyText` (OS-keychain-backed under Tauri) for why the
     // key lives there rather than in `AppSettings`, and `dendroid_core::
     // doc::DendroidDocument::set_encryption_key` for why calling this
     // again is safe/idempotent.
-    const keyText = await loadEncryptionKeyText();
+    const keyText = await settingsStore.loadEncryptionKeyText();
     if (keyText) {
       try {
         await backend.setEncryptionKey(keyText);
@@ -180,12 +180,12 @@ export class DendroidDocument {
   }
 
   /** Turns on encryption with a freshly generated key ("create a key") and
-   * persists its textual form (`settingsStore.ts`) so it survives a
+   * persists its textual form (`adapters/settingsStore`) so it survives a
    * restart — see `DocBackend.generateEncryptionKey`. */
   async generateEncryptionKey(): Promise<GeneratedEncryptionKey> {
     if (!this.backend) throw new Error("[crdt] generateEncryptionKey called without a platform backend");
     const result = await this.backend.generateEncryptionKey();
-    await saveEncryptionKeyText(result.keyText);
+    await settingsStore.saveEncryptionKeyText(result.keyText);
     await this.refreshEncryptionStatus();
     return result;
   }
@@ -196,7 +196,7 @@ export class DendroidDocument {
   async setEncryptionKey(keyText: string): Promise<EncryptionStatusDto> {
     if (!this.backend) throw new Error("[crdt] setEncryptionKey called without a platform backend");
     const status = await this.backend.setEncryptionKey(keyText);
-    await saveEncryptionKeyText(keyText);
+    await settingsStore.saveEncryptionKeyText(keyText);
     await this.refreshEncryptionStatus();
     return status;
   }
@@ -207,7 +207,7 @@ export class DendroidDocument {
   async removeEncryptionKey(): Promise<void> {
     if (!this.backend) throw new Error("[crdt] removeEncryptionKey called without a platform backend");
     await this.backend.removeEncryptionKey();
-    await clearEncryptionKeyText();
+    await settingsStore.clearEncryptionKeyText();
     await this.refreshEncryptionStatus();
   }
 
@@ -247,7 +247,7 @@ export class DendroidDocument {
    * (its heading, body, and any nested subsections) lives inside this one
    * container (see `section.ts`'s/`dendroid_core::outline`'s doc
    * comments), so this is what an expanded `@`-link's preview binds a
-   * live embedded editor to (`lib/tiptap/embeddedEditor.ts`) instead of a
+   * live embedded editor to (`ux/editor/tiptap/embeddedEditor.ts`) instead of a
    * rebuilt-DOM snapshot. `undefined` if `id` isn't a section in the live
    * document right now (an orphaned/stale link, or one racing a deletion
    * that hasn't reconciled yet) — callers fall back to the read-only

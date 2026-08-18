@@ -21,7 +21,7 @@ export interface EncryptionStatusDto {
 
 /** `generateEncryptionKey`'s result — `keyText` is the freshly created
  * key's textual form, for the caller to offer immediately as a QR code or
- * a copy-paste target (see `components/settings/EncryptionPairing.tsx`). */
+ * a copy-paste target (see `ux/settings/EncryptionPairing.tsx`). */
 export interface GeneratedEncryptionKey {
   keyText: string;
   status: EncryptionStatusDto;

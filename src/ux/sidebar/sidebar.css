@@ -1,0 +1,91 @@
+/* Rail + swappable content (Tree / Mind Map) — see
+ * components/sidebar/Sidebar.tsx. Owns the one border/background/fade this
+ * whole shell gets (workspace.css's `.tree-view` rules are otherwise
+ * untouched) — the content views nested inside are bare `.side-panel`
+ * (ui/ui.css), so there's nothing left for them to double up with. */
+
+.sidebar {
+  flex: none;
+  display: flex;
+  position: relative;
+  border-right: 1px solid var(--line);
+  background: var(--surface);
+  overflow: hidden;
+}
+
+/* Nested inside Workspace's <900px `ui/OverlayPanel.tsx` drawer instead of
+ * rendered directly as a persistent column — the drawer's own
+ * `.overlay-panel` (ui/ui.css) already supplies position/background/
+ * border, so this just fills it. */
+.sidebar--nested {
+  flex: 1;
+  min-height: 0;
+  border-right: none;
+  background: transparent;
+}
+
+.sidebar__rail {
+  width: 32px;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding-top: 8px;
+  border-right: 1px solid var(--line);
+}
+
+.sidebar__rail-btn {
+  width: 26px;
+  height: 26px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--text-2);
+  cursor: pointer;
+}
+
+.sidebar__rail-btn:hover {
+  color: var(--text);
+}
+
+/* Same "always show current state" convention as `.tree-row__reroot.is-root`
+ * — the active tab stays accent-colored without needing to be hovered. */
+.sidebar__rail-btn.is-active {
+  color: var(--accent);
+}
+
+.sidebar__content {
+  width: 280px;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* TreeView, MindMapView, HistoryView (and its database counterparts,
+ * DatabaseListView/DatabaseHistoryView) are all just `.side-panel` —
+ * structural sizing only, no border or background of its own (ui/ui.css) —
+ * so the only thing to override here is width, to stretch and fill
+ * `.sidebar__content` instead of each carrying its own fixed 280px. */
+.sidebar__content > .tree-view,
+.sidebar__content > .mindmap-view,
+.sidebar__content > .history-view,
+.sidebar__content > .database-list,
+.sidebar__content > .automation-view {
+  width: auto;
+  flex: 1;
+}
+
+/* Button styling itself is `.side-panel__icon-btn` (ui/ui.css, same as
+ * every other close/back button in the app) — this only adds the
+ * positioning that's unique to floating over whichever content view is
+ * currently showing, rather than sitting in a header row. */
+.sidebar__close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+}
