@@ -1,4 +1,4 @@
-// Headless, DOM-free sanity check for ../src/lib/tiptap/sectionStructure.ts's
+// Headless, DOM-free sanity check for ../src/ux/editor/tiptap/sectionStructure.ts's
 // demote/promote convergence — runs entirely against prosemirror-model /
 // prosemirror-transform (no EditorView, no jsdom needed). Run with:
 //   bun run scripts/verify-section-structure.ts
@@ -10,7 +10,7 @@
 
 import { Schema } from "prosemirror-model";
 import { Transform } from "prosemirror-transform";
-import { findMisplacedHeading, findPromotable, applyFix } from "../src/lib/tiptap/sectionStructure.ts";
+import { findMisplacedHeading, findPromotable, applyFix } from "../src/ux/editor/tiptap/sectionStructure.ts";
 
 const schema = new Schema({
   nodes: {
