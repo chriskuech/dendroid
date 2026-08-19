@@ -13,6 +13,14 @@ export interface AgentProviderMeta {
   /** Whether Settings' Command/Arguments fields are user-editable for this
    * provider, vs. locked (read-only) to the preset above. */
   editable: boolean;
+  /** Shown alongside "failed to launch" errors from this preset's `command`
+   * (see `ux/agent/AgentPanel.tsx`'s `handleSend`) — the same install
+   * command already mentioned in `description`, surfaced right when it's
+   * actually needed instead of only in Settings' prose. `undefined` for
+   * presets that don't spawn an external package (`none`, `custom` — a
+   * custom command's install story is whatever the user picked, dendroid
+   * has no preset instructions to offer). */
+  installHint?: string;
 }
 
 // Presets for Settings' Agent section (see SettingsPage.tsx). Picking one
@@ -38,6 +46,7 @@ export const AGENT_PROVIDERS: Record<AgentProvider, AgentProviderMeta> = {
     command: "opencode",
     args: "acp",
     editable: false,
+    installHint: "npm i -g opencode",
   },
   claudeCode: {
     kind: "claudeCode",
@@ -47,6 +56,7 @@ export const AGENT_PROVIDERS: Record<AgentProvider, AgentProviderMeta> = {
     command: "claude-agent-acp",
     args: "",
     editable: false,
+    installHint: "npm i -g @zed-industries/claude-agent-acp",
   },
   custom: {
     kind: "custom",

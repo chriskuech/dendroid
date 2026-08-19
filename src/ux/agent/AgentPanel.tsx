@@ -30,6 +30,7 @@ import { useAcp } from "../../adapters/acp/context";
 import type { AcpBridgeEvent, AcpPermissionOption } from "../../adapters/acp";
 import { createThread, deleteThread as deleteThreadRecord, listThreads } from "./threads";
 import { AGENT_PANEL_WIDTH_MAX, AGENT_PANEL_WIDTH_MIN, type AgentSettings, type ChatThread, type McpSettings } from "../../lib/types";
+import { AGENT_PROVIDERS } from "../settings/agentProviders";
 import { AgentIcon } from "../../ui/icons";
 import { OverlayPanel } from "../../ui/OverlayPanel";
 import { SidePanelHeader } from "../../ui/SidePanelHeader";
@@ -39,6 +40,21 @@ import { applyUpdate, finalizeStreaming, newTimelineId, type TimelineItem } from
 import "./agent.css";
 
 type Connection = "idle" | "connecting" | "connected" | "error";
+
+// `src-acp`'s `AcpClient::spawn` (see `src-tauri/src/acp.rs`'s `acp_start`)
+// always phrases a failed process spawn as `failed to launch "<command>":
+// <os error>` — e.g. the ENOENT a missing `claude-agent-acp` produces. That
+// message alone doesn't tell a first-time user *why* it's missing or what
+// to do about it, so when the failing command matches the active preset's
+// own `command`, its `installHint` (if any) gets appended.
+function describeAgentError(err: unknown, provider: AgentSettings["provider"]): string {
+  const message = err instanceof Error ? err.message : String(err);
+  const installHint = AGENT_PROVIDERS[provider].installHint;
+  if (installHint && /^failed to launch /.test(message)) {
+    return `${message} — install it first: ${installHint}`;
+  }
+  return message;
+}
 
 interface AgentPanelProps {
   cwd: string;
@@ -175,7 +191,7 @@ export function AgentPanel({ cwd, agentSettings, mcpSettings, open, onClose, wid
         }
       } catch (err) {
         setConnections((prev) => withEntry(prev, threadId, "error"));
-        const note: TimelineItem = { id: newTimelineId(), kind: "system", text: `Error: ${err instanceof Error ? err.message : String(err)}` };
+        const note: TimelineItem = { id: newTimelineId(), kind: "system", text: `Error: ${describeAgentError(err, agentSettings.provider)}` };
         setTimelines((prev) => withEntry(prev, threadId, [...finalizeStreaming(prev[threadId] ?? []), note]));
       } finally {
         setBusy((prev) => withEntry(prev, threadId, false));
