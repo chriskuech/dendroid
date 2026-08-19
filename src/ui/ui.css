@@ -540,7 +540,7 @@
 }
 
 /* Side panel — the fixed-width column shape shared by every screen the
- * left Sidebar swaps in (Tree/Mind map/History/Databases/Automations,
+ * left Sidebar swaps in (Tree/Mind map/History/Databases/Automations/Skills,
  * ux/sidebar/Sidebar.tsx) and every screen the right AgentPanel swaps in
  * (Threads/New thread/Thread chat). Each of those used to define its own
  * copy of this same width/border/background/header block under its own
