@@ -4,16 +4,27 @@
 // a second view can share it, and neither view needs to know the other
 // exists.
 //
-// Rendered two ways by Workspace.tsx: directly, as a persistent resizable
-// column (>=900px, `faded`/`transitionMs` driving zen-mode's fade, `width`/
-// `onResize` driving the drag handle), or as the sole child of a
-// `ui/OverlayPanel.tsx` drawer (<900px) — the exact same component the
-// right AgentPanel uses for its own drawer, so the two never drift out of
-// sync on position/border/background/motion again. `onClose` is how this
-// component tells which: given one, it assumes the OverlayPanel around it
-// already owns position/background/border/width and just fills it, skipping
-// the resize handle (the drawer isn't resizable) and swapping in a floating
-// close button since drawer content has no header row to put one in.
+// Rendered two ways by Workspace.tsx: directly, as a persistent column
+// (>=900px, `faded`/`transitionMs` driving zen-mode's fade), or as the sole
+// child of a `ui/OverlayPanel.tsx` drawer (<900px) — the exact same
+// component the right AgentPanel uses for its own drawer, so the two never
+// drift out of sync on position/border/background/motion again. `onClose`
+// is how this component tells which: given one, it assumes the
+// OverlayPanel around it already owns position/background/border/width and
+// just fills it, skipping the resize handle (the drawer isn't resizable)
+// and swapping in a floating close button since drawer content has no
+// header row to put one in.
+//
+// The persistent column's rail always stays on screen — it's the sidebar's
+// primary navigation, not something to hide — but its content pane is
+// itself closable, via `open`/`onOpenChange`, the same "click the active
+// icon again to close" gesture the <900px drawer already used `onClose`
+// for. Closing it collapses the column down to just the rail (icon
+// toolbar); reopening restores it at its last resized `width`. This is
+// deliberately independent of the right AgentPanel's own open state —
+// there's nothing here that closes one when the other opens, so both can
+// be open together whenever the viewport has room for it (see
+// Workspace.tsx's `dim` wiring on AgentPanel for the other half of that).
 
 import type { CSSProperties } from "react";
 import type { DendroidDocument } from "../../lib/crdt/document";
@@ -72,6 +83,17 @@ interface SidebarProps {
    * both are ignored once `onClose` is given. */
   width: number;
   onResize: (width: number) => void;
+  /** Whether the persistent (>=900px) column's content pane is showing, vs.
+   * collapsed down to just the rail. Defaults to `true`. Ignored once
+   * `onClose` is given — the <900px drawer already starts hidden and is
+   * opened/closed as a whole (via `ui/OverlayPanel.tsx`'s own `open`), so it
+   * has no separate collapsed-content state of its own. */
+  open?: boolean;
+  /** Fires when the rail icon for the currently-open view is clicked again
+   * (close), or when any icon is clicked while collapsed (reopen). Only
+   * meaningful — and only ever called — alongside `open`, i.e. the
+   * persistent column; ignored once `onClose` is given. */
+  onOpenChange?: (open: boolean) => void;
   /** Present only in the <900px `OverlayPanel` drawer variant (see
    * Workspace.tsx) — swaps in a close button and skips the persistent
    * column's own position/border/background/resize handle, since the
@@ -99,6 +121,8 @@ export function Sidebar({
   transitionMs = 120,
   width,
   onResize,
+  open = true,
+  onOpenChange,
   onClose,
 }: SidebarProps) {
   // Nested inside an OverlayPanel, which owns the fade/slide-in motion
@@ -123,17 +147,30 @@ export function Sidebar({
     onResize,
   });
 
-  // Nested (drawer) variant only: tapping the rail icon for the panel
-  // that's already showing closes the drawer instead of re-selecting the
-  // same view (a no-op that left the drawer stuck open). The persistent
-  // column has no `onClose` and no drawer to close, so it keeps the plain
-  // select-only behavior — clicking the active tab there is just a no-op.
+  // Tapping the rail icon for the panel that's already showing closes it
+  // instead of re-selecting the same view (a no-op that would otherwise
+  // leave the panel stuck open with nothing left to do). The two variants
+  // close differently — the nested drawer unmounts itself as a whole via
+  // `onClose`, the persistent column just collapses its content pane via
+  // `onOpenChange(false)` — but the gesture is the same. Any other click (a
+  // different view, or the active one while already collapsed) selects that
+  // view and, for the persistent column, reopens the content pane if it was
+  // closed.
   const handleRailClick = (targetView: SidebarView) => {
-    if (onClose && view === targetView) {
-      onClose();
+    if (onClose) {
+      if (view === targetView) {
+        onClose();
+        return;
+      }
+      onViewChange(targetView);
+      return;
+    }
+    if (open && view === targetView) {
+      onOpenChange?.(false);
       return;
     }
     onViewChange(targetView);
+    onOpenChange?.(true);
   };
 
   return (
@@ -208,39 +245,44 @@ export function Sidebar({
           <SettingsIcon size={16} />
         </button>
       </div>
-      <div className="sidebar__content" style={onClose ? undefined : { width: `${liveContentWidth}px` }}>
-        {view === "tree" ? (
-          <TreeView
-            entries={entries}
-            collapsedIds={collapsedIds}
-            expandedLinkIds={expandedLinkIds}
-            previewDepth={previewDepth}
-            rootId={rootId}
-            onSelectHeading={onSelectHeading}
-            onToggleCollapse={onToggleCollapse}
-            onToggleLinkExpand={onToggleLinkExpand}
-            onReroot={onReroot}
-          />
-        ) : view === "mindmap" ? (
-          <MindMapView entries={entries} onSelectHeading={onSelectHeading} />
-        ) : view === "database" ? (
-          <DatabaseListView selectedId={selectedDatabaseId} onSelect={onSelectDatabase} />
-        ) : view === "automation" ? (
-          <AutomationsView />
-        ) : view === "skills" ? (
-          <SkillsView />
-        ) : selectedDatabaseId ? (
-          <DatabaseHistoryView databaseId={selectedDatabaseId} />
-        ) : crdt ? (
-          <HistoryView crdt={crdt} />
-        ) : null}
-      </div>
+      {/* Nested (drawer) variant: always shown, sized by the OverlayPanel
+       * around it. Persistent column: only mounted while `open` — collapsed
+       * means just the rail above, no content pane or resize handle below. */}
+      {(onClose || open) && (
+        <div className="sidebar__content" style={onClose ? undefined : { width: `${liveContentWidth}px` }}>
+          {view === "tree" ? (
+            <TreeView
+              entries={entries}
+              collapsedIds={collapsedIds}
+              expandedLinkIds={expandedLinkIds}
+              previewDepth={previewDepth}
+              rootId={rootId}
+              onSelectHeading={onSelectHeading}
+              onToggleCollapse={onToggleCollapse}
+              onToggleLinkExpand={onToggleLinkExpand}
+              onReroot={onReroot}
+            />
+          ) : view === "mindmap" ? (
+            <MindMapView entries={entries} onSelectHeading={onSelectHeading} />
+          ) : view === "database" ? (
+            <DatabaseListView selectedId={selectedDatabaseId} onSelect={onSelectDatabase} />
+          ) : view === "automation" ? (
+            <AutomationsView />
+          ) : view === "skills" ? (
+            <SkillsView />
+          ) : selectedDatabaseId ? (
+            <DatabaseHistoryView databaseId={selectedDatabaseId} />
+          ) : crdt ? (
+            <HistoryView crdt={crdt} />
+          ) : null}
+        </div>
+      )}
       {onClose ? (
         <button type="button" className="sidebar__close side-panel__icon-btn" onClick={onClose} aria-label="Close sidebar">
           <CloseIcon size={16} />
         </button>
       ) : (
-        <div className="sidebar__resize-handle" role="separator" aria-orientation="vertical" aria-label="Resize sidebar" {...handleProps} />
+        open && <div className="sidebar__resize-handle" role="separator" aria-orientation="vertical" aria-label="Resize sidebar" {...handleProps} />
       )}
     </div>
   );
