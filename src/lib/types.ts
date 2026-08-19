@@ -65,85 +65,38 @@ export interface AgentSettings {
   args: string;
 }
 
-/** Which of the three things can start a chat thread with the ACP agent —
- * see `ux/agent/threads.ts` and `ux/agent/AgentPanel.tsx`. */
-export type ThreadKind = "human" | "cron" | "trigger";
-
-/** Row-change kinds a "trigger" thread can fire on, mirroring SQL's own
- * INSERT/UPDATE/DELETE vocabulary. */
+/** Row-change kinds an `Automation`'s data watch can fire on, mirroring
+ * SQL's own INSERT/UPDATE/DELETE vocabulary. */
 export type TriggerEvent = "insert" | "update" | "delete";
 
-/** A "cron" thread's config: when to run, and what to ask the agent to do
- * each time. */
-export interface CronThreadConfig {
-  /** Standard 5-field cron expression (minute hour day-of-month month
-   * day-of-week), e.g. `"0 9 * * *"` for daily at 9am. Dendroid doesn't run
-   * a background scheduler that reads this yet — see `ChatThread`'s doc
-   * comment — so for now it's descriptive metadata plus what `runThreadNow`
-   * sends verbatim when the thread is run manually. */
-  schedule: string;
-  /** The prompt sent to the agent each time this thread runs. Framed as
-   * "skill" (matching the vocabulary Settings' "Skills" section already
-   * uses for MCP tools) rather than "prompt", since it names a specific
-   * task the agent repeats rather than a one-off message. */
-  skill: string;
-}
-
-/** A "trigger" thread's config: which table to watch, which row-change
- * kinds fire it, and what to ask the agent to do each time. */
-export interface TriggerThreadConfig {
-  /** Which database (see `adapters/db`'s `DatabaseDto`) and table within it
-   * this thread watches. */
-  databaseId: string;
-  table: string;
-  /** Which row-change kinds fire this thread — at least one. */
-  events: TriggerEvent[];
-  /** The prompt sent to the agent on each fire; the triggering row change
-   * is appended to it as event JSON — see `ux/agent/threads.ts`'s
-   * `buildTriggerEventJson`. */
-  skill: string;
-}
-
-/** One saved chat thread: a persisted identity + config for a conversation
- * with the ACP agent (`adapters/acp`), independent of any particular
- * window's live connection to it (`ux/agent/AgentPanel.tsx` owns
- * that). See `ux/agent/threads.ts` for the CRUD around this list.
+/** One saved chat thread: a persisted identity for a conversation with the
+ * ACP agent (`adapters/acp`) — a person types, the agent replies —
+ * independent of any particular window's live connection to it
+ * (`ux/agent/AgentPanel.tsx` owns that). See `ux/agent/threads.ts` for the
+ * CRUD around this list.
  *
- * Only "human" threads are message-driven the way the chat drawer always
- * used to be — a person types, the agent replies. "cron" and "trigger"
- * threads instead describe *when* dendroid should send their `skill` to
- * the agent on the thread's behalf: a schedule, or a database row change.
- * Dendroid doesn't yet run a background scheduler or hook into SQLite's own
- * row-level triggers to fire these automatically; this type and the UX
- * built on it (creating/configuring/deleting threads) are what an
- * automatic-firing feature would be layered onto later. Until then, each
- * thread's chat view has a manual "Run now" standing in for that — see
- * `ux/agent/threads.ts`'s `buildTriggerEventJson`. */
+ * Scheduled/data-triggered agent runs are a separate, actually-automatic
+ * feature — see `Automation`'s doc comment — rather than a kind of
+ * `ChatThread`. */
 export interface ChatThread {
   id: string;
-  kind: ThreadKind;
   title: string;
   createdAt: string;
-  cron?: CronThreadConfig;
-  trigger?: TriggerThreadConfig;
 }
 
 /** A reusable, user-authored prompt (Automations tab's "Skills" section) —
  * distinct from `McpSettings.disabledSkills` (which toggles *MCP tool*
  * skills a connected agent can call, see `adapters/mcp`'s `listMcpSkills`).
- * This kind of skill is instead a saved block of instructions an
- * `Automation` sends the agent verbatim each time it fires, the same role
- * `CronThreadConfig.skill`/`TriggerThreadConfig.skill` used to play as a
- * one-off freeform string before automations grew a dedicated, reusable
- * list of these to pick from. */
+ * This kind of skill is a saved block of instructions an `Automation` sends
+ * the agent verbatim each time it fires. */
 export interface Skill {
   id: string;
   name: string;
   description: string;
   /** Sent to the agent as its prompt each time an `Automation` referencing
-   * this skill fires — the trigger's own event JSON (see
-   * `ux/agent/threads.ts`'s `buildTriggerEventJson`) is appended after it for
-   * data-triggered fires. */
+   * this skill fires — the trigger's own event JSON (built server-side, see
+   * `src-tauri/src/automation.rs`) is appended after it for data-triggered
+   * fires. */
   instructions: string;
   createdAt: string;
 }
@@ -167,9 +120,8 @@ export interface CronSchedule {
 }
 
 /** An `Automation`'s data-watch half — which database/table/row-change
- * kinds fire it. Same shape `TriggerThreadConfig` already used, split out
- * so `Automation` can carry it alongside (rather than instead of) a cron
- * schedule — see `Automation`'s doc comment. */
+ * kinds fire it. Split out so `Automation` can carry it alongside (rather
+ * than instead of) a cron schedule — see `Automation`'s doc comment. */
 export interface AutomationDataTrigger {
   databaseId: string;
   table: string;
@@ -193,9 +145,8 @@ export interface AutomationEvent {
 /** A saved automation (the Automations tab's "Triggers" section): a name,
  * a `Skill` to run, and *when* to run it — a cron schedule, a database
  * watch, or both at once (whichever is set is checked; if both are set,
- * either firing condition fires it independently). Unlike a "cron"/
- * "trigger" `ChatThread` (see that type's doc comment), this one *is*
- * actually driven automatically — `src-tauri/src/automation.rs`'s
+ * either firing condition fires it independently). This is the one place
+ * dendroid actually drives the agent automatically — `src-tauri/src/automation.rs`'s
  * background engine, kept in sync with this list via `ux/automations/automations.ts`'s
  * `syncAutomationsEngine`. Each firing is recorded as a standalone
  * `AutomationRunSummary`/`AutomationRun` (its own ACP chat), rather than

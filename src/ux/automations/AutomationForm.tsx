@@ -1,8 +1,7 @@
 // Add/edit an Automation (lib/types.ts) — a name, which Skill it runs, and
 // *when*: a friendly cron picker (frequency + time of day, compiled to a
 // cron expression by ux/automations/automations.ts's cronScheduleToExpression) and/or
-// a database watch (database/table/row-change kinds, the same fields
-// NewThreadForm.tsx's "trigger" kind already collects). Both halves are
+// a database watch (database/table/row-change kinds). Both halves are
 // independent toggles rather than a mutually-exclusive choice — "trigger
 // info" is cron *and* data, per the Automations tab's brief, so an
 // automation can fire on either condition, or both.
