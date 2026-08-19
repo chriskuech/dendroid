@@ -647,8 +647,13 @@
   transition: transform 200ms cubic-bezier(0.2, 0, 0, 1);
 }
 
+/* Full-bleed (`inset: 0`, inherited from `.overlay-panel` above) rather than
+ * shrink-to-fit like `--right`: this is the <900px Sidebar drawer's only
+ * variant (Workspace.tsx never renders it at >=900px), and a mobile drawer
+ * that only covers part of the screen reads as an odd, cramped in-between
+ * layout rather than the deliberate two-mode (persistent rail / full-screen
+ * modal) split it's meant to be. */
 .overlay-panel--left {
-  inset: 0 auto 0 0;
   border-right: 1px solid var(--line);
   transform: translateX(-100%);
 }
