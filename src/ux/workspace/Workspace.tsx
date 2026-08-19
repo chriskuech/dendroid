@@ -25,11 +25,10 @@ import { useDb } from "../../adapters/db/context";
 import { useMcp } from "../../adapters/mcp/context";
 import { Sidebar, type SidebarView } from "../sidebar/Sidebar";
 import { AgentPanel } from "../agent/AgentPanel";
-import { AgentIcon, LogoIcon, WarningIcon } from "../../ui/icons";
+import { AgentIcon, WarningIcon } from "../../ui/icons";
 import { Editor, type EditorHandle } from "../editor/Editor";
 import { DatabaseView } from "../database/DatabaseView";
 import { Banner } from "../../ui/Banner";
-import { OverlayPanel } from "../../ui/OverlayPanel";
 import "./workspace.css";
 
 interface WorkspaceProps {
@@ -47,7 +46,7 @@ interface WorkspaceProps {
 }
 
 export function Workspace({ rootPath, onDocumentReady, onOpenSettings }: WorkspaceProps) {
-  const { workspace, settings, isNarrow, setEditorFocused, chromeFaded, chromeTransitionMs } = useAppState();
+  const { settings, setEditorFocused, chromeFaded, chromeTransitionMs } = useAppState();
   const db = useDb();
   const mcp = useMcp();
   const automationsEngine = useAutomationsEngine();
@@ -56,17 +55,14 @@ export function Workspace({ rootPath, onDocumentReady, onOpenSettings }: Workspa
   const [ready, setReady] = useState(false);
   const [entries, setEntries] = useState<OutlineEntry[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [drawerOpen, setDrawerOpen] = useState(false);
   // Set the moment the ledger holds an encrypted event this device can't
   // read (no key, or the wrong one) — see `dendroid_core::doc::
   // DendroidDocument`'s `blocked_reason`. Sync is genuinely stopped while
   // this is set (`poll_external` no-ops), not just visually flagged — the
   // banner below is what tells the user why nothing new is coming in.
   const [encryptionBlockedReason, setEncryptionBlockedReason] = useState<string | null>(null);
-  // Which panel the sidebar/drawer currently shows — Tree or the mindmap
-  // graph (see ux/sidebar/Sidebar.tsx). Shared between the wide
-  // sidebar and the narrow drawer so switching in one is remembered by the
-  // other.
+  // Which panel the sidebar currently shows — Tree or the mindmap graph
+  // (see ux/sidebar/Sidebar.tsx).
   const [sidebarView, setSidebarView] = useState<SidebarView>("tree");
   // The editor's headingFold plugin is the source of truth (see
   // Editor.tsx / ux/editor/tiptap/headingFold.ts) — this is just its state
@@ -205,49 +201,16 @@ export function Workspace({ rootPath, onDocumentReady, onOpenSettings }: Workspa
     editorRef.current?.editor?.commands.toggleLinkExpand(linkId);
   }, []);
 
-  // What a tree row click calls (TreeView.tsx) — unlike `selectHeadingFromDrawer`
-  // below, this deliberately doesn't close the narrow-mode drawer: the tree
-  // itself still shows the whole outline after rerooting (only the editor's
-  // content narrows), so there's nothing gained by closing it.
+  // What a tree row click calls (TreeView.tsx).
   const reroot = useCallback((headingId: string) => {
     editorRef.current?.editor?.commands.toggleDocumentRoot(headingId);
   }, []);
 
-  // `isNarrow` and `chromeFaded` both live in AppState now, not here — zen
-  // mode needs to fade chrome outside Workspace too (the settings launcher
-  // in App.tsx), so both are computed once at that level and read down.
-  // The persistent sidebar and the <900px drawer both render `Sidebar`, but
-  // only the persistent one fades for zen mode — the drawer already starts
-  // hidden and is opened deliberately, rather than idled into view. The
-  // narrow topbar (hamburger + breadcrumb, below) isn't part of that
-  // sidebar/drawer pair but is still chrome outside the editor, so it
-  // fades on its own.
-
-  // A drawer left open when the viewport widens back past the breakpoint
-  // would otherwise become an inert, never-closeable sidebar duplicate.
-  useEffect(() => {
-    if (!isNarrow) setDrawerOpen(false);
-  }, [isNarrow]);
-
-  // "Dendroid / Notes are a graph" style breadcrumb (comp/Dendroid
-  // Screens.dc.html section "03 Tree", <900px variant) — workspace name,
-  // plus whatever heading the editor is currently rooted to.
-  const rootHeadingTitle = rootId ? findHeadingTitle(entries, rootId) : null;
-  const breadcrumb = [workspace?.name ?? "Dendroid", rootHeadingTitle].filter(Boolean).join(" / ");
-
-  // Navigating to a heading from the drawer (an `@`-link or preview row —
-  // see TreeView.tsx; a heading row itself reroots instead, via `reroot`
-  // below, and deliberately leaves the drawer open) should also close it —
-  // staying open over the now-navigated-to content would just be in the
-  // way. Kept above the early returns below (Rules of Hooks: every hook
-  // here has to run on every render, loading/error states included).
-  const selectHeadingFromDrawer = useCallback(
-    (headingId: string) => {
-      selectHeading(headingId);
-      setDrawerOpen(false);
-    },
-    [selectHeading],
-  );
+  // `chromeFaded` lives in AppState now, not here — zen mode needs to fade
+  // chrome outside Workspace too (the settings launcher in App.tsx), so
+  // it's computed once at that level and read down. The sidebar is always
+  // shown (see Sidebar.tsx); zen mode is the only thing that ever hides it,
+  // via this same opacity fade rather than unmounting it.
 
   if (error) {
     return <div className="workspace__status workspace__status--error">Couldn't open workspace: {error}</div>;
@@ -257,74 +220,30 @@ export function Workspace({ rootPath, onDocumentReady, onOpenSettings }: Workspa
     return <div className="workspace__status">Loading workspace…</div>;
   }
 
-  const treeViewProps = {
-    entries,
-    collapsedIds,
-    expandedLinkIds,
-    previewDepth: settings.descendantDepth,
-    rootId,
-    onSelectHeading: isNarrow ? selectHeadingFromDrawer : selectHeading,
-    onToggleCollapse: toggleHeadingCollapse,
-    onToggleLinkExpand: toggleLinkExpand,
-    onReroot: reroot,
-  };
-
-  // One <Editor> in one stable tree position regardless of `isNarrow` — two
-  // separate `return`s for the wide/narrow layouts would each mount their
-  // own copy, and crossing the breakpoint mid-edit would remount it
-  // (losing cursor position and focus) purely because of window width.
   return (
-    <div className={`workspace${isNarrow ? " workspace--narrow" : ""}`}>
+    <div className="workspace">
       {encryptionBlockedReason && <Banner icon={WarningIcon}>{encryptionBlockedReason} Sync is stopped until this is resolved in Settings.</Banner>}
-      {isNarrow ? (
-        <div
-          className="workspace__topbar"
-          style={{
-            // Same chrome-fade wiring as the sidebar/settings launcher (see
-            // useZenChrome / AppState's `chromeFaded`) — the hamburger and
-            // breadcrumb are the narrow layout's only chrome outside the
-            // editor, so zen mode fades them too rather than leaving this
-            // one strip permanently visible.
-            opacity: chromeFaded ? 0 : 1,
-            pointerEvents: chromeFaded ? "none" : "auto",
-            transition: `opacity ${chromeTransitionMs}ms cubic-bezier(0.2, 0, 0, 1)`,
-          }}
-        >
-          <button
-            type="button"
-            className="workspace__hamburger"
-            onClick={() => setDrawerOpen(true)}
-            aria-label="Open tree"
-          >
-            <LogoIcon size={16} />
-          </button>
-          <span className="workspace__breadcrumb">{breadcrumb}</span>
-        </div>
-      ) : (
-        <Sidebar
-          {...treeViewProps}
-          crdt={crdtRef.current}
-          view={sidebarView}
-          onViewChange={setSidebarView}
-          selectedDatabaseId={selectedDatabaseId}
-          onSelectDatabase={setSelectedDatabaseId}
-          onOpenSettings={onOpenSettings}
-          faded={chromeFaded}
-          transitionMs={chromeTransitionMs}
-        />
-      )}
+      <Sidebar
+        entries={entries}
+        collapsedIds={collapsedIds}
+        expandedLinkIds={expandedLinkIds}
+        previewDepth={settings.descendantDepth}
+        rootId={rootId}
+        onSelectHeading={selectHeading}
+        onToggleCollapse={toggleHeadingCollapse}
+        onToggleLinkExpand={toggleLinkExpand}
+        onReroot={reroot}
+        crdt={crdtRef.current}
+        view={sidebarView}
+        onViewChange={setSidebarView}
+        selectedDatabaseId={selectedDatabaseId}
+        onSelectDatabase={setSelectedDatabaseId}
+        onOpenSettings={onOpenSettings}
+        faded={chromeFaded}
+        transitionMs={chromeTransitionMs}
+      />
 
-      <div
-        className="workspace__editor"
-        style={
-          isNarrow
-            ? {
-                filter: `blur(${drawerOpen ? 2 : 0}px)`,
-                transition: `filter ${drawerOpen ? 200 : 130}ms cubic-bezier(0.2, 0, 0, 1)`,
-              }
-            : undefined
-        }
-      >
+      <div className="workspace__editor">
         {selectedDatabase ? (
           <DatabaseView database={selectedDatabase} onClose={() => setSelectedDatabaseId(null)} />
         ) : (
@@ -341,27 +260,6 @@ export function Workspace({ rootPath, onDocumentReady, onOpenSettings }: Workspa
           />
         )}
       </div>
-
-      {isNarrow && (
-        // The exact same `OverlayPanel` shell AgentPanel.tsx uses on the
-        // right (see its doc comment) — same slide motion, backdrop, and
-        // border/background, just anchored to the left edge instead.
-        <OverlayPanel side="left" open={drawerOpen} onOpenChange={setDrawerOpen} title="Tree" onBackdropClick={() => setDrawerOpen(false)}>
-          <Sidebar
-            {...treeViewProps}
-            crdt={crdtRef.current}
-            view={sidebarView}
-            onViewChange={setSidebarView}
-            selectedDatabaseId={selectedDatabaseId}
-            onSelectDatabase={setSelectedDatabaseId}
-            onOpenSettings={() => {
-              setDrawerOpen(false);
-              onOpenSettings();
-            }}
-            onClose={() => setDrawerOpen(false)}
-          />
-        </OverlayPanel>
-      )}
 
       <button
         type="button"
@@ -385,9 +283,4 @@ export function Workspace({ rootPath, onDocumentReady, onOpenSettings }: Workspa
       />
     </div>
   );
-}
-
-function findHeadingTitle(entries: OutlineEntry[], id: string): string | null {
-  const entry = entries.find((e) => e.kind === "heading" && e.heading.id === id);
-  return entry?.kind === "heading" ? entry.heading.title : null;
 }
