@@ -218,7 +218,11 @@ export function SettingsPage({ onClose, crdt = null }: { onClose: () => void; cr
                 { value: "overlay", label: "Overlay" },
               ]}
             />
-            <span className="settings__row-hint">UI fades once the cursor is in the editor</span>
+            <span className="settings__row-hint">
+              {settings.editorMode === "zen"
+                ? "UI fades once the cursor is in the editor"
+                : "UI elements stay visible"}
+            </span>
           </div>
           <div className="settings__row">
             <span className="settings__row-label">Descendant depth</span>
