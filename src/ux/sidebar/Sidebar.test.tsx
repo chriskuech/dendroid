@@ -3,7 +3,7 @@
 // once selected.
 
 import { describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Sidebar } from "./Sidebar";
 import type { OutlineEntry } from "../../lib/crdt/outline";
@@ -112,5 +112,36 @@ describe("Sidebar", () => {
     const onClose = vi.fn();
     rerender(<Sidebar {...baseProps({ onClose })} />);
     expect(screen.getByLabelText(/close sidebar/i)).toBeInTheDocument();
+  });
+
+  it("renders no resize handle without both width and onResize (e.g. the <900px drawer)", () => {
+    render(<Sidebar {...baseProps()} />);
+    expect(screen.queryByLabelText(/resize sidebar/i)).not.toBeInTheDocument();
+  });
+
+  it("dragging the resize handle grows the content column live and commits the final width on release", () => {
+    const onResize = vi.fn();
+    render(<Sidebar {...baseProps({ width: 280, onResize })} />);
+    const handle = screen.getByLabelText(/resize sidebar/i);
+
+    fireEvent.pointerDown(handle, { pointerId: 1, clientX: 100, button: 0 });
+    fireEvent.pointerMove(handle, { pointerId: 1, clientX: 140 });
+    expect(document.querySelector(".sidebar__content")).toHaveStyle({ width: "320px" });
+    expect(onResize).not.toHaveBeenCalled();
+
+    fireEvent.pointerUp(handle, { pointerId: 1 });
+    expect(onResize).toHaveBeenCalledWith(320);
+  });
+
+  it("clamps a resize drag to the sidebar's min/max width", () => {
+    const onResize = vi.fn();
+    render(<Sidebar {...baseProps({ width: 280, onResize })} />);
+    const handle = screen.getByLabelText(/resize sidebar/i);
+
+    fireEvent.pointerDown(handle, { pointerId: 1, clientX: 0, button: 0 });
+    fireEvent.pointerMove(handle, { pointerId: 1, clientX: -1000 });
+    fireEvent.pointerUp(handle, { pointerId: 1 });
+
+    expect(onResize).toHaveBeenCalledWith(220);
   });
 });

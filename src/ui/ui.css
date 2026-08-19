@@ -664,6 +664,34 @@
   pointer-events: auto;
 }
 
+/* Drag-to-resize handle on a drawer's inner edge (the edge facing the
+ * rest of the page) — only rendered when `OverlayPanel`'s `resize` prop is
+ * given (currently just the agent drawer; see ui/OverlayPanel.tsx). A
+ * wider transparent hit-strip than its visible line, same "generous hit
+ * area, thin visual" shape `.sidebar__resize-handle` (sidebar.css) uses. */
+.overlay-panel__resize-handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 9px;
+  cursor: col-resize;
+  touch-action: none;
+  z-index: 1;
+}
+
+.overlay-panel__resize-handle--right {
+  left: -4px;
+}
+
+.overlay-panel__resize-handle--left {
+  right: -4px;
+}
+
+.overlay-panel__resize-handle:hover,
+.overlay-panel__resize-handle:active {
+  background: linear-gradient(to right, transparent 4px, var(--accent) 4px, var(--accent) 5px, transparent 5px);
+}
+
 /* Banner — see ui/Banner.tsx's doc comment for why this exists alongside
  * (not instead of) the per-panel inline `*__status--error` convention.
  * Fixed rather than a flex child of whatever renders it — `Workspace`'s

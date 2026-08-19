@@ -17,6 +17,8 @@
 import type { CSSProperties } from "react";
 import type { DendroidDocument } from "../../lib/crdt/document";
 import type { OutlineEntry } from "../../lib/crdt/outline";
+import { SIDEBAR_WIDTH_MAX, SIDEBAR_WIDTH_MIN } from "../../lib/types";
+import { useResizableWidth } from "../../lib/useResizableWidth";
 import { TreeView } from "../tree/TreeView";
 import { MindMapView } from "../mindmap/MindMapView";
 import { HistoryView } from "../history/HistoryView";
@@ -61,6 +63,13 @@ interface SidebarProps {
    * column's own position/border/background, since the OverlayPanel around
    * it already supplies those. */
   onClose?: () => void;
+  /** Content-column width (px, `AppSettings.sidebarWidth`) and its
+   * pointerup commit callback — given together, and only by the
+   * persistent (>=900px) sidebar; the <900px drawer sizes itself from
+   * content instead and omits both, which also skips rendering the resize
+   * handle. See `lib/useResizableWidth.ts`. */
+  width?: number;
+  onResize?: (width: number) => void;
 }
 
 export function Sidebar({
@@ -81,6 +90,8 @@ export function Sidebar({
   faded = false,
   transitionMs = 120,
   onClose,
+  width,
+  onResize,
 }: SidebarProps) {
   // Nested inside an OverlayPanel, which owns the fade/slide-in motion
   // itself (see ui/OverlayPanel.tsx) — only the persistent column drives
@@ -92,6 +103,17 @@ export function Sidebar({
         pointerEvents: faded ? "none" : "auto",
         transition: `opacity ${transitionMs}ms cubic-bezier(0.2, 0, 0, 1)`,
       };
+
+  // Hook called unconditionally (Rules of Hooks) — only used below when
+  // `width`/`onResize` are actually given (the persistent sidebar).
+  const resizable = width !== undefined && onResize !== undefined;
+  const { width: liveContentWidth, handleProps } = useResizableWidth({
+    width: width ?? SIDEBAR_WIDTH_MIN,
+    min: SIDEBAR_WIDTH_MIN,
+    max: SIDEBAR_WIDTH_MAX,
+    edge: "end",
+    onResize: onResize ?? (() => {}),
+  });
 
   return (
     <div className={`sidebar${onClose ? " sidebar--nested" : ""}`} style={style}>
@@ -147,7 +169,7 @@ export function Sidebar({
           <AutomationIcon size={16} />
         </button>
       </div>
-      <div className="sidebar__content">
+      <div className="sidebar__content" style={resizable ? { width: `${liveContentWidth}px` } : undefined}>
         {view === "tree" ? (
           <TreeView
             entries={entries}
@@ -176,6 +198,9 @@ export function Sidebar({
         <button type="button" className="sidebar__close side-panel__icon-btn" onClick={onClose} aria-label="Close sidebar">
           <CloseIcon size={16} />
         </button>
+      )}
+      {resizable && (
+        <div className="sidebar__resize-handle" role="separator" aria-orientation="vertical" aria-label="Resize sidebar" {...handleProps} />
       )}
     </div>
   );

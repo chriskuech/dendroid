@@ -262,6 +262,17 @@ export interface AppSettings {
   auralFeedback: boolean;
   mcp: McpSettings;
   agent: AgentSettings;
+  /** Width (px) of the persistent left Sidebar's content column —
+   * user-adjustable by dragging its right edge (see
+   * `ux/sidebar/Sidebar.tsx`, `lib/useResizableWidth.ts`). Only meaningful
+   * for the >=900px persistent sidebar; the <900px drawer sizes itself
+   * from its rail + content instead and ignores this. */
+  sidebarWidth: number;
+  /** Width (px) of the right agent chat drawer — user-adjustable by
+   * dragging its left edge (see `ux/agent/AgentPanel.tsx`). Unlike
+   * `sidebarWidth` this applies at every viewport width, since the agent
+   * drawer is always an overlay (see AgentPanel.tsx's doc comment). */
+  agentPanelWidth: number;
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -282,7 +293,14 @@ export const DEFAULT_SETTINGS: AppSettings = {
     command: "",
     args: "",
   },
+  sidebarWidth: 280,
+  agentPanelWidth: 320,
 };
 
 export const DEPTH_MIN = 1;
 export const DEPTH_MAX = 9;
+
+export const SIDEBAR_WIDTH_MIN = 220;
+export const SIDEBAR_WIDTH_MAX = 480;
+export const AGENT_PANEL_WIDTH_MIN = 280;
+export const AGENT_PANEL_WIDTH_MAX = 560;

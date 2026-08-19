@@ -43,7 +43,7 @@ interface WorkspaceProps {
 }
 
 export function Workspace({ rootPath, onDocumentReady }: WorkspaceProps) {
-  const { workspace, settings, isNarrow, setEditorFocused, chromeFaded, chromeTransitionMs } = useAppState();
+  const { workspace, settings, isNarrow, setEditorFocused, chromeFaded, chromeTransitionMs, updateSettings } = useAppState();
   const db = useDb();
   const mcp = useMcp();
   const automationsEngine = useAutomationsEngine();
@@ -300,6 +300,8 @@ export function Workspace({ rootPath, onDocumentReady }: WorkspaceProps) {
           onSelectDatabase={setSelectedDatabaseId}
           faded={chromeFaded}
           transitionMs={chromeTransitionMs}
+          width={settings.sidebarWidth}
+          onResize={(sidebarWidth) => updateSettings({ sidebarWidth })}
         />
       )}
 
@@ -367,6 +369,8 @@ export function Workspace({ rootPath, onDocumentReady }: WorkspaceProps) {
         mcpSettings={settings.mcp}
         open={agentOpen}
         onClose={() => setAgentOpen(false)}
+        width={settings.agentPanelWidth}
+        onResize={(agentPanelWidth) => updateSettings({ agentPanelWidth })}
       />
     </div>
   );
