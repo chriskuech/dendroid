@@ -104,6 +104,26 @@ describe("TreeView — headings", () => {
     expect(onReroot).toHaveBeenCalledWith("a1");
   });
 
+  it("boxes the current root's row together with its visible descendants, not its siblings", () => {
+    const entries = [heading("a", 0, "Alpha"), heading("a1", 1, "Child"), heading("b", 0, "Beta")];
+    render(<TreeView {...baseProps({ entries, rootId: "a" })} />);
+    const rows = document.querySelectorAll(".tree-row");
+    expect(rows[0]).toHaveClass("tree-row--root-group");
+    expect(rows[0]).toHaveClass("tree-row--root-group-first");
+    expect(rows[0]).not.toHaveClass("tree-row--root-group-last");
+    expect(rows[1]).toHaveClass("tree-row--root-group");
+    expect(rows[1]).toHaveClass("tree-row--root-group-last");
+    expect(rows[2]).not.toHaveClass("tree-row--root-group");
+  });
+
+  it("with no explicit root, boxes the whole visible tree", () => {
+    const entries = [heading("a", 0, "Alpha"), heading("b", 0, "Beta")];
+    render(<TreeView {...baseProps({ entries, rootId: null })} />);
+    const rows = document.querySelectorAll(".tree-row");
+    expect(rows[0]).toHaveClass("tree-row--root-group-first");
+    expect(rows[1]).toHaveClass("tree-row--root-group-last");
+  });
+
   it("resolves heading levels relative to the current root", () => {
     const entries = [heading("a", 0, "Alpha", { level: 2 }), heading("a1", 1, "Child", { level: 3 })];
     render(<TreeView {...baseProps({ entries, rootId: "a" })} />);
