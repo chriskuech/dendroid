@@ -1,8 +1,7 @@
 /* The agent chat drawer — see components/agent/AgentPanel.tsx. Always an
- * overlay (unlike the left Sidebar, which becomes a persistent column at
- * >=900px) — it's supplementary chrome the user opens deliberately, not
- * primary navigation, so there's no wide-layout variant that pushes the
- * editor to make room for it. */
+ * overlay (unlike the left Sidebar, which is a persistent column) — it's
+ * supplementary chrome the user opens deliberately, not primary navigation,
+ * so there's no layout variant that pushes the editor to make room for it. */
 
 .agent-toggle {
   position: fixed;
@@ -31,10 +30,9 @@
 
 /* The drawer shell itself (position, backdrop, border, slide motion) is
  * `.overlay-panel*` (ui/ui.css) — AgentPanel.tsx renders `<OverlayPanel
- * side="right">`, the exact same component Workspace.tsx's <900px tree
- * drawer renders on the left. Header is `.side-panel__header` — the
- * Threads/ThreadChat/NewThreadForm screens all render `<SidePanelHeader>`,
- * same as the left Sidebar's own content views. */
+ * side="right">`. Header is `.side-panel__header` — the Threads/ThreadChat/
+ * NewThreadForm screens all render `<SidePanelHeader>`, same as the left
+ * Sidebar's own content views. */
 
 .agent-panel__timeline {
   flex: 1;

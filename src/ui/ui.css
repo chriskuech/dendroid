@@ -551,10 +551,10 @@
  * never rendered standalone: it's always nested inside a shell that already
  * paints those (`.sidebar`'s persistent column, or `.overlay-panel`'s
  * drawer — ui/OverlayPanel.tsx), and painting a second, independent
- * background here is exactly what let the two drawers' content quietly
- * diverge (`--surface` under the tree views vs. `--bg` under the agent
- * screens) even after the shells themselves were unified. See
- * ui/SidePanelHeader.tsx for the header markup this pairs with. */
+ * background here is exactly what let the sidebar and agent drawer's
+ * content quietly diverge (`--surface` under the tree views vs. `--bg`
+ * under the agent screens) even after the shells themselves were unified.
+ * See ui/SidePanelHeader.tsx for the header markup this pairs with. */
 .side-panel {
   width: 280px;
   flex: none;
@@ -615,12 +615,11 @@
   color: var(--text);
 }
 
-/* Overlay panel — the fixed-position, edge-anchored sliding drawer shared
- * by AgentPanel (always) and Workspace's <900px tree drawer — see
- * ui/OverlayPanel.tsx's doc comment. `data-state` is stamped by Radix on
- * both Overlay and Content regardless of `forceMount`, so open/close motion
- * lives entirely here rather than as inline styles a caller could drift
- * out of sync with the other. */
+/* Overlay panel — the fixed-position, edge-anchored sliding drawer AgentPanel
+ * renders itself in — see ui/OverlayPanel.tsx's doc comment. `data-state` is
+ * stamped by Radix on both Overlay and Content regardless of `forceMount`,
+ * so open/close motion lives entirely here rather than as inline styles a
+ * caller could drift out of sync with. */
 .overlay-panel__backdrop {
   position: fixed;
   inset: 0;
@@ -667,9 +666,8 @@
 /* Banner — see ui/Banner.tsx's doc comment for why this exists alongside
  * (not instead of) the per-panel inline `*__status--error` convention.
  * Fixed rather than a flex child of whatever renders it — `Workspace`'s
- * own layout is a `display: flex; height: 100vh` sidebar/editor row (or
- * column, narrow), and this needs to sit above that regardless of which,
- * without threading a new wrapper through both layouts. */
+ * own layout is a `display: flex; height: 100vh` sidebar/editor row, and
+ * this needs to sit above that without threading a new wrapper through it. */
 .banner {
   position: fixed;
   top: 0;

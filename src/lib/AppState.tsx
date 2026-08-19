@@ -1,10 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { DEFAULT_SETTINGS, type AgentSettings, type AppSettings, type SyncConfig, type Workspace } from "./types";
-import { NARROW_QUERY } from "./layout";
 import { useMcp } from "../adapters/mcp/context";
 import { useSettingsStore } from "../adapters/settingsStore/context";
 import { folderNameFromPath } from "./path";
-import { useMediaQuery } from "./useMediaQuery";
 import { useTheme } from "./useTheme";
 import { useZenChrome } from "./useZenChrome";
 import { useZenCursor } from "./useZenCursor";
@@ -28,12 +26,6 @@ interface AppStateValue {
   workspace: Workspace | null;
   settings: AppSettings;
   resolvedMode: "dark" | "light";
-  /** True once the viewport is narrow enough for the tree to become a
-   * drawer instead of a sidebar (see `lib/layout.ts`). Lifted up here
-   * (rather than each consumer calling `useMediaQuery` itself) so it can
-   * also gate the narrow topbar's chrome-fade wiring, alongside
-   * `Workspace`'s own layout branch. */
-  isNarrow: boolean;
   /** Whether the editor currently has focus — set by `Workspace` via
    * `setEditorFocused`, read by `useZenChrome` below. Lives here rather
    * than as `Workspace`-local state because zen mode needs to fade chrome
@@ -77,10 +69,6 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   // Settings would silently steal "the" workspace out from under the
   // window that opened it.
   const isSecondaryWindow = useRef(typeof window !== "undefined" && !!window.__DENDROID_INITIAL_WORKSPACE_ROOT__);
-  const isNarrow = useMediaQuery(NARROW_QUERY);
-  // Not gated on `isNarrow` — the narrow topbar (hamburger + breadcrumb)
-  // is chrome outside the editor same as the sidebar and settings launcher
-  // are, so it fades right along with them (see Workspace.tsx's topbar).
   const zenActive = settings.editorMode === "zen";
   const { faded: chromeFaded, transitionMs: chromeTransitionMs } = useZenChrome(zenActive, editorFocused);
 
@@ -232,7 +220,6 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       workspace,
       settings,
       resolvedMode,
-      isNarrow,
       editorFocused,
       setEditorFocused,
       chromeFaded,
@@ -248,7 +235,6 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       workspace,
       settings,
       resolvedMode,
-      isNarrow,
       editorFocused,
       chromeFaded,
       chromeTransitionMs,
