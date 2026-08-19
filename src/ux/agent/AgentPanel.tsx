@@ -43,15 +43,17 @@ type Connection = "idle" | "connecting" | "connected" | "error";
 
 // `src-acp`'s `AcpClient::spawn` (see `src-tauri/src/acp.rs`'s `acp_start`)
 // always phrases a failed process spawn as `failed to launch "<command>":
-// <os error>` — e.g. the ENOENT a missing `claude-agent-acp` produces. That
-// message alone doesn't tell a first-time user *why* it's missing or what
-// to do about it, so when the failing command matches the active preset's
-// own `command`, its `installHint` (if any) gets appended.
+// <os error>`. The Claude Code/Ollama presets (`ux/settings/agentProviders.ts`)
+// run their adapter package through `npx -y`, which fetches it on first
+// launch with no separate install step — so this only fires when `npx`
+// itself can't be found, i.e. Node.js isn't installed. Appends the active
+// preset's `installHint` (if any) to point the user at that real cause
+// instead of leaving them with a bare ENOENT.
 function describeAgentError(err: unknown, provider: AgentSettings["provider"]): string {
   const message = err instanceof Error ? err.message : String(err);
   const installHint = AGENT_PROVIDERS[provider].installHint;
   if (installHint && /^failed to launch /.test(message)) {
-    return `${message} — install it first: ${installHint}`;
+    return `${message} — ${installHint}`;
   }
   return message;
 }

@@ -110,16 +110,16 @@ describe("AgentPanel", () => {
     expect(acp.adapter.sendPrompt).toHaveBeenCalledWith(expect.any(String), "hello there");
   });
 
-  it("appends the preset's install hint when startAgent fails to launch it", async () => {
-    vi.mocked(acp.adapter.startAgent).mockRejectedValue(new Error('failed to launch "claude-agent-acp": No such file or directory (os error 2)'));
+  it("appends a Node.js install hint when startAgent can't find npx to launch the preset", async () => {
+    vi.mocked(acp.adapter.startAgent).mockRejectedValue(new Error('failed to launch "npx": No such file or directory (os error 2)'));
     const user = userEvent.setup();
-    const claudeCodeSettings: AgentSettings = { provider: "claudeCode", command: "claude-agent-acp", args: "" };
+    const claudeCodeSettings: AgentSettings = { provider: "claudeCode", command: "npx", args: "-y @zed-industries/claude-agent-acp" };
 
     render(<AgentPanel cwd="/tmp/ws" agentSettings={claudeCodeSettings} mcpSettings={mcpSettings} open onClose={vi.fn()} width={320} onResize={vi.fn()} />);
     await openNewThread(user);
     await user.type(screen.getByPlaceholderText(/message the agent/i), "hello{enter}");
 
-    expect(await screen.findByText(/install it first: npm i -g @zed-industries\/claude-agent-acp/i)).toBeInTheDocument();
+    expect(await screen.findByText(/install it from https:\/\/nodejs\.org/i)).toBeInTheDocument();
   });
 
   it("passes the Local MCP URL to startAgent when it's enabled", async () => {
