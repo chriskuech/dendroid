@@ -66,9 +66,9 @@ export function TreeView({
 }: TreeViewProps) {
   const hasHeadings = entries.some((e) => e.kind === "heading");
   const rows = visibleRows(entries, collapsedIds, expandedLinkIds, previewDepth);
-  // Only used to resolve heading levels relative to the root (below) — the
-  // box drawn around the tree (`.tree-view__rows`' own border, workspace.css)
-  // always wraps every visible row, not just this subtree.
+  // Only used to resolve heading levels relative to the root (below) — not
+  // to box anything: `.tree-view__rows` (workspace.css) has no border of
+  // its own, so there's nothing here that only wraps a subtree.
   const rootSubtree = rootSubtreeRange(rows, rootId);
   // The rooted heading's own level, if any — used to resolve every heading
   // row in its subtree to a level *relative to it* (so the root row always

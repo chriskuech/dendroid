@@ -34,14 +34,14 @@
  * TreeView's root div carries both classes. Only what's specific to this
  * view's rows lives here. */
 
-/* Boxes the whole tree, not just whatever's currently rooted (a click on
- * any row reroots the editor to it — see TreeView.tsx — so there's no
- * separate "set root" affordance left to box on its own). */
+/* No border/background of its own — `.sidebar` (sidebar.css) already boxes
+ * the whole rail + content shell, so drawing a second box here just doubled
+ * up on that edge. Same bare shape MindMapView's `.mindmap-view__canvas`
+ * and HistoryView's `.history-view__rows` use. */
 .tree-view__rows {
   flex: 1;
   overflow-y: auto;
   padding: 10px 0;
-  border: 1px solid var(--line-strong);
 }
 
 .tree-row {
