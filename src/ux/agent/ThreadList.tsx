@@ -1,15 +1,14 @@
 // The chat drawer's landing screen — every saved thread (lib/types.ts's
-// `ChatThread`), one row per kind icon + title, mirroring DatabaseListView's
+// `ChatThread`), one row per title, mirroring DatabaseListView's
 // "header + new-item control + scrollable rows" shape (see
 // ux/database/DatabaseListView.tsx) so the drawer reads as the same
 // kind of list dendroid already uses elsewhere. Selecting a row opens it in
-// AgentPanel.tsx; the "+" opens NewThreadForm instead of creating inline,
-// since even a "human" thread's title is worth a moment's thought and
-// cron/trigger threads need real config before they're worth saving.
+// AgentPanel.tsx; the "+" creates and opens a new thread immediately — no
+// dialog, no config to fill in first, same as any other chat app's "new
+// chat" button.
 
 import type { ChatThread } from "../../lib/types";
 import { AgentIcon, IncrementIcon, TrashIcon } from "../../ui/icons";
-import { THREAD_KIND_LABEL, ThreadKindIcon } from "./ThreadKindIcon";
 import { ConfirmDialog } from "../../ui/ConfirmDialog";
 import { useState } from "react";
 
@@ -35,10 +34,9 @@ export function ThreadList({ threads, onSelect, onNew, onDelete }: ThreadListPro
         ) : (
           threads.map((thread) => (
             <div key={thread.id} className="thread-row" onClick={() => onSelect(thread.id)}>
-              <ThreadKindIcon kind={thread.kind} size={13} />
+              <AgentIcon size={13} />
               <div className="thread-row__body">
                 <span className="thread-row__title">{thread.title}</span>
-                <span className="thread-row__sub">{threadSubtitle(thread)}</span>
               </div>
               <span
                 className="thread-row__delete"
@@ -74,12 +72,4 @@ export function ThreadList({ threads, onSelect, onNew, onDelete }: ThreadListPro
       />
     </div>
   );
-}
-
-function threadSubtitle(thread: ChatThread): string {
-  if (thread.kind === "cron") return thread.cron ? `${THREAD_KIND_LABEL.cron} · ${thread.cron.schedule}` : THREAD_KIND_LABEL.cron;
-  if (thread.kind === "trigger") {
-    return thread.trigger ? `${THREAD_KIND_LABEL.trigger} · ${thread.trigger.table}` : THREAD_KIND_LABEL.trigger;
-  }
-  return THREAD_KIND_LABEL.human;
 }

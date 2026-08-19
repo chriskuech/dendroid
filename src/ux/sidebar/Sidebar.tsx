@@ -173,15 +173,25 @@ export function Sidebar({
     onOpenChange?.(true);
   };
 
+  // The nested (drawer) variant is only ever mounted while its OverlayPanel
+  // is showing it, so it's "open" in this sense for as long as it exists —
+  // the persistent column, by contrast, stays mounted while collapsed (just
+  // its rail), so it needs its own `open` prop to tell the two apart. Either
+  // way, a collapsed rail has no content pane behind it, so none of its
+  // icons should read as the active tab — otherwise closing the drawer would
+  // still visually claim to be showing a view it isn't.
+  const showsContent = onClose ? true : open;
+  const isActive = (targetView: SidebarView) => showsContent && view === targetView;
+
   return (
     <div className={`sidebar${onClose ? " sidebar--nested" : ""}`} style={style}>
       <div className="sidebar__rail" role="tablist" aria-label="Sidebar view">
         <button
           type="button"
           role="tab"
-          className={`sidebar__rail-btn${view === "tree" ? " is-active" : ""}`}
+          className={`sidebar__rail-btn${isActive("tree") ? " is-active" : ""}`}
           aria-label="Tree"
-          aria-selected={view === "tree"}
+          aria-selected={isActive("tree")}
           onClick={() => handleRailClick("tree")}
         >
           <LogoIcon size={16} />
@@ -189,9 +199,9 @@ export function Sidebar({
         <button
           type="button"
           role="tab"
-          className={`sidebar__rail-btn${view === "mindmap" ? " is-active" : ""}`}
-          aria-label="Mind map"
-          aria-selected={view === "mindmap"}
+          className={`sidebar__rail-btn${isActive("mindmap") ? " is-active" : ""}`}
+          aria-label="Graph"
+          aria-selected={isActive("mindmap")}
           onClick={() => handleRailClick("mindmap")}
         >
           <GraphIcon size={16} />
@@ -199,9 +209,9 @@ export function Sidebar({
         <button
           type="button"
           role="tab"
-          className={`sidebar__rail-btn${view === "history" ? " is-active" : ""}`}
+          className={`sidebar__rail-btn${isActive("history") ? " is-active" : ""}`}
           aria-label="History"
-          aria-selected={view === "history"}
+          aria-selected={isActive("history")}
           onClick={() => handleRailClick("history")}
         >
           <HistoryIcon size={16} />
@@ -209,9 +219,9 @@ export function Sidebar({
         <button
           type="button"
           role="tab"
-          className={`sidebar__rail-btn${view === "database" ? " is-active" : ""}`}
+          className={`sidebar__rail-btn${isActive("database") ? " is-active" : ""}`}
           aria-label="Databases"
-          aria-selected={view === "database"}
+          aria-selected={isActive("database")}
           onClick={() => handleRailClick("database")}
         >
           <DatabaseIcon size={16} />
@@ -219,9 +229,9 @@ export function Sidebar({
         <button
           type="button"
           role="tab"
-          className={`sidebar__rail-btn${view === "automation" ? " is-active" : ""}`}
+          className={`sidebar__rail-btn${isActive("automation") ? " is-active" : ""}`}
           aria-label="Automations"
-          aria-selected={view === "automation"}
+          aria-selected={isActive("automation")}
           onClick={() => handleRailClick("automation")}
         >
           <AutomationIcon size={16} />
@@ -229,9 +239,9 @@ export function Sidebar({
         <button
           type="button"
           role="tab"
-          className={`sidebar__rail-btn${view === "skills" ? " is-active" : ""}`}
+          className={`sidebar__rail-btn${isActive("skills") ? " is-active" : ""}`}
           aria-label="Skills"
-          aria-selected={view === "skills"}
+          aria-selected={isActive("skills")}
           onClick={() => handleRailClick("skills")}
         >
           <SkillIcon size={16} />

@@ -540,7 +540,7 @@
 }
 
 /* Side panel — the fixed-width column shape shared by every screen the
- * left Sidebar swaps in (Tree/Mind map/History/Databases/Automations/Skills,
+ * left Sidebar swaps in (Tree/Graph/History/Databases/Automations/Skills,
  * ux/sidebar/Sidebar.tsx) and every screen the right AgentPanel swaps in
  * (Threads/New thread/Thread chat). Each of those used to define its own
  * copy of this same width/border/background/header block under its own
@@ -647,8 +647,13 @@
   transition: transform 200ms cubic-bezier(0.2, 0, 0, 1);
 }
 
+/* Full-bleed (`inset: 0`, inherited from `.overlay-panel` above) rather than
+ * shrink-to-fit like `--right`: this is the <900px Sidebar drawer's only
+ * variant (Workspace.tsx never renders it at >=900px), and a mobile drawer
+ * that only covers part of the screen reads as an odd, cramped in-between
+ * layout rather than the deliberate two-mode (persistent rail / full-screen
+ * modal) split it's meant to be. */
 .overlay-panel--left {
-  inset: 0 auto 0 0;
   border-right: 1px solid var(--line);
   transform: translateX(-100%);
 }

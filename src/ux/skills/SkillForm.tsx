@@ -1,7 +1,7 @@
 // Add/edit a Skill (lib/types.ts) — name, a short description (shown as
 // the row subtitle in SkillList.tsx), and the instructions actually sent
 // to the agent as its prompt whenever a trigger referencing this skill
-// fires. Mirrors NewThreadForm.tsx's body/footer shape.
+// fires.
 
 import { useState } from "react";
 import type { NewSkillInput } from "./skills";

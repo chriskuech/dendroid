@@ -3,17 +3,16 @@
 // static icon, or a back button — ThreadChat and AutomationsView's
 // drill-down screens swap one in for the other), a label that always
 // truncates and eats remaining space, an optional trailing status, and an
-// optional close button. Replaces eight near-identical hand-rolled copies
-// of this same row (TreeView, MindMapView, HistoryView, DatabaseListView,
-// AutomationsView, AgentPanel's thread list, ThreadChat, NewThreadForm).
+// optional close button. Replaces near-identical hand-rolled copies of this
+// same row (TreeView, MindMapView, HistoryView, DatabaseListView,
+// AutomationsView, AgentPanel's thread list, ThreadChat).
 
 import type { ReactNode } from "react";
 import { CloseIcon } from "./icons";
 
 interface SidePanelHeaderProps {
   /** A static icon, or a back button (ThreadChat, AutomationsView's
-   * drill-down screens) — omitted entirely by NewThreadForm, which has
-   * nothing to show before the label. */
+   * drill-down screens). */
   icon?: ReactNode;
   label: ReactNode;
   /** Trailing status text before the close button — only ThreadChat uses

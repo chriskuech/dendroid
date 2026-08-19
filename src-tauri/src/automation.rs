@@ -223,9 +223,7 @@ pub async fn automations_sync(engine: State<'_, AutomationEngine>, cwd: String, 
 
 /// Fires `automation_id` immediately — the Automations tab's "Run now".
 /// `simulate_event` stands in for a real row change on a data-triggered
-/// automation, mirroring `ThreadChat.tsx`'s existing simulate-event picker
-/// for cron/trigger threads (see `lib/threads.ts`'s
-/// `buildTriggerEventJson`). Resolves once the run has actually finished
+/// automation. Resolves once the run has actually finished
 /// and been persisted — a caller doesn't get the agent's failure as a
 /// command error, since a failed run is still a real run worth showing in
 /// the list (see `RunRecord::status`), not something to discard.
@@ -324,9 +322,7 @@ async fn persist_run(app: &AppHandle, record: &RunRecord) -> Result<(), String> 
 }
 
 /// The skill's instructions, plus the triggering event as pretty JSON for
-/// a data-triggered fire — mirrors `lib/threads.ts`'s
-/// `buildTriggerEventJson` closely on purpose, same prompt shape a manual
-/// "Run now" on a "trigger" `ChatThread` already sends.
+/// a data-triggered fire.
 fn build_prompt(automation: &AutomationSyncDto, event: Option<&AutomationEventDto>) -> String {
     match event {
         Some(ev) => {

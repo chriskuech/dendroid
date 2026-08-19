@@ -36,8 +36,8 @@
  * `.overlay-panel*` (ui/ui.css) — AgentPanel.tsx renders `<OverlayPanel
  * side="right">`, the exact same component Workspace.tsx's <900px tree
  * drawer renders on the left. Header is `.side-panel__header` — the
- * Threads/ThreadChat/NewThreadForm screens all render `<SidePanelHeader>`,
- * same as the left Sidebar's own content views. */
+ * Threads/ThreadChat screens both render `<SidePanelHeader>`, same as the
+ * left Sidebar's own content views. */
 
 .agent-panel__timeline {
   flex: 1;
@@ -194,12 +194,12 @@
   font-size: 12px;
 }
 
-/* Thread management — components/agent/ThreadList.tsx, NewThreadForm.tsx,
- * ThreadChat.tsx, all swapped into the same fixed-width column
- * (see AgentPanel.tsx's doc comment for why there's no side-by-side
- * layout). Mirrors database.css's list/row shapes closely on purpose, same
- * "every sidebar-shaped list in dendroid reads as the same kind of thing"
- * rule DatabaseListView.tsx's own comment describes. */
+/* Thread management — components/agent/ThreadList.tsx, ThreadChat.tsx,
+ * swapped into the same fixed-width column (see AgentPanel.tsx's doc
+ * comment for why there's no side-by-side layout). Mirrors database.css's
+ * list/row shapes closely on purpose, same "every sidebar-shaped list in
+ * dendroid reads as the same kind of thing" rule DatabaseListView.tsx's own
+ * comment describes. */
 
 .thread-list {
   flex: 1;
@@ -247,14 +247,6 @@
   text-overflow: ellipsis;
 }
 
-.thread-row__sub {
-  font-size: 10px;
-  color: var(--text-3);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
 .thread-row__delete {
   flex: none;
   display: flex;
@@ -284,119 +276,14 @@
   gap: 6px;
 }
 
-/* New-thread form (NewThreadForm.tsx) */
-
-.thread-form {
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  flex: 1;
-}
-
-.thread-form__body {
-  flex: 1;
-  overflow-y: auto;
-  padding: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-.thread-form__kinds {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-
-.thread-form__kind {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 10px;
-  font-size: 11px;
-  text-transform: capitalize;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  color: var(--text-2);
-  cursor: pointer;
-}
-
-.thread-form__kind:hover {
-  color: var(--text);
-}
-
-.thread-form__kind--active {
-  border-color: var(--accent);
-  color: var(--text);
-  background: var(--accent-dim);
-}
-
-.thread-form__skill {
-  resize: vertical;
-  min-height: 60px;
-  font-family: var(--font-brand);
-}
-
-.thread-form__footer {
-  flex: none;
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  padding: 10px;
-  border-top: 1px solid var(--line);
-}
-
 /* Thread chat (ThreadChat.tsx) — same skeleton the drawer always had
  * (`.side-panel__header`, `.agent-panel__timeline`/`__composer` above),
- * plus the header now carries a back button and a run-bar for cron/trigger
- * threads. Its header's label already truncates via `.side-panel__label`. */
+ * plus the header now carries a back button. Its header's label already
+ * truncates via `.side-panel__label`. */
 
 .thread-chat {
   display: flex;
   flex-direction: column;
   min-height: 0;
   flex: 1;
-}
-
-.thread-chat__run-bar {
-  flex: none;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 10px;
-  border-bottom: 1px solid var(--line);
-  background: var(--raised);
-}
-
-.thread-chat__run-summary {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  font-size: 11px;
-  color: var(--text-2);
-}
-
-.thread-chat__run-summary code {
-  color: var(--text);
-  font-family: var(--font-brand);
-}
-
-.thread-chat__run-hint {
-  font-size: 9.5px;
-  color: var(--text-3);
-}
-
-.thread-chat__run-event {
-  flex: none;
-  width: auto;
-  padding: 4px 6px;
-}
-
-.thread-chat__run-btn {
-  flex: none;
-  display: flex;
-  align-items: center;
-  gap: 6px;
 }
