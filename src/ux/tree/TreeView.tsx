@@ -66,9 +66,8 @@ export function TreeView({
 }: TreeViewProps) {
   const hasHeadings = entries.some((e) => e.kind === "heading");
   const rows = visibleRows(entries, collapsedIds, expandedLinkIds, previewDepth);
-  // Only used to resolve heading levels relative to the root (below) — not
-  // to box anything: `.tree-view__rows` (workspace.css) has no border of
-  // its own, so there's nothing here that only wraps a subtree.
+  // Bounds both the box drawn around the root heading's subtree
+  // (`.tree-row--root-group`, workspace.css) and the level resolution below.
   const rootSubtree = rootSubtreeRange(rows, rootId);
   // The rooted heading's own level, if any — used to resolve every heading
   // row in its subtree to a level *relative to it* (so the root row always
@@ -131,10 +130,15 @@ export function TreeView({
           const inRootSubtree = i >= rootSubtree.start && i < rootSubtree.end;
           const displayLevel =
             inRootSubtree && rootLevel !== undefined ? Math.max(heading.level - rootLevel + 1, 1) : Math.max(heading.level, 1);
+          const groupClass = inRootSubtree
+            ? ` tree-row--root-group${i === rootSubtree.start ? " tree-row--root-group-first" : ""}${
+                i === rootSubtree.end - 1 ? " tree-row--root-group-last" : ""
+              }`
+            : "";
           return (
             <div
               key={row.key}
-              className={`tree-row${isRoot ? " tree-row--is-root" : ""}`}
+              className={`tree-row${groupClass}${isRoot ? " tree-row--is-root" : ""}`}
               style={{ paddingLeft: 14 + row.depth * 16 }}
               title={isRoot ? "Reset root" : "Set as root"}
               onClick={() => onReroot(heading.id)}
@@ -233,11 +237,12 @@ function visibleRows(
 
 /** The [start, end) span of `rows` that make up the root heading's own
  * subtree: its row plus whatever visible descendants follow it, bounded by
- * the next row back at or above the root's own depth. Used only to resolve
- * those descendants' heading levels relative to the root (above) — with no
- * explicit root (or one that isn't currently visible, e.g. hidden under a
- * collapsed ancestor) this spans every row, which is a no-op for level
- * resolution since there's no `rootLevel` to resolve against. */
+ * the next row back at or above the root's own depth. Drives both the box
+ * drawn around the root's subtree and the relative heading-level resolution
+ * above — with no explicit root (or one that isn't currently visible, e.g.
+ * hidden under a collapsed ancestor) this spans every row, boxing the whole
+ * tree and leaving level resolution a no-op since there's no `rootLevel` to
+ * resolve against. */
 function rootSubtreeRange(rows: Row[], rootId: string | null): { start: number; end: number } {
   const start = rootId ? rows.findIndex((row) => row.kind === "heading" && row.heading?.id === rootId) : -1;
   if (start === -1) return { start: 0, end: rows.length };

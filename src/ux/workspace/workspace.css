@@ -34,10 +34,6 @@
  * TreeView's root div carries both classes. Only what's specific to this
  * view's rows lives here. */
 
-/* No border/background of its own — `.sidebar` (sidebar.css) already boxes
- * the whole rail + content shell, so drawing a second box here just doubled
- * up on that edge. Same bare shape MindMapView's `.mindmap-view__canvas`
- * and HistoryView's `.history-view__rows` use. */
 .tree-view__rows {
   flex: 1;
   overflow-y: auto;
@@ -112,6 +108,25 @@
  * comp/Dendroid Design System.dc.html section 03). */
 .tree-row--is-root .tree-row__title {
   color: var(--accent);
+}
+
+/* Boxes the root row together with whatever visible descendant rows follow
+ * it (see `rootSubtreeRange` in TreeView.tsx) — left/right border on every
+ * row in the subtree, top/bottom only on the first/last, so adjacent rows
+ * read as one continuous rectangle rather than each getting its own box. A
+ * lone root with no visible children is both first and last, which closes
+ * the box on all four sides same as any other subtree. */
+.tree-row--root-group {
+  border-left: 1px solid var(--accent);
+  border-right: 1px solid var(--accent);
+}
+
+.tree-row--root-group-first {
+  border-top: 1px solid var(--accent);
+}
+
+.tree-row--root-group-last {
+  border-bottom: 1px solid var(--accent);
 }
 
 .tree-view__empty {
