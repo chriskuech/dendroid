@@ -58,6 +58,16 @@
   color: var(--accent);
 }
 
+/* Settings isn't a tab (it opens `SettingsPage` as its own overlay rather
+ * than swapping `.sidebar__content`), so it's pinned to the bottom of the
+ * rail instead of grouped with the tab buttons above it — same idea as the
+ * "v0.1.0" footer pinned under Settings' own nav list (comp/Dendroid
+ * Screens.dc.html, "02 Account"). */
+.sidebar__rail-btn--settings {
+  margin-top: auto;
+  margin-bottom: 8px;
+}
+
 .sidebar__content {
   width: 280px;
   flex: none;
