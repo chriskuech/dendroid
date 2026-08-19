@@ -8,13 +8,12 @@
 //
 // A rooted section can now be nested arbitrarily deep (not just a
 // top-level sibling — see `section.ts`), so "everything outside the root"
-// means every *sibling* of every ancestor on the path down to it. An
-// ancestor itself stays visible (its own heading and body content) —
-// only the branches that don't lead to the root get hidden — which reads
-// as a breadcrumb trail down to the rooted section rather than a full
-// "zoom" that also hides each ancestor's own heading/content. Simpler,
-// and safer, than surgically hiding an ancestor's own heading token while
-// keeping the rest of it live-editable.
+// means every *sibling* of every ancestor on the path down to it, plus
+// each ancestor's *own* heading and body content — a real zoom, not a
+// breadcrumb trail of ancestor headings down to the rooted section. The
+// editor is the only surface that scopes this hard; orientation ("where
+// am I in the document") is Workspace's `breadcrumb` and TreeView's boxed
+// root subtree, not something the editor content itself needs to repeat.
 //
 // The root id lives in this plugin's own state so a click on the toggle
 // this extension renders at the end of each heading and a click on the
@@ -190,11 +189,12 @@ function findSectionPath(doc: ProseMirrorNode, id: string): ProseMirrorNode[] | 
 
 /** Builds the end-of-heading reroot toggles (one per section), the
  * hidden-node decorations for whatever's currently rooted (every sibling
- * of every ancestor on the path to it, per this file's header comment),
- * and — for the rooted section's own subtree — a class that resolves each
- * heading's level *relative to the root* rather than its literal one, so
- * the root always reads as a level-1 heading ("#") and its descendants
- * shift up to match, however deep they actually sit in the document. */
+ * of every ancestor on the path to it, *and* each ancestor's own heading
+ * and body content, per this file's header comment), and — for the
+ * rooted section's own subtree — a class that resolves each heading's
+ * level *relative to the root* rather than its literal one, so the root
+ * always reads as a level-1 heading ("#") and its descendants shift up to
+ * match, however deep they actually sit in the document. */
 export function buildDecorations(doc: ProseMirrorNode, rootId: string | null): DecorationSet {
   const decorations: Decoration[] = [];
   const path = rootId ? findSectionPath(doc, rootId) : null;
@@ -209,9 +209,23 @@ export function buildDecorations(doc: ProseMirrorNode, rootId: string | null): D
   /** Once we've descended into the rooted section itself, every heading
    * below it gets relabeled relative to the root. */
   function walk(node: ProseMirrorNode, pos: number, insideRoot: boolean) {
+    // `node` is an ancestor section on the path down to the root, but not
+    // the root itself yet — we're passing through it, not stopping there.
+    // Every one of its *own* direct children (its heading, any body
+    // paragraphs, any sibling section not on the path) gets hidden; only
+    // the single child section that continues the path stays, so the zoom
+    // reads as starting exactly at the root rather than at this ancestor.
+    const zoomingPastAncestor = !insideRoot && pathNodes !== null && node !== rootNode && pathNodes.has(node);
+
     node.forEach((child, offset) => {
-      if (child.type.name !== "section" || !child.attrs.id) return;
       const childPos = pos + 1 + offset;
+
+      if (child.type.name !== "section" || !child.attrs.id) {
+        if (zoomingPastAncestor) {
+          decorations.push(Decoration.node(childPos, childPos + child.nodeSize, { class: OUT_OF_ROOT_CLASS }));
+        }
+        return;
+      }
 
       if (pathNodes && !pathNodes.has(child) && !insideRoot) {
         decorations.push(Decoration.node(childPos, childPos + child.nodeSize, { class: OUT_OF_ROOT_CLASS }));

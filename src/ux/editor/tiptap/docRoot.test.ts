@@ -71,6 +71,35 @@ describe("docRoot buildDecorations — root-scoping decorations at the top level
     expect(classesAt(decorations, childPos + 1)).toContain("doc-root-level-2");
   });
 
+  it("hides an ancestor's own heading and body content, leaving only the path down to the root visible", () => {
+    const doc = schema.node("doc", null, [
+      section("a", 1, "Alpha", paragraph("body a"), section("a1", 2, "A1", paragraph("body a1"))),
+    ]);
+    const decorations = buildDecorations(doc, "a1");
+
+    // "a" is the ancestor being zoomed past, not the root itself — its own
+    // heading and body paragraph must be hidden along with it, not just
+    // its out-of-path siblings (there are none here to begin with).
+    const aSection = doc.content.firstChild!;
+    const aHeading = aSection.firstChild!;
+    const aHeadingPos = 1; // "a" is at 0 (top-level); its content starts one past that
+    expect(classesAt(decorations, aHeadingPos)).toContain("doc-root-hidden");
+
+    const aParagraph = aSection.child(1);
+    const aParagraphPos = aHeadingPos + aHeading.nodeSize;
+    expect(classesAt(decorations, aParagraphPos)).toContain("doc-root-hidden");
+
+    // The rooted section "a1" itself — and its own heading/body — must
+    // stay fully visible; only the ancestor's own content is zoomed past.
+    // (Checked one position in, not at the section's own boundary: that
+    // boundary coincides with the end of the ancestor's now-hidden
+    // paragraph, so a boundary-overlap check there would false-positive.)
+    const a1Pos = aParagraphPos + aParagraph.nodeSize;
+    const a1HeadingClasses = classesAt(decorations, a1Pos + 1);
+    expect(a1HeadingClasses).not.toContain("doc-root-hidden");
+    expect(a1HeadingClasses).toContain("doc-root-level-1");
+  });
+
   it("with no root, nothing is hidden and nothing is level-relabeled", () => {
     const doc = schema.node("doc", null, [section("a", 1, "Alpha"), section("b", 2, "Beta")]);
     const decorations = buildDecorations(doc, null);
