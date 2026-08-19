@@ -195,7 +195,7 @@ function findSectionPath(doc: ProseMirrorNode, id: string): ProseMirrorNode[] | 
  * heading's level *relative to the root* rather than its literal one, so
  * the root always reads as a level-1 heading ("#") and its descendants
  * shift up to match, however deep they actually sit in the document. */
-function buildDecorations(doc: ProseMirrorNode, rootId: string | null): DecorationSet {
+export function buildDecorations(doc: ProseMirrorNode, rootId: string | null): DecorationSet {
   const decorations: Decoration[] = [];
   const path = rootId ? findSectionPath(doc, rootId) : null;
   const pathNodes = path ? new Set(path) : null;
@@ -269,7 +269,22 @@ function buildDecorations(doc: ProseMirrorNode, rootId: string | null): Decorati
     );
   }
 
-  walk(doc, 0, rootId === null);
+  // `doc` is the schema's top node, which — unlike every other node —
+  // doesn't occupy a position of its own (there's no token "before" it to
+  // skip): position 0 is already the start of its content. Every other
+  // call to `walk` passes a real section's own position, whose content
+  // genuinely does start one past it (its opening token) — `pos + 1` here
+  // is what makes that formula correct for those calls. Passing `doc`
+  // itself off by the same one, at -1, keeps the top-level call on the
+  // same formula instead of special-casing it, so `doc`'s direct children
+  // land at their real positions (0, not 1) too. Get this wrong and every
+  // top-level section's `Decoration.node` range is misaligned by one and
+  // silently dropped (they don't align to a node boundary any more) —
+  // hiding out-of-root siblings and relabeling root-relative levels both
+  // stop working, even though the widget decorations (the reroot toggles)
+  // are lenient enough about position to still render fine, which is what
+  // made this so easy to miss.
+  walk(doc, -1, rootId === null);
 
   return DecorationSet.create(doc, decorations);
 }
