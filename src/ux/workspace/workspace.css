@@ -8,6 +8,47 @@
   height: 100vh;
 }
 
+/* <900px: the tree stops sitting beside the editor and becomes a
+ * full-screen drawer over it (`ui/OverlayPanel.tsx`, portaled to
+ * `document.body` and positioned against the viewport, not this element)
+ * — the shell just switches from a row (sidebar | editor) to a column
+ * (topbar above editor). */
+.workspace--narrow {
+  flex-direction: column;
+}
+
+.workspace__topbar {
+  height: 48px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 0 20px;
+}
+
+.workspace__hamburger {
+  display: flex;
+  padding: 0;
+  background: transparent;
+  border: none;
+  color: var(--text-2);
+  cursor: pointer;
+}
+
+.workspace__hamburger:hover {
+  color: var(--text);
+}
+
+.workspace__breadcrumb {
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--line-strong);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .workspace__status {
   flex: 1;
   display: flex;

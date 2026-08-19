@@ -142,11 +142,42 @@ describe("Sidebar", () => {
     expect(onResize).toHaveBeenCalledWith(220);
   });
 
-  it("clicking the active rail icon is a no-op select", async () => {
+  it("clicking the active rail icon in the persistent (non-drawer) variant is a no-op select", async () => {
     const user = userEvent.setup();
     const onViewChange = vi.fn();
     render(<Sidebar {...baseProps({ view: "tree", onViewChange })} />);
     await user.click(screen.getByRole("tab", { name: /^tree$/i }));
     expect(onViewChange).toHaveBeenCalledWith("tree");
+  });
+
+  it("renders a close button and skips the resize handle only when onClose is given", () => {
+    const { rerender } = render(<Sidebar {...baseProps()} />);
+    expect(screen.queryByLabelText(/close sidebar/i)).not.toBeInTheDocument();
+    expect(screen.getByLabelText(/resize sidebar/i)).toBeInTheDocument();
+
+    const onClose = vi.fn();
+    rerender(<Sidebar {...baseProps({ onClose })} />);
+    expect(screen.getByLabelText(/close sidebar/i)).toBeInTheDocument();
+    expect(screen.queryByLabelText(/resize sidebar/i)).not.toBeInTheDocument();
+  });
+
+  it("clicking the active rail icon in the nested (drawer) variant closes the drawer instead of re-selecting it", async () => {
+    const user = userEvent.setup();
+    const onViewChange = vi.fn();
+    const onClose = vi.fn();
+    render(<Sidebar {...baseProps({ view: "tree", onViewChange, onClose })} />);
+    await user.click(screen.getByRole("tab", { name: /^tree$/i }));
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(onViewChange).not.toHaveBeenCalled();
+  });
+
+  it("clicking an inactive rail icon in the nested (drawer) variant still just switches views", async () => {
+    const user = userEvent.setup();
+    const onViewChange = vi.fn();
+    const onClose = vi.fn();
+    render(<Sidebar {...baseProps({ view: "tree", onViewChange, onClose })} />);
+    await user.click(screen.getByRole("tab", { name: /mind map/i }));
+    expect(onViewChange).toHaveBeenCalledWith("mindmap");
+    expect(onClose).not.toHaveBeenCalled();
   });
 });
