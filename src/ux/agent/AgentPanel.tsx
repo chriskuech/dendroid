@@ -30,7 +30,6 @@ import { useAcp } from "../../adapters/acp/context";
 import type { AcpBridgeEvent, AcpPermissionOption } from "../../adapters/acp";
 import { createThread, deleteThread as deleteThreadRecord, listThreads } from "./threads";
 import { AGENT_PANEL_WIDTH_MAX, AGENT_PANEL_WIDTH_MIN, type AgentSettings, type ChatThread, type McpSettings } from "../../lib/types";
-import { AGENT_PROVIDERS } from "../settings/agentProviders";
 import { AgentIcon } from "../../ui/icons";
 import { OverlayPanel } from "../../ui/OverlayPanel";
 import { SidePanelHeader } from "../../ui/SidePanelHeader";
@@ -40,23 +39,6 @@ import { applyUpdate, finalizeStreaming, newTimelineId, type TimelineItem } from
 import "./agent.css";
 
 type Connection = "idle" | "connecting" | "connected" | "error";
-
-// `src-acp`'s `AcpClient::spawn` (see `src-tauri/src/acp.rs`'s `acp_start`)
-// always phrases a failed process spawn as `failed to launch "<command>":
-// <os error>`. The Claude Code/Ollama presets (`ux/settings/agentProviders.ts`)
-// run their adapter package through `npx -y`, which fetches it on first
-// launch with no separate install step — so this only fires when `npx`
-// itself can't be found, i.e. Node.js isn't installed. Appends the active
-// preset's `installHint` (if any) to point the user at that real cause
-// instead of leaving them with a bare ENOENT.
-function describeAgentError(err: unknown, provider: AgentSettings["provider"]): string {
-  const message = err instanceof Error ? err.message : String(err);
-  const installHint = AGENT_PROVIDERS[provider].installHint;
-  if (installHint && /^failed to launch /.test(message)) {
-    return `${message} — ${installHint}`;
-  }
-  return message;
-}
 
 interface AgentPanelProps {
   cwd: string;
@@ -193,7 +175,7 @@ export function AgentPanel({ cwd, agentSettings, mcpSettings, open, onClose, wid
         }
       } catch (err) {
         setConnections((prev) => withEntry(prev, threadId, "error"));
-        const note: TimelineItem = { id: newTimelineId(), kind: "system", text: `Error: ${describeAgentError(err, agentSettings.provider)}` };
+        const note: TimelineItem = { id: newTimelineId(), kind: "system", text: `Error: ${err instanceof Error ? err.message : String(err)}` };
         setTimelines((prev) => withEntry(prev, threadId, [...finalizeStreaming(prev[threadId] ?? []), note]));
       } finally {
         setBusy((prev) => withEntry(prev, threadId, false));

@@ -110,16 +110,18 @@ describe("AgentPanel", () => {
     expect(acp.adapter.sendPrompt).toHaveBeenCalledWith(expect.any(String), "hello there");
   });
 
-  it("appends a Node.js install hint when startAgent can't find npx to launch the preset", async () => {
-    vi.mocked(acp.adapter.startAgent).mockRejectedValue(new Error('failed to launch "npx": No such file or directory (os error 2)'));
+  it("shows startAgent's error message as a system note when connecting fails", async () => {
+    // Backend errors (e.g. `acp_start` failing to provision the agent
+    // runtime — see `src-tauri/src/agent_runtime.rs`) already arrive as a
+    // complete, human-readable message; the drawer just displays it as-is.
+    vi.mocked(acp.adapter.startAgent).mockRejectedValue(new Error("couldn't download the agent runtime: network error"));
     const user = userEvent.setup();
-    const claudeCodeSettings: AgentSettings = { provider: "claudeCode", command: "npx", args: "-y @zed-industries/claude-agent-acp" };
 
-    render(<AgentPanel cwd="/tmp/ws" agentSettings={claudeCodeSettings} mcpSettings={mcpSettings} open onClose={vi.fn()} width={320} onResize={vi.fn()} />);
+    render(<AgentPanel cwd="/tmp/ws" agentSettings={agentSettings} mcpSettings={mcpSettings} open onClose={vi.fn()} width={320} onResize={vi.fn()} />);
     await openNewThread(user);
     await user.type(screen.getByPlaceholderText(/message the agent/i), "hello{enter}");
 
-    expect(await screen.findByText(/install it from https:\/\/nodejs\.org/i)).toBeInTheDocument();
+    expect(await screen.findByText(/error: couldn't download the agent runtime: network error/i)).toBeInTheDocument();
   });
 
   it("passes the Local MCP URL to startAgent when it's enabled", async () => {

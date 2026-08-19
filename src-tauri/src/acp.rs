@@ -19,7 +19,33 @@ use serde::Serialize;
 use serde_json::Value as JsonValue;
 use tauri::{Emitter, Manager, State, Window};
 
+use crate::agent_runtime;
 use crate::state::{acp_key, AcpSession, AppDocState};
+
+/// The "Claude Code" and "Ollama" presets (`ux/settings/agentProviders.ts`)
+/// hand `acp_start` this sentinel as `command`, with their actual npm
+/// package (plus any of its own args, e.g. `opencode-ai acp`) packed into
+/// `args` instead. `resolve_command` swaps it for the app's own cached Bun
+/// runtime (`agent_runtime::ensure_bun`) invoked as `bun x -y <args...>` —
+/// npx-equivalent behavior with no Node.js/npm pre-install required.
+/// Resolved here rather than in the frontend because provisioning that
+/// runtime is inherently a backend concern (network + filesystem +
+/// platform detection); a hand-typed "custom" command can use the same
+/// sentinel for the same effect.
+const BUNX_SENTINEL: &str = "bunx";
+
+/// See [`BUNX_SENTINEL`]. Any other `command` passes through unchanged —
+/// this only ever touches the two managed presets (or a custom command
+/// that deliberately opts in by typing "bunx" itself).
+async fn resolve_command(window: &Window, state: &AppDocState, command: &str, args: &[String]) -> Result<(String, Vec<String>), String> {
+    if command != BUNX_SENTINEL {
+        return Ok((command.to_string(), args.to_vec()));
+    }
+    let bun_path = agent_runtime::ensure_bun(window.app_handle(), state).await?;
+    let mut real_args = vec!["x".to_string(), "-y".to_string()];
+    real_args.extend(args.iter().cloned());
+    Ok((bun_path.to_string_lossy().into_owned(), real_args))
+}
 
 /// Emitted to a window for every event any of its threads' agent sessions
 /// produce — streamed `session/update` content, a `session/
@@ -84,9 +110,10 @@ pub async fn stop_all_sessions_for_window(state: &AppDocState, label: &str) {
     }
 }
 
-/// Starts (or restarts) one thread's agent session: spawns `command args`
-/// with `cwd` as its working directory, completes the ACP handshake, and
-/// opens a session. Always tears down whatever session this (window,
+/// Starts (or restarts) one thread's agent session: resolves `command`
+/// (see [`resolve_command`]/[`BUNX_SENTINEL`]), spawns it with `args` and
+/// `cwd` as its working directory, completes the ACP handshake, and opens
+/// a session. Always tears down whatever session this (window,
 /// thread) pair already had first — same "a config change always restarts
 /// rather than trying to diff old vs. new" rule `mcp::apply` follows, since
 /// there's no cheap way to tell whether `command`/`args` changed since the
@@ -122,6 +149,7 @@ pub async fn acp_start(
     let key = acp_key(&label, &thread_id);
     stop_session(&state, &key).await;
 
+    let (command, args) = resolve_command(&window, &state, &command, &args).await?;
     let (client, mut events) = AcpClient::spawn(&command, &args, &cwd).await.map_err(|e| e.to_string())?;
     let mcp_servers = match mcp_url {
         Some(url) if client.supports_mcp_http() => {

@@ -13,13 +13,6 @@ export interface AgentProviderMeta {
   /** Whether Settings' Command/Arguments fields are user-editable for this
    * provider, vs. locked (read-only) to the preset above. */
   editable: boolean;
-  /** Shown alongside a "failed to launch" error for this preset's `command`
-   * (see `ux/agent/AgentPanel.tsx`'s `handleSend`) — every preset below
-   * runs through `npx`, so that only happens when `npx` itself isn't on
-   * `PATH`, i.e. Node.js isn't installed. `undefined` for presets that
-   * don't spawn anything through `npx` (`none`, `custom` — a custom
-   * command's requirements are whatever the user picked). */
-  installHint?: string;
 }
 
 // Presets for Settings' Agent section (see SettingsPage.tsx). Picking one
@@ -27,13 +20,17 @@ export interface AgentProviderMeta {
 // `startAgent` then spawns verbatim — same mechanism as typing them in
 // under "Custom" by hand. Neither Claude Code nor Ollama speak ACP
 // natively, so both presets actually point at a small adapter package
-// sitting in front of them, not the model CLI/server itself — and neither
-// requires the user to install that adapter themselves: both run it via
-// `npx -y <package>`, which fetches and caches the package on first launch
-// if it isn't already present, the same way `npx`-fronted MCP server
-// configs commonly do. The only prerequisite left is Node.js/npm itself.
-const NODE_INSTALL_HINT = "requires Node.js (npx) on your PATH — install it from https://nodejs.org";
-
+// sitting in front of them, not the model CLI/server itself.
+//
+// Both use `command: "bunx"` — a sentinel `src-tauri/src/acp.rs`'s
+// `acp_start` recognizes and swaps for the app's own cached, auto-
+// downloaded Bun runtime (`src-tauri/src/agent_runtime.rs`), invoked as
+// `bun x -y <args>`: an `npx`-alike that fetches the named npm package on
+// first use and caches it. That's what makes these two presets work with
+// *nothing* pre-installed — no Node.js, no npm, no manual `npm i -g`
+// step — the app provisions its own runtime for them the first time
+// they're actually used. A "custom" command can opt into the same
+// mechanism by typing "bunx" itself.
 export const AGENT_PROVIDERS: Record<AgentProvider, AgentProviderMeta> = {
   none: {
     kind: "none",
@@ -47,21 +44,19 @@ export const AGENT_PROVIDERS: Record<AgentProvider, AgentProviderMeta> = {
     kind: "ollama",
     label: "Ollama",
     description:
-      "Local models via OpenCode’s ACP adapter, pointed at Ollama running on this machine. Pick the model inside OpenCode’s own config. Fetched automatically via npx on first launch — no separate install step.",
-    command: "npx",
-    args: "-y opencode acp",
+      "Local models via OpenCode’s ACP adapter, pointed at Ollama running on this machine. Pick the model inside OpenCode’s own config. Nothing to install — dendroid fetches it automatically on first use.",
+    command: "bunx",
+    args: "opencode-ai acp",
     editable: false,
-    installHint: NODE_INSTALL_HINT,
   },
   claudeCode: {
     kind: "claudeCode",
     label: "Claude Code",
     description:
-      'Anthropic’s Claude Code, via Zed’s ACP adapter. Needs an ANTHROPIC_API_KEY in the environment, or an existing "claude login" session. Fetched automatically via npx on first launch — no separate install step.',
-    command: "npx",
-    args: "-y @zed-industries/claude-agent-acp",
+      'Anthropic’s Claude Code, via Zed’s ACP adapter. Needs an ANTHROPIC_API_KEY in the environment, or an existing "claude login" session. Nothing to install — dendroid fetches it automatically on first use.',
+    command: "bunx",
+    args: "@agentclientprotocol/claude-agent-acp",
     editable: false,
-    installHint: NODE_INSTALL_HINT,
   },
   custom: {
     kind: "custom",
