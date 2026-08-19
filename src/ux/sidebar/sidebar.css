@@ -102,7 +102,9 @@
 /* Drag-to-resize handle on the sidebar's right edge (see Sidebar.tsx's
  * `width`/`onResize` props). `.sidebar` clips overflow (above), so unlike
  * `.overlay-panel__resize-handle` (ui/ui.css) this stays flush inside the
- * right edge rather than straddling it with a negative offset. */
+ * right edge rather than straddling it with a negative offset — which also
+ * means the visible line (below) has to sit at the box's own right edge
+ * rather than centered in it, or it'd read as offset from the true edge. */
 .sidebar__resize-handle {
   position: absolute;
   top: 0;
@@ -116,7 +118,7 @@
 
 .sidebar__resize-handle:hover,
 .sidebar__resize-handle:active {
-  background: linear-gradient(to right, transparent 2px, var(--accent) 2px, var(--accent) 3px, transparent 3px);
+  background: linear-gradient(to right, transparent 5px, var(--accent) 5px, var(--accent) 6px, transparent 6px);
 }
 
 /* Button styling itself is `.side-panel__icon-btn` (ui/ui.css, same as
