@@ -93,7 +93,8 @@
 .sidebar__content > .mindmap-view,
 .sidebar__content > .history-view,
 .sidebar__content > .database-list,
-.sidebar__content > .automation-view {
+.sidebar__content > .automation-view,
+.sidebar__content > .skill-view {
   width: auto;
   flex: 1;
 }
