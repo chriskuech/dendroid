@@ -78,6 +78,13 @@ pub struct AppDocState {
     /// including after that thread's session is stopped or the window
     /// closes.
     pub acp_sessions: Mutex<HashMap<String, AcpSession>>,
+    /// Guards `agent_runtime::ensure_bun`'s download-and-cache step so two
+    /// threads connecting for the first time at once (e.g. two chat
+    /// threads opened together) don't both download the runtime — the
+    /// second just waits for the first to finish, then finds the cache
+    /// already populated. Never held across anything but that setup, so
+    /// it's not on the hot path for a thread that's already connected.
+    pub bun_setup: Mutex<()>,
 }
 
 /// Builds the composite key `AppDocState::acp_sessions` is keyed by — see
@@ -96,6 +103,7 @@ impl AppDocState {
             primary_label: Mutex::new(None),
             mcp_handle: Mutex::new(None),
             acp_sessions: Mutex::new(HashMap::new()),
+            bun_setup: Mutex::new(()),
         }
     }
 }

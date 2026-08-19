@@ -110,6 +110,20 @@ describe("AgentPanel", () => {
     expect(acp.adapter.sendPrompt).toHaveBeenCalledWith(expect.any(String), "hello there");
   });
 
+  it("shows startAgent's error message as a system note when connecting fails", async () => {
+    // Backend errors (e.g. `acp_start` failing to provision the agent
+    // runtime — see `src-tauri/src/agent_runtime.rs`) already arrive as a
+    // complete, human-readable message; the drawer just displays it as-is.
+    vi.mocked(acp.adapter.startAgent).mockRejectedValue(new Error("couldn't download the agent runtime: network error"));
+    const user = userEvent.setup();
+
+    render(<AgentPanel cwd="/tmp/ws" agentSettings={agentSettings} mcpSettings={mcpSettings} open onClose={vi.fn()} width={320} onResize={vi.fn()} />);
+    await openNewThread(user);
+    await user.type(screen.getByPlaceholderText(/message the agent/i), "hello{enter}");
+
+    expect(await screen.findByText(/error: couldn't download the agent runtime: network error/i)).toBeInTheDocument();
+  });
+
   it("passes the Local MCP URL to startAgent when it's enabled", async () => {
     vi.mocked(acp.adapter.startAgent).mockResolvedValue(undefined);
     vi.mocked(acp.adapter.sendPrompt).mockResolvedValue({ stopReason: "end_turn" });

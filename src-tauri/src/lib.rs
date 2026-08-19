@@ -1,6 +1,7 @@
 // Platform-agnostic logic lives in the `dendroid-core` crate (src-core/).
 
 mod acp;
+mod agent_runtime;
 mod automation;
 mod commands;
 mod keychain;

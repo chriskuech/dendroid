@@ -46,3 +46,10 @@ chrono = { version = "0.4", default-features = false, features = ["clock", "std"
 # `dbus`-crate-based backend, which would need one.
 keyring = { version = "4", features = ["apple-native-keyring-store"] }
 
+# Both pulled in solely by `agent_runtime.rs`, to fetch and unpack a
+# portable Bun runtime for the "Claude Code"/"Ollama" agent chat presets —
+# see that module's doc comment. `rustls-tls` rather than the default
+# `default-tls` so this doesn't need a system OpenSSL to build against.
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
+zip = { version = "2", default-features = false, features = ["deflate"] }
+
