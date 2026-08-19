@@ -185,6 +185,13 @@ describe("Sidebar", () => {
     expect(screen.queryByLabelText(/resize sidebar/i)).not.toBeInTheDocument();
   });
 
+  it("marks no rail tab as active while the persistent variant is collapsed", () => {
+    render(<Sidebar {...baseProps({ view: "tree", open: false })} />);
+    for (const name of [/^tree$/i, /mind map/i, /^history$/i, /^databases$/i, /^automations$/i, /^skills$/i]) {
+      expect(screen.getByRole("tab", { name })).toHaveAttribute("aria-selected", "false");
+    }
+  });
+
   it("clicking any rail icon while collapsed reopens the content pane", async () => {
     const user = userEvent.setup();
     const onViewChange = vi.fn();
@@ -214,6 +221,12 @@ describe("Sidebar", () => {
     await user.click(screen.getByRole("tab", { name: /^tree$/i }));
     expect(onClose).toHaveBeenCalledTimes(1);
     expect(onViewChange).not.toHaveBeenCalled();
+  });
+
+  it("marks the current view's tab active in the nested (drawer) variant regardless of the persistent `open` prop", () => {
+    const onClose = vi.fn();
+    render(<Sidebar {...baseProps({ view: "mindmap", open: false, onClose })} />);
+    expect(screen.getByRole("tab", { name: /mind map/i })).toHaveAttribute("aria-selected", "true");
   });
 
   it("clicking an inactive rail icon in the nested (drawer) variant still just switches views", async () => {

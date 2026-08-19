@@ -25,7 +25,7 @@ import { useDb } from "../../adapters/db/context";
 import { useMcp } from "../../adapters/mcp/context";
 import { Sidebar, type SidebarView } from "../sidebar/Sidebar";
 import { AgentPanel } from "../agent/AgentPanel";
-import { AgentIcon, LogoIcon, WarningIcon } from "../../ui/icons";
+import { AgentIcon, MenuIcon, WarningIcon } from "../../ui/icons";
 import { Editor, type EditorHandle } from "../editor/Editor";
 import { DatabaseView } from "../database/DatabaseView";
 import { Banner } from "../../ui/Banner";
@@ -294,8 +294,8 @@ export function Workspace({ rootPath, onDocumentReady, onOpenSettings }: Workspa
             transition: `opacity ${chromeTransitionMs}ms cubic-bezier(0.2, 0, 0, 1)`,
           }}
         >
-          <button type="button" className="workspace__hamburger" onClick={() => setDrawerOpen(true)} aria-label="Open tree">
-            <LogoIcon size={16} />
+          <button type="button" className="workspace__hamburger" onClick={() => setDrawerOpen(true)} aria-label="Open sidebar">
+            <MenuIcon size={16} />
           </button>
           <span className="workspace__breadcrumb">{breadcrumb}</span>
         </div>
@@ -347,7 +347,7 @@ export function Workspace({ rootPath, onDocumentReady, onOpenSettings }: Workspa
         // border/background, just anchored to the left edge instead. Not
         // resizable (no `resize` prop) — that's only meaningful for the
         // persistent (>=900px) column above.
-        <OverlayPanel side="left" open={drawerOpen} onOpenChange={setDrawerOpen} title="Tree" onBackdropClick={() => setDrawerOpen(false)}>
+        <OverlayPanel side="left" open={drawerOpen} onOpenChange={setDrawerOpen} title="Sidebar" onBackdropClick={() => setDrawerOpen(false)}>
           <Sidebar
             {...sidebarProps}
             onSelectHeading={selectHeadingFromDrawer}
