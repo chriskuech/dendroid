@@ -3,6 +3,13 @@ name: check
 on:
   pull_request:
     branches: [main]
+  # Also run on merges to main so the Rust build cache below gets seeded
+  # for `main`. PR branches can then restore that cache as a fallback
+  # (GitHub Actions cache lookups fall back to the PR's base branch), which
+  # avoids the alternative: every fresh PR branch compiling the entire
+  # dependency tree from scratch because it has no cache history of its own.
+  push:
+    branches: [main]
   workflow_dispatch:
 
 concurrency:
@@ -26,19 +33,26 @@ jobs:
 
       # `src-tauri` links against the system webview; without these the
       # workspace build fails before it reaches any of our own code.
+      #
+      # Cached rather than a plain `apt-get install`: the raw install used
+      # to take anywhere from ~20s to 6+ minutes depending on how the
+      # Ubuntu mirror was behaving that run. This caches the downloaded
+      # .debs so a hit skips the mirror entirely.
       - name: Install Linux system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            libwebkit2gtk-4.1-dev \
-            libappindicator3-dev \
-            librsvg2-dev \
-            libxdo-dev \
-            libssl-dev \
-            patchelf \
-            build-essential \
-            file \
+        uses: awalsh128/cache-apt-pkgs-action@v1
+        with:
+          packages: >-
+            libwebkit2gtk-4.1-dev
+            libappindicator3-dev
+            librsvg2-dev
+            libxdo-dev
+            libssl-dev
+            patchelf
+            build-essential
+            file
             wget
+          version: 1.0
+          execute_install_scripts: true
 
       - uses: dtolnay/rust-toolchain@stable
         with:
