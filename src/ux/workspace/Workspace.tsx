@@ -205,6 +205,10 @@ export function Workspace({ rootPath, onDocumentReady, onOpenSettings }: Workspa
     editorRef.current?.editor?.commands.toggleLinkExpand(linkId);
   }, []);
 
+  // What a tree row click calls (TreeView.tsx) — unlike `selectHeadingFromDrawer`
+  // below, this deliberately doesn't close the narrow-mode drawer: the tree
+  // itself still shows the whole outline after rerooting (only the editor's
+  // content narrows), so there's nothing gained by closing it.
   const reroot = useCallback((headingId: string) => {
     editorRef.current?.editor?.commands.toggleDocumentRoot(headingId);
   }, []);
@@ -231,10 +235,12 @@ export function Workspace({ rootPath, onDocumentReady, onOpenSettings }: Workspa
   const rootHeadingTitle = rootId ? findHeadingTitle(entries, rootId) : null;
   const breadcrumb = [workspace?.name ?? "Dendroid", rootHeadingTitle].filter(Boolean).join(" / ");
 
-  // Selecting a heading from the drawer should also close it — staying
-  // open over the now-navigated-to content would just be in the way. Kept
-  // above the early returns below (Rules of Hooks: every hook here has to
-  // run on every render, loading/error states included).
+  // Navigating to a heading from the drawer (an `@`-link or preview row —
+  // see TreeView.tsx; a heading row itself reroots instead, via `reroot`
+  // below, and deliberately leaves the drawer open) should also close it —
+  // staying open over the now-navigated-to content would just be in the
+  // way. Kept above the early returns below (Rules of Hooks: every hook
+  // here has to run on every render, loading/error states included).
   const selectHeadingFromDrawer = useCallback(
     (headingId: string) => {
       selectHeading(headingId);

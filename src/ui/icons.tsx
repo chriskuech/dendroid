@@ -130,22 +130,6 @@ export function BackIcon(props: IconProps) {
   );
 }
 
-/** Box around a node — "set root" from comp/Dendroid Design System.dc.html
- * section 02. Doubles as the current-root indicator (the boxed tree row,
- * the editor's end-of-heading toggle) since it's literally a box around a
- * node. */
-export function RerootIcon(props: IconProps) {
-  return (
-    <PixelIcon {...props}>
-      <rect x={3} y={3} width={10} height={1} />
-      <rect x={3} y={12} width={10} height={1} />
-      <rect x={3} y={4} width={1} height={8} />
-      <rect x={12} y={4} width={1} height={8} />
-      <rect x={7} y={7} width={2} height={2} />
-    </PixelIcon>
-  );
-}
-
 export function SyncProviderIcon(props: IconProps) {
   return (
     <PixelIcon {...props}>

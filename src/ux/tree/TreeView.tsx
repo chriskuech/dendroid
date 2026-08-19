@@ -3,8 +3,8 @@
 // headings — a heading's text, level, and position are just part of the
 // document, edited by typing in it directly (that's the whole point of the
 // flat-document model — see dendroid_core::outline). Clicking a heading row
-// scrolls/selects it in the shared editor instance; clicking its chevron
-// expands/collapses it.
+// makes it the editor's root (see `onReroot`); clicking its chevron
+// expands/collapses it instead.
 //
 // `@`-link rows work the same way, but standing in for a *reference* rather
 // than real document structure: clicking one jumps to its target instead of
@@ -22,7 +22,7 @@
 
 import type { HeadingDto, LinkEntryDto, OutlineEntry } from "../../lib/crdt/outline";
 import { subtreeRows } from "../../lib/crdt/outline";
-import { ChevronIcon, LogoIcon, RerootIcon } from "../../ui/icons";
+import { ChevronIcon, LogoIcon } from "../../ui/icons";
 import { SidePanelHeader } from "../../ui/SidePanelHeader";
 
 interface TreeViewProps {
@@ -37,16 +37,19 @@ interface TreeViewProps {
   previewDepth: number;
   /** The heading the editor is currently scoped to, if any — mirrored down
    * from the editor's docRoot plugin (see Editor.tsx). The row for this
-   * heading gets boxed. */
+   * heading is marked as the current root (`tree-row--is-root`); the
+   * headings within its subtree resolve their levels relative to it. */
   rootId: string | null;
-  /** Selects/scrolls to a heading — used for a heading row, an `@`-link
-   * row (jumps to its target), and a preview row (jumps to that heading). */
+  /** Selects/scrolls to a heading — used for an `@`-link row (jumps to its
+   * target) and a preview row (jumps to that heading). A heading row itself
+   * doesn't use this: clicking it reroots instead (see `onReroot`). */
   onSelectHeading: (id: string) => void;
   onToggleCollapse: (id: string) => void;
   onToggleLinkExpand: (id: string) => void;
-  /** Toggles `id` as the editor's root — routes back through an editor
-   * command (see Workspace's `reroot`) so the tree and editor never
-   * disagree on which heading, if any, is currently the root. */
+  /** Makes `id` the editor's root — what clicking a heading row calls.
+   * Routes back through an editor command (see Workspace's `reroot`) so the
+   * tree and editor never disagree on which heading, if any, is currently
+   * the root. */
   onReroot: (id: string) => void;
 }
 
@@ -63,12 +66,16 @@ export function TreeView({
 }: TreeViewProps) {
   const hasHeadings = entries.some((e) => e.kind === "heading");
   const rows = visibleRows(entries, collapsedIds, expandedLinkIds, previewDepth);
-  const rootGroup = rootGroupRange(rows, rootId);
+  // Only used to resolve heading levels relative to the root (below) — the
+  // box drawn around the tree (`.tree-view__rows`' own border, workspace.css)
+  // always wraps every visible row, not just this subtree.
+  const rootSubtree = rootSubtreeRange(rows, rootId);
   // The rooted heading's own level, if any — used to resolve every heading
-  // row in its group to a level *relative to it* (so the root row always
+  // row in its subtree to a level *relative to it* (so the root row always
   // reads as "#"), the same relative-to-root resolution docRoot.ts applies
-  // to the editor's own heading sizing. Rows outside the group aren't part
-  // of the root's subtree, so they keep showing their literal level.
+  // to the editor's own heading sizing. Rows outside the subtree aren't
+  // part of the root's descendants, so they keep showing their literal
+  // level.
   const rootLevel = rootId ? rows.find((row) => row.kind === "heading" && row.heading?.id === rootId)?.heading?.level : undefined;
 
   return (
@@ -121,20 +128,16 @@ export function TreeView({
 
           const heading = row.heading!;
           const isRoot = heading.id === rootId;
-          const inRootGroup = i >= rootGroup.start && i < rootGroup.end;
+          const inRootSubtree = i >= rootSubtree.start && i < rootSubtree.end;
           const displayLevel =
-            inRootGroup && rootLevel !== undefined ? Math.max(heading.level - rootLevel + 1, 1) : Math.max(heading.level, 1);
-          const groupClass = inRootGroup
-            ? ` tree-row--root-group${i === rootGroup.start ? " tree-row--root-group-first" : ""}${
-                i === rootGroup.end - 1 ? " tree-row--root-group-last" : ""
-              }`
-            : "";
+            inRootSubtree && rootLevel !== undefined ? Math.max(heading.level - rootLevel + 1, 1) : Math.max(heading.level, 1);
           return (
             <div
               key={row.key}
-              className={`tree-row${groupClass}`}
+              className={`tree-row${isRoot ? " tree-row--is-root" : ""}`}
               style={{ paddingLeft: 14 + row.depth * 16 }}
-              onClick={() => onSelectHeading(heading.id)}
+              title={isRoot ? "Reset root" : "Set as root"}
+              onClick={() => onReroot(heading.id)}
             >
               <span
                 className={`tree-row__chevron${row.hasChildren ? "" : " tree-row__chevron--empty"}${
@@ -150,16 +153,6 @@ export function TreeView({
               </span>
               <span className="tree-row__title">{heading.title || "Untitled"}</span>
               <span className="tree-row__level">{"#".repeat(displayLevel)}</span>
-              <span
-                className={`tree-row__reroot${isRoot ? " is-root" : ""}`}
-                title={isRoot ? "Reset root" : "Set as root"}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  onReroot(heading.id);
-                }}
-              >
-                <RerootIcon size={12} />
-              </span>
             </div>
           );
         })}
@@ -238,12 +231,14 @@ function visibleRows(
   return rows;
 }
 
-/** The [start, end) span of `rows` the root box wraps: the root heading's
- * row plus whatever visible descendants follow it, bounded by the next row
- * back at or above the root's own depth. With no explicit root (or one
- * that isn't currently visible, e.g. hidden under a collapsed ancestor) the
- * page itself is the root, so the whole tree gets the box. */
-function rootGroupRange(rows: Row[], rootId: string | null): { start: number; end: number } {
+/** The [start, end) span of `rows` that make up the root heading's own
+ * subtree: its row plus whatever visible descendants follow it, bounded by
+ * the next row back at or above the root's own depth. Used only to resolve
+ * those descendants' heading levels relative to the root (above) — with no
+ * explicit root (or one that isn't currently visible, e.g. hidden under a
+ * collapsed ancestor) this spans every row, which is a no-op for level
+ * resolution since there's no `rootLevel` to resolve against. */
+function rootSubtreeRange(rows: Row[], rootId: string | null): { start: number; end: number } {
   const start = rootId ? rows.findIndex((row) => row.kind === "heading" && row.heading?.id === rootId) : -1;
   if (start === -1) return { start: 0, end: rows.length };
 

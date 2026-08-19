@@ -16,7 +16,7 @@ import "./database.css";
 interface DatabaseListViewProps {
   /** The database currently open in the main area, if any — its row gets
    * highlighted, same "always show current state" convention as
-   * `.tree-row__reroot.is-root`. */
+   * `.tree-row--is-root`. */
   selectedId: string | null;
   onSelect: (id: string) => void;
 }
