@@ -55,7 +55,7 @@ describe("Sidebar", () => {
     const user = userEvent.setup();
     const onViewChange = vi.fn();
     render(<Sidebar {...baseProps({ onViewChange })} />);
-    await user.click(screen.getByRole("tab", { name: /mind map/i }));
+    await user.click(screen.getByRole("tab", { name: /graph/i }));
     expect(onViewChange).toHaveBeenCalledWith("mindmap");
   });
 
@@ -120,7 +120,7 @@ describe("Sidebar", () => {
 
   it("marks the active rail tab via aria-selected", () => {
     render(<Sidebar {...baseProps({ view: "mindmap" })} />);
-    expect(screen.getByRole("tab", { name: /mind map/i })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: /graph/i })).toHaveAttribute("aria-selected", "true");
     expect(screen.getByRole("tab", { name: /^tree$/i })).toHaveAttribute("aria-selected", "false");
   });
 
@@ -173,7 +173,7 @@ describe("Sidebar", () => {
     const onViewChange = vi.fn();
     const onOpenChange = vi.fn();
     render(<Sidebar {...baseProps({ view: "tree", onViewChange, onOpenChange })} />);
-    await user.click(screen.getByRole("tab", { name: /mind map/i }));
+    await user.click(screen.getByRole("tab", { name: /graph/i }));
     expect(onViewChange).toHaveBeenCalledWith("mindmap");
     expect(onOpenChange).toHaveBeenCalledWith(true);
   });
@@ -187,7 +187,7 @@ describe("Sidebar", () => {
 
   it("marks no rail tab as active while the persistent variant is collapsed", () => {
     render(<Sidebar {...baseProps({ view: "tree", open: false })} />);
-    for (const name of [/^tree$/i, /mind map/i, /^history$/i, /^databases$/i, /^automations$/i, /^skills$/i]) {
+    for (const name of [/^tree$/i, /graph/i, /^history$/i, /^databases$/i, /^automations$/i, /^skills$/i]) {
       expect(screen.getByRole("tab", { name })).toHaveAttribute("aria-selected", "false");
     }
   });
@@ -226,7 +226,7 @@ describe("Sidebar", () => {
   it("marks the current view's tab active in the nested (drawer) variant regardless of the persistent `open` prop", () => {
     const onClose = vi.fn();
     render(<Sidebar {...baseProps({ view: "mindmap", open: false, onClose })} />);
-    expect(screen.getByRole("tab", { name: /mind map/i })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: /graph/i })).toHaveAttribute("aria-selected", "true");
   });
 
   it("clicking an inactive rail icon in the nested (drawer) variant still just switches views", async () => {
@@ -234,7 +234,7 @@ describe("Sidebar", () => {
     const onViewChange = vi.fn();
     const onClose = vi.fn();
     render(<Sidebar {...baseProps({ view: "tree", onViewChange, onClose })} />);
-    await user.click(screen.getByRole("tab", { name: /mind map/i }));
+    await user.click(screen.getByRole("tab", { name: /graph/i }));
     expect(onViewChange).toHaveBeenCalledWith("mindmap");
     expect(onClose).not.toHaveBeenCalled();
   });

@@ -1,6 +1,6 @@
 // The sidebar's database tab — list/create/delete, mirroring TreeView's/
 // HistoryView's panel shape (header + scrollable rows) closely on purpose
-// so all four tabs (Tree/Mind map/History/Databases) read as the same kind
+// so all four tabs (Tree/Graph/History/Databases) read as the same kind
 // of sidebar content (see ux/sidebar/Sidebar.tsx). Selecting a row
 // opens that database in the main area, replacing the Editor — see
 // Workspace.tsx's `selectedDatabaseId`.

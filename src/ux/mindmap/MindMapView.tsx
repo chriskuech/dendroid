@@ -186,7 +186,7 @@ export function MindMapView({ entries, onSelectHeading }: MindMapViewProps) {
 
   return (
     <div className="side-panel mindmap-view">
-      <SidePanelHeader icon={<GraphIcon size={16} />} label="Mind Map" />
+      <SidePanelHeader icon={<GraphIcon size={16} />} label="Graph" />
       <div className="mindmap-view__canvas">
         {nodes.length === 0 ? (
           <div className="mindmap-view__empty">No headings yet — start writing.</div>

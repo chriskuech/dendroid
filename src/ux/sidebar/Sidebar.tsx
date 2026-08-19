@@ -200,7 +200,7 @@ export function Sidebar({
           type="button"
           role="tab"
           className={`sidebar__rail-btn${isActive("mindmap") ? " is-active" : ""}`}
-          aria-label="Mind map"
+          aria-label="Graph"
           aria-selected={isActive("mindmap")}
           onClick={() => handleRailClick("mindmap")}
         >
