@@ -7,14 +7,10 @@
 // exactly one consumer.
 
 import { adapter as settingsStore } from "../../adapters/settingsStore";
-import type { ChatThread, CronThreadConfig, ThreadKind, TriggerEvent, TriggerThreadConfig } from "../../lib/types";
+import type { ChatThread } from "../../lib/types";
 
 function newId(): string {
   return crypto.randomUUID();
-}
-
-function defaultTitle(kind: ThreadKind): string {
-  return kind === "human" ? "New thread" : kind === "cron" ? "New scheduled thread" : "New trigger thread";
 }
 
 export async function listThreads(): Promise<ChatThread[]> {
@@ -27,21 +23,15 @@ async function mutate(fn: (threads: ChatThread[]) => ChatThread[]): Promise<Chat
   return next;
 }
 
-export interface NewThreadInput {
-  kind: ThreadKind;
-  title: string;
-  cron?: CronThreadConfig;
-  trigger?: TriggerThreadConfig;
-}
-
-export async function createThread(input: NewThreadInput): Promise<ChatThread> {
+/** Creates a new chat thread — "New thread" unless a non-blank title is
+ * given (renameThread handles retitling afterward). No other input: a
+ * thread is always just a conversation with the agent, see `ChatThread`'s
+ * doc comment. */
+export async function createThread(title = ""): Promise<ChatThread> {
   const thread: ChatThread = {
     id: newId(),
-    kind: input.kind,
-    title: input.title.trim() || defaultTitle(input.kind),
+    title: title.trim() || "New thread",
     createdAt: new Date().toISOString(),
-    cron: input.cron,
-    trigger: input.trigger,
   };
   await mutate((threads) => [...threads, thread]);
   return thread;
@@ -51,26 +41,6 @@ export async function renameThread(id: string, title: string): Promise<void> {
   await mutate((threads) => threads.map((t) => (t.id === id ? { ...t, title: title.trim() || t.title } : t)));
 }
 
-/** Replaces a "cron"/"trigger" thread's own config in place — used by the
- * chat view's inline config editor. Leaves `kind` alone; a thread's kind is
- * fixed at creation (see `AgentPanel.tsx`'s new-thread flow), since
- * changing it out from under an existing conversation would leave stale
- * config of the wrong shape (`trigger` set on a "cron" thread, or vice
- * versa) with nothing to reconcile it. */
-export async function updateThreadConfig(id: string, patch: Pick<ChatThread, "cron" | "trigger">): Promise<void> {
-  await mutate((threads) => threads.map((t) => (t.id === id ? { ...t, ...patch } : t)));
-}
-
 export async function deleteThread(id: string): Promise<void> {
   await mutate((threads) => threads.filter((t) => t.id !== id));
-}
-
-/** Builds the event JSON a live SQLite row-level trigger would eventually
- * hand a "trigger" thread's `skill` as its parameter — `{database, table,
- * event, row, firedAt}`. Used by `AgentPanel.tsx`'s "Run now" (see
- * `ChatThread`'s doc comment for why that's a manual stand-in rather than
- * dendroid actually watching the table yet) to compose a realistic prompt
- * out of whatever event kind and row the user picks to simulate. */
-export function buildTriggerEventJson(trigger: TriggerThreadConfig, event: TriggerEvent, row: Record<string, unknown> = {}): string {
-  return JSON.stringify({ database: trigger.databaseId, table: trigger.table, event, row, firedAt: new Date().toISOString() }, null, 2);
 }

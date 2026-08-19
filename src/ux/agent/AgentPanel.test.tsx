@@ -1,4 +1,4 @@
-// Covers the chat UI's own logic: creating a "human" thread, connecting and
+// Covers the chat UI's own logic: creating a thread, connecting and
 // sending on first message, streaming `session/update` chunks into that
 // thread's timeline, and answering a permission request — against a mocked
 // `adapters/acp`, same "vi.mock stands in for the Tauri IPC boundary"
@@ -70,12 +70,12 @@ function activeThreadId(): string {
   return el.getAttribute("data-thread-id")!;
 }
 
-/** Creates and opens a "human" thread — the entry point every test below
- * needs before it can reach the composer, since the drawer now always
- * lands on the thread list first (see AgentPanel.tsx's doc comment). */
-async function openNewHumanThread(user: ReturnType<typeof userEvent.setup>) {
+/** Creates and opens a new thread — the entry point every test below needs
+ * before it can reach the composer, since the drawer now always lands on
+ * the thread list first (see AgentPanel.tsx's doc comment). "New thread"
+ * creates and opens it in one click, no dialog in between. */
+async function openNewThread(user: ReturnType<typeof userEvent.setup>) {
   await user.click(await screen.findByRole("button", { name: /new thread/i }));
-  await user.click(screen.getByRole("button", { name: /^create$/i }));
   await screen.findByPlaceholderText(/message the agent/i);
 }
 
@@ -91,7 +91,6 @@ describe("AgentPanel", () => {
       <AgentPanel cwd="/tmp/ws" agentSettings={{ provider: "none", command: "", args: "" }} mcpSettings={mcpSettings} open onClose={vi.fn()} width={320} onResize={vi.fn()} />,
     );
     await user.click(await screen.findByRole("button", { name: /new thread/i }));
-    await user.click(screen.getByRole("button", { name: /^create$/i }));
 
     expect(await screen.findByText(/no agent command configured/i)).toBeInTheDocument();
     expect(screen.queryByPlaceholderText(/message the agent/i)).not.toBeInTheDocument();
@@ -103,7 +102,7 @@ describe("AgentPanel", () => {
     const user = userEvent.setup();
 
     render(<AgentPanel cwd="/tmp/ws" agentSettings={agentSettings} mcpSettings={mcpSettings} open onClose={vi.fn()} width={320} onResize={vi.fn()} />);
-    await openNewHumanThread(user);
+    await openNewThread(user);
     await user.type(screen.getByPlaceholderText(/message the agent/i), "hello there{enter}");
 
     expect(screen.getByText("hello there")).toBeInTheDocument();
@@ -118,7 +117,7 @@ describe("AgentPanel", () => {
     const mcpEnabled: McpSettings = { enabled: true, host: "127.0.0.1", port: 7717, disabledSkills: [] };
 
     render(<AgentPanel cwd="/tmp/ws" agentSettings={agentSettings} mcpSettings={mcpEnabled} open onClose={vi.fn()} width={320} onResize={vi.fn()} />);
-    await openNewHumanThread(user);
+    await openNewThread(user);
     await user.type(screen.getByPlaceholderText(/message the agent/i), "hello{enter}");
 
     await waitFor(() =>
@@ -129,7 +128,7 @@ describe("AgentPanel", () => {
   it("streams agent_message_chunk updates into a single growing bubble", async () => {
     const user = userEvent.setup();
     render(<AgentPanel cwd="/tmp/ws" agentSettings={agentSettings} mcpSettings={mcpSettings} open onClose={vi.fn()} width={320} onResize={vi.fn()} />);
-    await openNewHumanThread(user);
+    await openNewThread(user);
     const handler = lastEventHandler();
 
     // The handler routes events by their own `threadId` field, independent
@@ -144,7 +143,7 @@ describe("AgentPanel", () => {
   it("renders a tool_call update with its title and status", async () => {
     const user = userEvent.setup();
     render(<AgentPanel cwd="/tmp/ws" agentSettings={agentSettings} mcpSettings={mcpSettings} open onClose={vi.fn()} width={320} onResize={vi.fn()} />);
-    await openNewHumanThread(user);
+    await openNewThread(user);
     const handler = lastEventHandler();
 
     handler({
@@ -161,7 +160,7 @@ describe("AgentPanel", () => {
     vi.mocked(acp.adapter.respondPermission).mockResolvedValue(undefined);
     const user = userEvent.setup();
     render(<AgentPanel cwd="/tmp/ws" agentSettings={agentSettings} mcpSettings={mcpSettings} open onClose={vi.fn()} width={320} onResize={vi.fn()} />);
-    await openNewHumanThread(user);
+    await openNewThread(user);
     const handler = lastEventHandler();
 
     handler({
@@ -182,7 +181,7 @@ describe("AgentPanel", () => {
   it("shows a system note and resets the connection when the agent closes", async () => {
     const user = userEvent.setup();
     render(<AgentPanel cwd="/tmp/ws" agentSettings={agentSettings} mcpSettings={mcpSettings} open onClose={vi.fn()} width={320} onResize={vi.fn()} />);
-    await openNewHumanThread(user);
+    await openNewThread(user);
     const handler = lastEventHandler();
 
     handler({ kind: "closed", threadId: activeThreadId(), error: "process exited" });
@@ -194,7 +193,7 @@ describe("AgentPanel", () => {
     const onClose = vi.fn();
     const user = userEvent.setup();
     render(<AgentPanel cwd="/tmp/ws" agentSettings={agentSettings} mcpSettings={mcpSettings} open onClose={onClose} width={320} onResize={vi.fn()} />);
-    await openNewHumanThread(user);
+    await openNewThread(user);
 
     await user.click(screen.getByLabelText(/back to threads/i));
     expect(await screen.findByRole("button", { name: /new thread/i })).toBeInTheDocument();
@@ -203,20 +202,15 @@ describe("AgentPanel", () => {
     expect(onClose).toHaveBeenCalled();
   });
 
-  it("creates a cron thread with its schedule shown, and deletes it", async () => {
+  it("creates a thread titled 'New thread' with one click, and deletes it", async () => {
     const user = userEvent.setup();
     render(<AgentPanel cwd="/tmp/ws" agentSettings={agentSettings} mcpSettings={mcpSettings} open onClose={vi.fn()} width={320} onResize={vi.fn()} />);
 
-    await user.click(await screen.findByRole("button", { name: /new thread/i }));
-    await user.click(screen.getByRole("radio", { name: /scheduled/i }));
-    await user.type(screen.getByPlaceholderText(/what should the agent do each time/i), "Summarize today's notes");
-    await user.click(screen.getByRole("button", { name: /^create$/i }));
-
-    expect(await screen.findByText("0 9 * * *")).toBeInTheDocument();
-    expect(screen.getByText(/no live scheduler yet/i)).toBeInTheDocument();
+    await openNewThread(user);
+    expect(screen.getByText("New thread")).toBeInTheDocument();
 
     await user.click(screen.getByLabelText(/back to threads/i));
-    expect(await screen.findByText(/scheduled ·/i)).toBeInTheDocument();
+    expect(await screen.findByText("New thread", { selector: ".thread-row__title" })).toBeInTheDocument();
 
     await user.click(screen.getByTitle(/delete thread/i));
     await user.click(screen.getByRole("button", { name: /^delete$/i }));

@@ -1,27 +1,23 @@
 // The chat drawer — see adapters/acp for the Tauri bridge and
 // src-tauri/src/acp.rs / src-acp for what actually speaks the protocol to a
-// spawned agent process. Manages three kinds of chat threads (lib/types.ts's
-// `ChatThread`): "human" (a person types, the agent replies — the whole of
-// what this drawer used to be), "cron" (runs on a schedule) and "trigger"
-// (fires on a database row insert/update/delete). See `ChatThread`'s doc
-// comment for the current scope: dendroid doesn't run a background
-// scheduler or hook into SQLite's own triggers yet, so cron/trigger threads
-// are created and configured here but only ever actually run via their
-// chat view's manual "Run now" (ThreadChat.tsx).
+// spawned agent process. Manages saved chat threads (lib/types.ts's
+// `ChatThread`) — a person types, the agent replies. Scheduled/data-triggered
+// agent runs are a separate feature (the Automations tab, see
+// `Automation`'s doc comment), not a kind of thread here.
 //
 // This component owns every thread's live state — its saved `ChatThread`
 // list (ux/agent/threads.ts), its streamed timeline, its connection status —
 // and is the sole `onAgentEvent` subscriber for the window, routing each
 // incoming event to the right thread by its `threadId` (see adapters/acp).
-// That's what lets a cron/trigger thread keep streaming in the background
-// while a different thread is the one actually shown. ThreadList.tsx,
-// NewThreadForm.tsx and ThreadChat.tsx are pure presentation over this
-// state; each screen swaps in for the others rather than living side by
-// side, since the drawer is a fixed ~320px column with no room to spare.
+// That's what lets a thread keep streaming in the background while a
+// different thread is the one actually shown. ThreadList.tsx and
+// ThreadChat.tsx are pure presentation over this state; each screen swaps
+// in for the other rather than living side by side, since the drawer is a
+// fixed ~320px column with no room to spare.
 //
-// Connects lazily (the first message sent, or "Run now") rather than the
-// moment a thread's chat view opens, so opening it to look isn't itself an
-// action with a side effect.
+// Connects lazily (the first message sent) rather than the moment a
+// thread's chat view opens, so opening it to look isn't itself an action
+// with a side effect.
 //
 // If Settings' "Local MCP" server is enabled, its URL goes along on
 // connect so the agent can use it as an MCP server. Which of its tools the
@@ -32,12 +28,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAcp } from "../../adapters/acp/context";
 import type { AcpBridgeEvent, AcpPermissionOption } from "../../adapters/acp";
-import { createThread, deleteThread as deleteThreadRecord, listThreads, type NewThreadInput } from "./threads";
+import { createThread, deleteThread as deleteThreadRecord, listThreads } from "./threads";
 import { AGENT_PANEL_WIDTH_MAX, AGENT_PANEL_WIDTH_MIN, type AgentSettings, type ChatThread, type McpSettings } from "../../lib/types";
 import { AgentIcon } from "../../ui/icons";
 import { OverlayPanel } from "../../ui/OverlayPanel";
 import { SidePanelHeader } from "../../ui/SidePanelHeader";
-import { NewThreadForm } from "./NewThreadForm";
 import { ThreadChat } from "./ThreadChat";
 import { ThreadList } from "./ThreadList";
 import { applyUpdate, finalizeStreaming, newTimelineId, type TimelineItem } from "./timelineUpdates";
@@ -79,7 +74,6 @@ export function AgentPanel({ cwd, agentSettings, mcpSettings, open, onClose, wid
   const acp = useAcp();
   const [threads, setThreads] = useState<ChatThread[]>([]);
   const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
-  const [creating, setCreating] = useState(false);
   const [timelines, setTimelines] = useState<Record<string, TimelineItem[]>>({});
   const [connections, setConnections] = useState<Record<string, Connection>>({});
   const [busy, setBusy] = useState<Record<string, boolean>>({});
@@ -128,7 +122,6 @@ export function AgentPanel({ cwd, agentSettings, mcpSettings, open, onClose, wid
   // it's untouched here.
   useEffect(() => {
     setActiveThreadId(null);
-    setCreating(false);
     setTimelines({});
     setConnections({});
     setBusy({});
@@ -136,10 +129,11 @@ export function AgentPanel({ cwd, agentSettings, mcpSettings, open, onClose, wid
 
   const configured = agentSettings.command.trim().length > 0;
 
-  const handleCreateThread = useCallback(async (input: NewThreadInput) => {
-    const thread = await createThread(input);
+  // "New thread" creates and opens a thread in one step — no dialog, no
+  // config to choose first, same as any other chat app's "new chat" button.
+  const handleNewThread = useCallback(async () => {
+    const thread = await createThread();
     setThreads((prev) => [...prev, thread]);
-    setCreating(false);
     setActiveThreadId(thread.id);
   }, []);
 
@@ -215,21 +209,17 @@ export function AgentPanel({ cwd, agentSettings, mcpSettings, open, onClose, wid
       resize={{ width, min: AGENT_PANEL_WIDTH_MIN, max: AGENT_PANEL_WIDTH_MAX, onResize }}
       dim={dim}
       onBackdropClick={onClose}
-      // Escape steps back one screen at a time — out of the new-thread
-      // form, or out of a thread's chat back to the list — and only closes
-      // the whole drawer once there's nowhere left to go back to. Radix's
-      // default (close on Escape) is overridden with this custom
-      // multi-step behavior instead.
+      // Escape steps back one screen at a time — out of a thread's chat
+      // back to the list — and only closes the whole drawer once there's
+      // nowhere left to go back to. Radix's default (close on Escape) is
+      // overridden with this custom multi-step behavior instead.
       onEscapeKeyDown={(e) => {
         e.preventDefault();
-        if (creating) setCreating(false);
-        else if (activeThreadId) setActiveThreadId(null);
+        if (activeThreadId) setActiveThreadId(null);
         else onClose();
       }}
     >
-      {creating ? (
-        <NewThreadForm onCreate={(input) => void handleCreateThread(input)} onCancel={() => setCreating(false)} />
-      ) : activeThread ? (
+      {activeThread ? (
         <ThreadChat
           key={activeThread.id}
           thread={activeThread}
@@ -246,7 +236,7 @@ export function AgentPanel({ cwd, agentSettings, mcpSettings, open, onClose, wid
       ) : (
         <>
           <SidePanelHeader icon={<AgentIcon size={14} />} label="Threads" onClose={onClose} closeLabel="Close agent chat" />
-          <ThreadList threads={threads} onSelect={setActiveThreadId} onNew={() => setCreating(true)} onDelete={(id) => void handleDeleteThread(id)} />
+          <ThreadList threads={threads} onSelect={setActiveThreadId} onNew={() => void handleNewThread()} onDelete={(id) => void handleDeleteThread(id)} />
         </>
       )}
     </OverlayPanel>
