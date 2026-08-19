@@ -41,6 +41,16 @@ export function LogoIcon(props: IconProps) {
   );
 }
 
+export function MenuIcon(props: IconProps) {
+  return (
+    <PixelIcon {...props}>
+      <rect x={3} y={4} width={10} height={1} />
+      <rect x={3} y={8} width={10} height={1} />
+      <rect x={3} y={12} width={10} height={1} />
+    </PixelIcon>
+  );
+}
+
 export function CloseIcon(props: IconProps) {
   return (
     <PixelIcon {...props}>

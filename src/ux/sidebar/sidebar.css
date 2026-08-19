@@ -16,12 +16,20 @@
 /* Nested inside Workspace's <900px `ui/OverlayPanel.tsx` drawer instead of
  * rendered directly as a persistent column — the drawer's own
  * `.overlay-panel` (ui/ui.css) already supplies position/background/
- * border, so this just fills it. */
+ * border, so this just fills it. That drawer is a full-screen mobile modal
+ * (`.overlay-panel--left`, ui.css), so the content pane fills whatever's
+ * left of the screen next to the rail too, rather than the persistent
+ * column's fixed 280px. */
 .sidebar--nested {
   flex: 1;
   min-height: 0;
   border-right: none;
   background: transparent;
+}
+
+.sidebar--nested .sidebar__content {
+  width: auto;
+  flex: 1;
 }
 
 .sidebar__rail {

@@ -1,4 +1,4 @@
-/* Mind map — a graph visualization of the same outline TreeView renders
+/* Graph view — a graph visualization of the same outline TreeView renders
  * (see components/mindmap/MindMapView.tsx). Parent/child structure and
  * `@`-links draw as two differently-colored kinds of arrow; nodes are
  * click-and-drag draggable, and double-clicking one opens it in the editor
