@@ -7,7 +7,6 @@ import { folderNameFromPath } from "../lib/path";
 import { WorkspaceOnboarding } from "./onboarding/WorkspaceOnboarding";
 import { SettingsPage } from "./settings/SettingsPage";
 import { Workspace } from "./workspace/Workspace";
-import { SettingsIcon } from "../ui/icons";
 
 /** Fired by the Rust side (`src-tauri/src/lib.rs`'s `build_menu`) when the
  * native "Settings" menu item is picked. */
@@ -26,8 +25,7 @@ const OPEN_WORKSPACE_EVENT = "menu://open-workspace";
 const OPEN_WORKSPACE_NEW_WINDOW_EVENT = "menu://open-workspace-new-window";
 
 export function Shell() {
-  const { status, workspace, createWorkspace, beginNewWorkspace, cancelNewWorkspace, chromeFaded, chromeTransitionMs } =
-    useAppState();
+  const { status, workspace, createWorkspace, beginNewWorkspace, cancelNewWorkspace } = useAppState();
   const [settingsOpen, setSettingsOpen] = useState(false);
   // Handed up from `Workspace` (a sibling below) once it's opened its own
   // `DendroidDocument`, so `SettingsPage`'s encryption panel can drive the
@@ -106,31 +104,12 @@ export function Shell() {
   return (
     <>
       {rootPath ? (
-        <Workspace rootPath={rootPath} onDocumentReady={setCrdt} />
+        <Workspace rootPath={rootPath} onDocumentReady={setCrdt} onOpenSettings={() => setSettingsOpen(true)} />
       ) : (
         <main className="home">
           <span className="home__loading">This workspace's sync provider isn't supported yet.</span>
         </main>
       )}
-      <button
-        type="button"
-        onClick={() => setSettingsOpen(true)}
-        aria-label="Open settings"
-        className="settings-launcher"
-        style={{
-          // The other persistent piece of chrome outside the editor besides
-          // the tree sidebar (see TreeView's `faded` prop) — whitepaper.md's
-          // "other UI elements outside the Editor fade out" means this too,
-          // not just the tree. Faded via AppState's `chromeFaded` rather
-          // than a `Workspace`-local hook since this button lives in Shell,
-          // a sibling of `Workspace`, not inside it.
-          opacity: chromeFaded ? 0 : 1,
-          pointerEvents: chromeFaded ? "none" : "auto",
-          transition: `opacity ${chromeTransitionMs}ms cubic-bezier(0.2, 0, 0, 1)`,
-        }}
-      >
-        <SettingsIcon size={16} />
-      </button>
       {settingsOpen && <SettingsPage onClose={() => setSettingsOpen(false)} crdt={crdt} />}
     </>
   );

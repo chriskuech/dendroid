@@ -40,9 +40,13 @@ interface WorkspaceProps {
    * disposing it, this is just a way to share the reference. Called with
    * `null` on unmount/rootPath change. */
   onDocumentReady?: (crdt: DendroidDocument | null) => void;
+  /** Opens `Shell`'s `SettingsPage` — `Shell` still owns the open/close
+   * state (and the encryption panel's `crdt` handoff above), this is just
+   * the trigger, threaded down to `Sidebar`'s rail button. */
+  onOpenSettings: () => void;
 }
 
-export function Workspace({ rootPath, onDocumentReady }: WorkspaceProps) {
+export function Workspace({ rootPath, onDocumentReady, onOpenSettings }: WorkspaceProps) {
   const { workspace, settings, isNarrow, setEditorFocused, chromeFaded, chromeTransitionMs, updateSettings } = useAppState();
   const db = useDb();
   const mcp = useMcp();
@@ -298,6 +302,7 @@ export function Workspace({ rootPath, onDocumentReady }: WorkspaceProps) {
           onViewChange={setSidebarView}
           selectedDatabaseId={selectedDatabaseId}
           onSelectDatabase={setSelectedDatabaseId}
+          onOpenSettings={onOpenSettings}
           faded={chromeFaded}
           transitionMs={chromeTransitionMs}
           width={settings.sidebarWidth}
@@ -345,6 +350,10 @@ export function Workspace({ rootPath, onDocumentReady }: WorkspaceProps) {
             onViewChange={setSidebarView}
             selectedDatabaseId={selectedDatabaseId}
             onSelectDatabase={setSelectedDatabaseId}
+            onOpenSettings={() => {
+              setDrawerOpen(false);
+              onOpenSettings();
+            }}
             onClose={() => setDrawerOpen(false)}
           />
         </OverlayPanel>

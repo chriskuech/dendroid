@@ -99,20 +99,26 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Cached rather than a plain `apt-get install`: the raw install can
+      # take anywhere from ~20s to several minutes depending on how the
+      # Ubuntu mirror is behaving that run. This caches the downloaded
+      # .debs so a hit skips the mirror entirely.
       - name: Install Linux system dependencies
         if: matrix.platform == 'ubuntu-24.04'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            libwebkit2gtk-4.1-dev \
-            libappindicator3-dev \
-            librsvg2-dev \
-            libxdo-dev \
-            libssl-dev \
-            patchelf \
-            build-essential \
-            file \
+        uses: awalsh128/cache-apt-pkgs-action@v1
+        with:
+          packages: >-
+            libwebkit2gtk-4.1-dev
+            libappindicator3-dev
+            librsvg2-dev
+            libxdo-dev
+            libssl-dev
+            patchelf
+            build-essential
+            file
             wget
+          version: 1.0
+          execute_install_scripts: true
 
       - uses: dtolnay/rust-toolchain@stable
         with:
