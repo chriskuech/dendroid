@@ -71,12 +71,14 @@ describe("TreeView — headings", () => {
     expect(onSelectHeading).not.toHaveBeenCalled();
   });
 
-  it("clicking a heading row (not its chevron) selects it", async () => {
+  it("clicking a heading row (not its chevron) reroots it, not selects it", async () => {
     const user = userEvent.setup();
+    const onReroot = vi.fn();
     const onSelectHeading = vi.fn();
-    render(<TreeView {...baseProps({ entries: [heading("a", 0, "Alpha")], onSelectHeading })} />);
+    render(<TreeView {...baseProps({ entries: [heading("a", 0, "Alpha")], onReroot, onSelectHeading })} />);
     await user.click(screen.getByText("Alpha"));
-    expect(onSelectHeading).toHaveBeenCalledWith("a");
+    expect(onReroot).toHaveBeenCalledWith("a");
+    expect(onSelectHeading).not.toHaveBeenCalled();
   });
 
   it("a leafless heading gets no chevron icon (nothing to fold)", () => {
@@ -84,14 +86,22 @@ describe("TreeView — headings", () => {
     expect(document.querySelector(".tree-row__chevron--empty")).toBeInTheDocument();
   });
 
-  it("clicking reroot boxes the heading's own group and calls onReroot", async () => {
+  it("marks the current root's row, not its descendants or siblings", () => {
+    const entries = [heading("a", 0, "Alpha"), heading("a1", 1, "Child"), heading("b", 0, "Beta")];
+    render(<TreeView {...baseProps({ entries, rootId: "a" })} />);
+    const rows = document.querySelectorAll(".tree-row");
+    expect(rows[0]).toHaveClass("tree-row--is-root");
+    expect(rows[1]).not.toHaveClass("tree-row--is-root");
+    expect(rows[2]).not.toHaveClass("tree-row--is-root");
+  });
+
+  it("clicking a descendant of the current root reroots to it, same as any other row", async () => {
     const user = userEvent.setup();
     const onReroot = vi.fn();
-    const entries = [heading("a", 0, "Alpha"), heading("a1", 1, "Child"), heading("b", 0, "Beta")];
-    render(<TreeView {...baseProps({ entries, onReroot })} />);
-
-    await user.click(document.querySelector(".tree-row__reroot")!);
-    expect(onReroot).toHaveBeenCalledWith("a");
+    const entries = [heading("a", 0, "Alpha"), heading("a1", 1, "Child")];
+    render(<TreeView {...baseProps({ entries, rootId: "a", onReroot })} />);
+    await user.click(screen.getByText("Child"));
+    expect(onReroot).toHaveBeenCalledWith("a1");
   });
 
   it("resolves heading levels relative to the current root", () => {

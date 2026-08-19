@@ -1,13 +1,9 @@
-// The fixed-position, edge-anchored sliding drawer — the actual shared
-// shell behind both the right AgentPanel (always an overlay) and the left
-// Sidebar's <900px drawer (Workspace.tsx). These used to each hand-roll
-// their own Dialog/backdrop/positioning/motion — a translateX slide with a
-// flat rgba backdrop on the agent side, a blur/opacity "deblur" with a
-// blur-only backdrop on the tree side — and kept drifting apart (most
-// recently: only the agent side had a box-shadow). Routing both through one
-// component makes that class of drift structurally impossible instead of
-// just currently-fixed: border, background, backdrop, and motion are all
-// defined once, in `.overlay-panel*` (ui.css), not per caller.
+// The fixed-position, edge-anchored sliding drawer — the shared shell
+// behind the right AgentPanel (always an overlay). Border, background,
+// backdrop, and motion are all defined once, in `.overlay-panel*` (ui.css),
+// rather than each caller hand-rolling its own. `side` still supports
+// either edge — AgentPanel is the only current caller (`side="right"`), but
+// nothing here is specific to it.
 //
 // `modal={false}` + `forceMount` on both Overlay and Content: this drawer
 // needs to animate all the way out on close rather than vanishing the
@@ -37,14 +33,14 @@ interface OverlayPanelProps {
   onOpenChange: (open: boolean) => void;
   /** Screen-reader-only dialog title (Radix requires one). */
   title: string;
-  /** Only the agent drawer sets this (clamped to the viewport); the tree
-   * drawer sizes itself from its rail + content children instead. Ignored
-   * when `resize` is given — that drives the width instead. */
+  /** Clamped to the viewport; omit to size the drawer from its own content
+   * instead of a fixed width. Ignored when `resize` is given — that drives
+   * the width instead. */
   widthPx?: number;
   /** Opts this drawer into a drag-to-resize handle on its inner edge (the
    * edge facing the rest of the page — left edge for a `side="right"`
    * drawer, right edge for `side="left"`). Only the agent drawer passes
-   * this currently; the tree drawer stays fixed-to-content. */
+   * this currently. */
   resize?: OverlayPanelResize;
   onBackdropClick?: () => void;
   onEscapeKeyDown?: React.ComponentProps<typeof DialogContent>["onEscapeKeyDown"];

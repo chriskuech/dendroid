@@ -13,17 +13,6 @@
   overflow: hidden;
 }
 
-/* Nested inside Workspace's <900px `ui/OverlayPanel.tsx` drawer instead of
- * rendered directly as a persistent column — the drawer's own
- * `.overlay-panel` (ui/ui.css) already supplies position/background/
- * border, so this just fills it. */
-.sidebar--nested {
-  flex: 1;
-  min-height: 0;
-  border-right: none;
-  background: transparent;
-}
-
 .sidebar__rail {
   width: 32px;
   flex: none;
@@ -52,7 +41,7 @@
   color: var(--text);
 }
 
-/* Same "always show current state" convention as `.tree-row__reroot.is-root`
+/* Same "always show current state" convention as `.tree-row--is-root`
  * — the active tab stays accent-colored without needing to be hovered. */
 .sidebar__rail-btn.is-active {
   color: var(--accent);
@@ -90,22 +79,10 @@
   flex: 1;
 }
 
-/* Button styling itself is `.side-panel__icon-btn` (ui/ui.css, same as
- * every other close/back button in the app) — this only adds the
- * positioning that's unique to floating over whichever content view is
- * currently showing, rather than sitting in a header row. */
-.sidebar__close {
-  position: absolute;
-  top: 14px;
-  right: 14px;
-}
-
-/* Drag-to-resize handle on the persistent sidebar's right edge — only
- * rendered when Sidebar.tsx gets both `width`/`onResize` (see its doc
- * comment; the <900px drawer variant omits both and stays fixed-to-content).
- * `.sidebar` clips overflow (above), so unlike `.overlay-panel__resize-handle`
- * (ui/ui.css) this stays flush inside the right edge rather than straddling
- * it with a negative offset. */
+/* Drag-to-resize handle on the sidebar's right edge (see Sidebar.tsx's
+ * `width`/`onResize` props). `.sidebar` clips overflow (above), so unlike
+ * `.overlay-panel__resize-handle` (ui/ui.css) this stays flush inside the
+ * right edge rather than straddling it with a negative offset. */
 .sidebar__resize-handle {
   position: absolute;
   top: 0;

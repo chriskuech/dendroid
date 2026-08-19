@@ -29,6 +29,8 @@ function baseProps(overrides: Partial<React.ComponentProps<typeof Sidebar>> = {}
     selectedDatabaseId: null,
     onSelectDatabase: vi.fn(),
     onOpenSettings: vi.fn(),
+    width: 280,
+    onResize: vi.fn(),
     ...overrides,
   };
 }
@@ -114,20 +116,6 @@ describe("Sidebar", () => {
     expect(onOpenSettings).toHaveBeenCalled();
   });
 
-  it("renders a close button only when onClose is given", () => {
-    const { rerender } = render(<Sidebar {...baseProps()} />);
-    expect(screen.queryByLabelText(/close sidebar/i)).not.toBeInTheDocument();
-
-    const onClose = vi.fn();
-    rerender(<Sidebar {...baseProps({ onClose })} />);
-    expect(screen.getByLabelText(/close sidebar/i)).toBeInTheDocument();
-  });
-
-  it("renders no resize handle without both width and onResize (e.g. the <900px drawer)", () => {
-    render(<Sidebar {...baseProps()} />);
-    expect(screen.queryByLabelText(/resize sidebar/i)).not.toBeInTheDocument();
-  });
-
   it("dragging the resize handle grows the content column live and commits the final width on release", () => {
     const onResize = vi.fn();
     render(<Sidebar {...baseProps({ width: 280, onResize })} />);
@@ -154,27 +142,7 @@ describe("Sidebar", () => {
     expect(onResize).toHaveBeenCalledWith(220);
   });
 
-  it("clicking the active rail icon in the nested (drawer) variant closes the drawer instead of re-selecting it", async () => {
-    const user = userEvent.setup();
-    const onViewChange = vi.fn();
-    const onClose = vi.fn();
-    render(<Sidebar {...baseProps({ view: "tree", onViewChange, onClose })} />);
-    await user.click(screen.getByRole("tab", { name: /^tree$/i }));
-    expect(onClose).toHaveBeenCalledTimes(1);
-    expect(onViewChange).not.toHaveBeenCalled();
-  });
-
-  it("clicking an inactive rail icon in the nested (drawer) variant still just switches views", async () => {
-    const user = userEvent.setup();
-    const onViewChange = vi.fn();
-    const onClose = vi.fn();
-    render(<Sidebar {...baseProps({ view: "tree", onViewChange, onClose })} />);
-    await user.click(screen.getByRole("tab", { name: /mind map/i }));
-    expect(onViewChange).toHaveBeenCalledWith("mindmap");
-    expect(onClose).not.toHaveBeenCalled();
-  });
-
-  it("clicking the active rail icon in the persistent (non-drawer) variant is a no-op select, not a close", async () => {
+  it("clicking the active rail icon is a no-op select", async () => {
     const user = userEvent.setup();
     const onViewChange = vi.fn();
     render(<Sidebar {...baseProps({ view: "tree", onViewChange })} />);

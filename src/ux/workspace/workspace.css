@@ -8,47 +8,6 @@
   height: 100vh;
 }
 
-/* <900px: the tree stops sitting beside the editor and becomes a
- * full-screen drawer over it (`ui/OverlayPanel.tsx`, portaled to
- * `document.body` and positioned against the viewport, not this element)
- * — the shell just switches from a row (sidebar | editor) to a column
- * (topbar above editor). */
-.workspace--narrow {
-  flex-direction: column;
-}
-
-.workspace__topbar {
-  height: 48px;
-  flex: none;
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 0 20px;
-}
-
-.workspace__hamburger {
-  display: flex;
-  padding: 0;
-  background: transparent;
-  border: none;
-  color: var(--text-2);
-  cursor: pointer;
-}
-
-.workspace__hamburger:hover {
-  color: var(--text);
-}
-
-.workspace__breadcrumb {
-  font-size: 10px;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--line-strong);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .workspace__status {
   flex: 1;
   display: flex;
@@ -75,10 +34,14 @@
  * TreeView's root div carries both classes. Only what's specific to this
  * view's rows lives here. */
 
+/* Boxes the whole tree, not just whatever's currently rooted (a click on
+ * any row reroots the editor to it — see TreeView.tsx — so there's no
+ * separate "set root" affordance left to box on its own). */
 .tree-view__rows {
   flex: 1;
   overflow-y: auto;
   padding: 10px 0;
+  border: 1px solid var(--line-strong);
 }
 
 .tree-row {
@@ -143,54 +106,12 @@
   flex: none;
 }
 
-.tree-row__reroot {
-  flex: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--line-strong);
-  cursor: pointer;
-  opacity: 0;
-  transition:
-    opacity 0.12s ease,
-    color 0.12s ease;
-}
-
-.tree-row:hover .tree-row__reroot {
-  opacity: 1;
-}
-
-.tree-row__reroot:hover {
-  color: var(--text-2);
-}
-
-/* The current root's own toggle stays accent-colored and visible even
- * without hovering — same "always show current state" call as
- * `.tree-row__chevron.is-expanded`, and one of the few places this system
- * spends its accent color (see comp/Dendroid Design System.dc.html
- * section 03). */
-.tree-row__reroot.is-root {
-  opacity: 1;
+/* The current root's row stays accent-colored even without hovering — same
+ * "always show current state" call as `.tree-row__chevron.is-expanded`,
+ * and one of the few places this system spends its accent color (see
+ * comp/Dendroid Design System.dc.html section 03). */
+.tree-row--is-root .tree-row__title {
   color: var(--accent);
-}
-
-/* Boxes the root row together with whatever visible descendant rows
- * follow it (see `rootGroupRange` in TreeView.tsx) — left/right border on
- * every row in the group, top/bottom only on the first/last, so adjacent
- * rows read as one continuous rectangle rather than each getting its own
- * box. A lone root with no visible children is both first and last, which
- * closes the box on all four sides same as before. */
-.tree-row--root-group {
-  border-left: 1px solid var(--accent);
-  border-right: 1px solid var(--accent);
-}
-
-.tree-row--root-group-first {
-  border-top: 1px solid var(--accent);
-}
-
-.tree-row--root-group-last {
-  border-bottom: 1px solid var(--accent);
 }
 
 .tree-view__empty {
@@ -391,7 +312,7 @@
 
 /* The current root's own toggle stays visible and accent-colored even
  * without hovering — same convention as `.heading-fold-toggle.is-collapsed`
- * and the tree view's boxed root row. */
+ * and the tree view's `.tree-row--is-root`. */
 .heading-reroot-toggle.is-root {
   opacity: 1;
   border-color: var(--accent);
