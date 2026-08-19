@@ -1,25 +1,16 @@
 /* The sidebar's Automations tab — components/automations/*. Mirrors
  * database.css's list/row shapes (see DatabaseListView.tsx's own comment
  * for why every sidebar-shaped list in dendroid reads the same) plus
- * agent.css's thread-form/thread-chat conventions for the add/edit forms
+ * agent.css's thread-form/thread-chat conventions for the add/edit form
  * and read-only run transcript, since those are the closest existing
- * analogues (a cron/trigger thread's config form, a chat timeline). */
+ * analogues (a cron/trigger thread's config form, a chat timeline). Skills
+ * have their own analogous stylesheet (ux/skills/skills.css). */
 
 /* Root shape + header are `.side-panel`/`.side-panel__header` (ui/ui.css) —
  * the root div carries both classes. `min-height: 0` on top since this is
  * the one panel with a nested flex scroll area below its header. */
 .automation-view {
   min-height: 0;
-}
-
-.automation-view__tabs {
-  flex: none;
-  padding: 10px 14px;
-  border-bottom: 1px solid var(--line);
-}
-
-.automation-view__tabs .segmented {
-  width: 100%;
 }
 
 .automation-view__body {
@@ -41,7 +32,7 @@
   color: var(--danger);
 }
 
-/* --- Skill/Trigger lists (SkillList.tsx, AutomationList.tsx) --- */
+/* --- Trigger list (AutomationList.tsx) --- */
 
 .automation-list {
   flex: 1;
@@ -141,7 +132,7 @@
   color: var(--danger);
 }
 
-/* --- Skill/Automation forms (SkillForm.tsx, AutomationForm.tsx) --- */
+/* --- Automation form (AutomationForm.tsx) --- */
 
 .automation-form {
   display: flex;

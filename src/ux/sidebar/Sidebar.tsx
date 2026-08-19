@@ -37,10 +37,11 @@ import { HistoryView } from "../history/HistoryView";
 import { DatabaseHistoryView } from "../history/DatabaseHistoryView";
 import { DatabaseListView } from "../database/DatabaseListView";
 import { AutomationsView } from "../automations/AutomationsView";
-import { AutomationIcon, CloseIcon, DatabaseIcon, GraphIcon, HistoryIcon, LogoIcon, SettingsIcon } from "../../ui/icons";
+import { SkillsView } from "../skills/SkillsView";
+import { AutomationIcon, CloseIcon, DatabaseIcon, GraphIcon, HistoryIcon, LogoIcon, SettingsIcon, SkillIcon } from "../../ui/icons";
 import "./sidebar.css";
 
-export type SidebarView = "tree" | "mindmap" | "history" | "database" | "automation";
+export type SidebarView = "tree" | "mindmap" | "history" | "database" | "automation" | "skills";
 
 interface SidebarProps {
   view: SidebarView;
@@ -227,6 +228,16 @@ export function Sidebar({
         </button>
         <button
           type="button"
+          role="tab"
+          className={`sidebar__rail-btn${view === "skills" ? " is-active" : ""}`}
+          aria-label="Skills"
+          aria-selected={view === "skills"}
+          onClick={() => handleRailClick("skills")}
+        >
+          <SkillIcon size={16} />
+        </button>
+        <button
+          type="button"
           className="sidebar__rail-btn sidebar__rail-btn--settings"
           aria-label="Open settings"
           onClick={onOpenSettings}
@@ -257,6 +268,8 @@ export function Sidebar({
             <DatabaseListView selectedId={selectedDatabaseId} onSelect={onSelectDatabase} />
           ) : view === "automation" ? (
             <AutomationsView />
+          ) : view === "skills" ? (
+            <SkillsView />
           ) : selectedDatabaseId ? (
             <DatabaseHistoryView databaseId={selectedDatabaseId} />
           ) : crdt ? (

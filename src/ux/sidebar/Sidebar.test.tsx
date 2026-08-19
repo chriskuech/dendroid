@@ -94,6 +94,20 @@ describe("Sidebar", () => {
     expect(document.querySelector(".tree-view")).not.toBeInTheDocument();
   });
 
+  it("clicking the skills rail button switches to the skills view", async () => {
+    const user = userEvent.setup();
+    const onViewChange = vi.fn();
+    render(<Sidebar {...baseProps({ onViewChange })} />);
+    await user.click(screen.getByRole("tab", { name: /^skills$/i }));
+    expect(onViewChange).toHaveBeenCalledWith("skills");
+  });
+
+  it("shows the skills view when view is 'skills'", () => {
+    render(<Sidebar {...baseProps({ view: "skills" })} />);
+    expect(document.querySelector(".skill-view")).toBeInTheDocument();
+    expect(document.querySelector(".tree-view")).not.toBeInTheDocument();
+  });
+
   it("shows the database's own history instead of the tree's once a database is selected", () => {
     render(<Sidebar {...baseProps({ view: "history", selectedDatabaseId: "db-1" })} />);
     expect(document.querySelector(".history-view")).toBeInTheDocument();

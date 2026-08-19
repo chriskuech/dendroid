@@ -33,8 +33,8 @@ export function SkillForm({ skill, onSave, onCancel }: SkillFormProps) {
   }
 
   return (
-    <div className="automation-form">
-      <div className="automation-form__body">
+    <div className="skill-form">
+      <div className="skill-form__body">
         <div className="field">
           <span className="field__label">Name</span>
           <input className="field-input" value={name} onChange={(e) => setName(e.target.value)} placeholder="New skill" autoFocus />

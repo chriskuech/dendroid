@@ -379,9 +379,9 @@ export function AutomationIcon(props: IconProps) {
   );
 }
 
-/** A four-pointed sparkle — the Automations tab's "Skills" section and its
- * rows (`ux/automations/SkillList.tsx`): a saved, reusable prompt,
- * the same "spark of capability" shorthand a sparkle/magic-wand glyph
+/** A four-pointed sparkle — the Skills tab's rail icon and its rows
+ * (`ux/skills/SkillsView.tsx`, `ux/skills/SkillList.tsx`): a saved, reusable
+ * prompt, the same "spark of capability" shorthand a sparkle/magic-wand glyph
  * conventionally stands for elsewhere. Built from the same blocky rects
  * `DatabaseIcon`/`EncryptionIcon` use rather than 1px diagonals, since a
  * sparkle's points are themselves small filled squares, not lines. */

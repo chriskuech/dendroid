@@ -29,7 +29,7 @@ export interface SettingsStoreAdapter {
   saveThreads(threads: ChatThread[]): Promise<void>;
 
   /** The full list of saved skills (`lib/types.ts`'s `Skill`) — see
-   * `ux/automations/skills.ts` for the CRUD built on top of this. Same
+   * `ux/skills/skills.ts` for the CRUD built on top of this. Same
    * "one flat list, not workspace-scoped" simplification `loadThreads`/
    * `saveThreads` already make. Defaults to `[]`, same reasoning as
    * `loadThreads`. */

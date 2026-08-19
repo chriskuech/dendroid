@@ -1,49 +1,47 @@
 // The sidebar's Automations tab — mirrors DatabaseListView.tsx's shape
 // (header + scrollable content, with a <900px drawer variant) but with its
 // own small internal screen stack instead of a flat list, since this tab
-// has two sections (Skills/Triggers) plus per-trigger drill-down (its runs,
-// then one run's chat) rather than one flat list of selectable rows.
+// has per-trigger drill-down (its runs, then one run's chat) rather than
+// one flat list of selectable rows.
 //
-//   list (Skills | Triggers, via the Segmented tabs)
-//     |-- skillForm      -- add/edit a Skill
+//   list (Triggers)
 //     |-- automationForm -- add/edit a Automation ("trigger")
 //     `-- runs           -- one automation's fire history
 //           `-- run      -- one run's read-only transcript
+//
+// Skills used to live here too, as a Segmented "Skills" section alongside
+// Triggers — they now have their own rail tab (see ux/skills/SkillsView.tsx),
+// since a skill is reusable across triggers rather than owned by any one of
+// them. This view still loads the skill list, though: a trigger's row
+// subtitle names the skill it runs, and AutomationForm's picker needs the
+// full list to choose from.
 
 import { useCallback, useEffect, useState } from "react";
 import { createAutomation, deleteAutomation, listAutomations, setAutomationEnabled, updateAutomation } from "./automations";
-import { createSkill, deleteSkill, listSkills, updateSkill } from "./skills";
+import { listSkills } from "../skills/skills";
 import type { Automation, Skill } from "../../lib/types";
 import { AutomationIcon, BackIcon } from "../../ui/icons";
-import { Segmented } from "../../ui/Segmented";
 import { SidePanelHeader } from "../../ui/SidePanelHeader";
 import { AutomationForm } from "./AutomationForm";
 import { AutomationList } from "./AutomationList";
 import { AutomationRunChat } from "./AutomationRunChat";
 import { AutomationRunsView } from "./AutomationRunsView";
-import { SkillForm } from "./SkillForm";
-import { SkillList } from "./SkillList";
 import "./automations.css";
-
-type Section = "triggers" | "skills";
 
 type Screen =
   | { kind: "list" }
-  | { kind: "skillForm"; skill: Skill | null }
   | { kind: "automationForm"; automation: Automation | null }
   | { kind: "runs"; automation: Automation }
   | { kind: "run"; automation: Automation; runId: string };
 
 function screenTitle(screen: Screen): string {
   if (screen.kind === "list") return "Automations";
-  if (screen.kind === "skillForm") return screen.skill ? "Edit skill" : "New skill";
   if (screen.kind === "automationForm") return screen.automation ? "Edit trigger" : "New trigger";
   if (screen.kind === "runs") return screen.automation.name;
   return "Run";
 }
 
 export function AutomationsView() {
-  const [section, setSection] = useState<Section>("triggers");
   const [screen, setScreen] = useState<Screen>({ kind: "list" });
   const [skills, setSkills] = useState<Skill[]>([]);
   const [automations, setAutomations] = useState<Automation[]>([]);
@@ -85,54 +83,20 @@ export function AutomationsView() {
         label={screenTitle(screen)}
       />
 
-      {screen.kind === "list" && (
-        <div className="automation-view__tabs">
-          <Segmented
-            value={section}
-            onChange={setSection}
-            options={[
-              { value: "triggers", label: "Triggers" },
-              { value: "skills", label: "Skills" },
-            ]}
-          />
-        </div>
-      )}
-
       <div className="automation-view__body">
         {loading ? (
           <div className="automation-view__status">Loading…</div>
         ) : error ? (
           <div className="automation-view__status automation-view__status--error">{error}</div>
         ) : screen.kind === "list" ? (
-          section === "skills" ? (
-            <SkillList
-              skills={skills}
-              onNew={() => setScreen({ kind: "skillForm", skill: null })}
-              onEdit={(skill) => setScreen({ kind: "skillForm", skill })}
-              onDelete={(id) => void deleteSkill(id).then(refresh)}
-            />
-          ) : (
-            <AutomationList
-              automations={automations}
-              skills={skills}
-              onNew={() => setScreen({ kind: "automationForm", automation: null })}
-              onEdit={(automation) => setScreen({ kind: "automationForm", automation })}
-              onOpenRuns={(automation) => setScreen({ kind: "runs", automation })}
-              onDelete={(id) => void deleteAutomation(id).then(refresh)}
-              onToggleEnabled={(automation, enabled) => void setAutomationEnabled(automation.id, enabled).then(refresh)}
-            />
-          )
-        ) : screen.kind === "skillForm" ? (
-          <SkillForm
-            skill={screen.skill}
-            onSave={async (input) => {
-              if (screen.skill) await updateSkill(screen.skill.id, input);
-              else await createSkill(input);
-              await refresh();
-              setSection("skills");
-              setScreen({ kind: "list" });
-            }}
-            onCancel={() => setScreen({ kind: "list" })}
+          <AutomationList
+            automations={automations}
+            skills={skills}
+            onNew={() => setScreen({ kind: "automationForm", automation: null })}
+            onEdit={(automation) => setScreen({ kind: "automationForm", automation })}
+            onOpenRuns={(automation) => setScreen({ kind: "runs", automation })}
+            onDelete={(id) => void deleteAutomation(id).then(refresh)}
+            onToggleEnabled={(automation, enabled) => void setAutomationEnabled(automation.id, enabled).then(refresh)}
           />
         ) : screen.kind === "automationForm" ? (
           <AutomationForm
@@ -142,7 +106,6 @@ export function AutomationsView() {
               if (screen.automation) await updateAutomation(screen.automation.id, input);
               else await createAutomation(input);
               await refresh();
-              setSection("triggers");
               setScreen({ kind: "list" });
             }}
             onCancel={() => setScreen({ kind: "list" })}
