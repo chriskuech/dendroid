@@ -17,6 +17,24 @@ describe("OverlayPanel", () => {
     expect(screen.queryByRole("separator")).not.toBeInTheDocument();
   });
 
+  it("renders the dimming backdrop by default", () => {
+    render(
+      <OverlayPanel side="right" open onOpenChange={vi.fn()} title="Agent chat">
+        <div>content</div>
+      </OverlayPanel>,
+    );
+    expect(document.querySelector(".overlay-panel__backdrop")).toBeInTheDocument();
+  });
+
+  it("skips the dimming backdrop when `dim` is false, so the rest of the page stays interactive", () => {
+    render(
+      <OverlayPanel side="right" open onOpenChange={vi.fn()} title="Agent chat" dim={false}>
+        <div>content</div>
+      </OverlayPanel>,
+    );
+    expect(document.querySelector(".overlay-panel__backdrop")).not.toBeInTheDocument();
+  });
+
   it("dragging a right-anchored drawer's handle left grows it, and commits on release", () => {
     const onResize = vi.fn();
     render(
