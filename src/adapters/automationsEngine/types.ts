@@ -1,7 +1,7 @@
 // Bridges the Automations tab (ux/automations/*) to the Rust-side
 // background engine (src-tauri/src/automation.rs) that actually fires cron
 // schedules and watches for database row changes — see that module's doc
-// comment for the engine itself. ux/automations/skills.ts and
+// comment for the engine itself. ux/skills/skills.ts and
 // ux/automations/automations.ts call `syncAutomationsEngine` after every
 // mutation so the engine's own copy never drifts from what's on screen;
 // `Workspace.tsx` calls `setAutomationsCwd` whenever the open workspace (or

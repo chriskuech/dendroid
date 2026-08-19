@@ -1,4 +1,4 @@
-// The Automations tab's "Triggers" section — mirrors SkillList.tsx's shape,
+// The Automations tab's row list — mirrors ux/skills/SkillList.tsx's shape,
 // but a row's click drills into that automation's runs ("the ACP chats
 // initiated by the trigger") rather than opening it for editing straight
 // away, since that's the more common thing to want out of an existing

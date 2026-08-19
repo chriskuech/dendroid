@@ -1,8 +1,8 @@
 // CRUD for the persisted automation list (lib/types.ts's `Automation`),
 // backed by the same Tauri store settingsStore.ts uses for `ChatThread`/
-// `Skill` — mirrors ux/agent/threads.ts's/ux/automations/skills.ts's shape. Every mutation
+// `Skill` — mirrors ux/agent/threads.ts's/ux/skills/skills.ts's shape. Every mutation
 // re-syncs the automation engine afterward (`syncAutomationsEngine`), same
-// reasoning as ux/automations/skills.ts's own mutate helper.
+// reasoning as ux/skills/skills.ts's own mutate helper.
 
 import { adapter as settingsStore } from "../../adapters/settingsStore";
 import type { Automation, AutomationDataTrigger, CronSchedule } from "../../lib/types";

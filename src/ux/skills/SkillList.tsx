@@ -1,7 +1,7 @@
-// The Automations tab's "Skills" section — mirrors ThreadList.tsx's shape
-// (rows + a "+ New" footer button + a delete confirmation), but a row's own
-// click opens it for *editing* rather than a chat: a skill has no ACP
-// session of its own, unlike a thread or an automation's runs.
+// The Skills tab's row list — mirrors ThreadList.tsx's shape (rows + a "+
+// New" footer button + a delete confirmation), but a row's own click opens
+// it for *editing* rather than a chat: a skill has no ACP session of its
+// own, unlike a thread or an automation's runs.
 
 import { useState } from "react";
 import type { Skill } from "../../lib/types";
@@ -19,24 +19,24 @@ export function SkillList({ skills, onNew, onEdit, onDelete }: SkillListProps) {
   const [pendingDelete, setPendingDelete] = useState<Skill | null>(null);
 
   return (
-    <div className="automation-list">
-      <div className="automation-list__rows">
+    <div className="skill-list">
+      <div className="skill-list__rows">
         {skills.length === 0 ? (
-          <div className="automation-view__status">
+          <div className="skill-view__status">
             No skills yet.
             <br />
             A skill is a reusable prompt a trigger runs each time it fires.
           </div>
         ) : (
           skills.map((skill) => (
-            <div key={skill.id} className="automation-row" onClick={() => onEdit(skill)}>
+            <div key={skill.id} className="skill-row" onClick={() => onEdit(skill)}>
               <SkillIcon size={13} />
-              <div className="automation-row__body">
-                <span className="automation-row__title">{skill.name}</span>
-                <span className="automation-row__sub">{skill.description || "No description"}</span>
+              <div className="skill-row__body">
+                <span className="skill-row__title">{skill.name}</span>
+                <span className="skill-row__sub">{skill.description || "No description"}</span>
               </div>
               <span
-                className="automation-row__delete"
+                className="skill-row__delete"
                 title="Delete skill"
                 onClick={(event) => {
                   event.stopPropagation();
@@ -49,8 +49,8 @@ export function SkillList({ skills, onNew, onEdit, onDelete }: SkillListProps) {
           ))
         )}
       </div>
-      <div className="automation-list__new">
-        <button type="button" className="btn btn--primary automation-list__new-btn" onClick={onNew}>
+      <div className="skill-list__new">
+        <button type="button" className="btn btn--primary skill-list__new-btn" onClick={onNew}>
           <IncrementIcon size={12} />
           New skill
         </button>
