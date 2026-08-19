@@ -78,3 +78,23 @@
   width: auto;
   flex: 1;
 }
+
+/* Drag-to-resize handle on the sidebar's right edge (see Sidebar.tsx's
+ * `width`/`onResize` props). `.sidebar` clips overflow (above), so unlike
+ * `.overlay-panel__resize-handle` (ui/ui.css) this stays flush inside the
+ * right edge rather than straddling it with a negative offset. */
+.sidebar__resize-handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 0;
+  width: 6px;
+  cursor: col-resize;
+  touch-action: none;
+  z-index: 1;
+}
+
+.sidebar__resize-handle:hover,
+.sidebar__resize-handle:active {
+  background: linear-gradient(to right, transparent 2px, var(--accent) 2px, var(--accent) 3px, transparent 3px);
+}

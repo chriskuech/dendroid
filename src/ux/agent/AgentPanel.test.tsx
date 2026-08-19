@@ -81,14 +81,14 @@ async function openNewHumanThread(user: ReturnType<typeof userEvent.setup>) {
 
 describe("AgentPanel", () => {
   it("lands on an empty thread list with no threads yet", async () => {
-    render(<AgentPanel cwd="/tmp/ws" agentSettings={agentSettings} mcpSettings={mcpSettings} open onClose={vi.fn()} />);
+    render(<AgentPanel cwd="/tmp/ws" agentSettings={agentSettings} mcpSettings={mcpSettings} open onClose={vi.fn()} width={320} onResize={vi.fn()} />);
     expect(await screen.findByText(/no chat threads yet/i)).toBeInTheDocument();
   });
 
   it("shows a configure prompt instead of the composer when no command is set", async () => {
     const user = userEvent.setup();
     render(
-      <AgentPanel cwd="/tmp/ws" agentSettings={{ provider: "none", command: "", args: "" }} mcpSettings={mcpSettings} open onClose={vi.fn()} />,
+      <AgentPanel cwd="/tmp/ws" agentSettings={{ provider: "none", command: "", args: "" }} mcpSettings={mcpSettings} open onClose={vi.fn()} width={320} onResize={vi.fn()} />,
     );
     await user.click(await screen.findByRole("button", { name: /new thread/i }));
     await user.click(screen.getByRole("button", { name: /^create$/i }));
@@ -102,7 +102,7 @@ describe("AgentPanel", () => {
     vi.mocked(acp.adapter.sendPrompt).mockResolvedValue({ stopReason: "end_turn" });
     const user = userEvent.setup();
 
-    render(<AgentPanel cwd="/tmp/ws" agentSettings={agentSettings} mcpSettings={mcpSettings} open onClose={vi.fn()} />);
+    render(<AgentPanel cwd="/tmp/ws" agentSettings={agentSettings} mcpSettings={mcpSettings} open onClose={vi.fn()} width={320} onResize={vi.fn()} />);
     await openNewHumanThread(user);
     await user.type(screen.getByPlaceholderText(/message the agent/i), "hello there{enter}");
 
@@ -117,7 +117,7 @@ describe("AgentPanel", () => {
     const user = userEvent.setup();
     const mcpEnabled: McpSettings = { enabled: true, host: "127.0.0.1", port: 7717, disabledSkills: [] };
 
-    render(<AgentPanel cwd="/tmp/ws" agentSettings={agentSettings} mcpSettings={mcpEnabled} open onClose={vi.fn()} />);
+    render(<AgentPanel cwd="/tmp/ws" agentSettings={agentSettings} mcpSettings={mcpEnabled} open onClose={vi.fn()} width={320} onResize={vi.fn()} />);
     await openNewHumanThread(user);
     await user.type(screen.getByPlaceholderText(/message the agent/i), "hello{enter}");
 
@@ -128,7 +128,7 @@ describe("AgentPanel", () => {
 
   it("streams agent_message_chunk updates into a single growing bubble", async () => {
     const user = userEvent.setup();
-    render(<AgentPanel cwd="/tmp/ws" agentSettings={agentSettings} mcpSettings={mcpSettings} open onClose={vi.fn()} />);
+    render(<AgentPanel cwd="/tmp/ws" agentSettings={agentSettings} mcpSettings={mcpSettings} open onClose={vi.fn()} width={320} onResize={vi.fn()} />);
     await openNewHumanThread(user);
     const handler = lastEventHandler();
 
@@ -143,7 +143,7 @@ describe("AgentPanel", () => {
 
   it("renders a tool_call update with its title and status", async () => {
     const user = userEvent.setup();
-    render(<AgentPanel cwd="/tmp/ws" agentSettings={agentSettings} mcpSettings={mcpSettings} open onClose={vi.fn()} />);
+    render(<AgentPanel cwd="/tmp/ws" agentSettings={agentSettings} mcpSettings={mcpSettings} open onClose={vi.fn()} width={320} onResize={vi.fn()} />);
     await openNewHumanThread(user);
     const handler = lastEventHandler();
 
@@ -160,7 +160,7 @@ describe("AgentPanel", () => {
   it("shows a permission request and answers it, disabling the option once chosen", async () => {
     vi.mocked(acp.adapter.respondPermission).mockResolvedValue(undefined);
     const user = userEvent.setup();
-    render(<AgentPanel cwd="/tmp/ws" agentSettings={agentSettings} mcpSettings={mcpSettings} open onClose={vi.fn()} />);
+    render(<AgentPanel cwd="/tmp/ws" agentSettings={agentSettings} mcpSettings={mcpSettings} open onClose={vi.fn()} width={320} onResize={vi.fn()} />);
     await openNewHumanThread(user);
     const handler = lastEventHandler();
 
@@ -181,7 +181,7 @@ describe("AgentPanel", () => {
 
   it("shows a system note and resets the connection when the agent closes", async () => {
     const user = userEvent.setup();
-    render(<AgentPanel cwd="/tmp/ws" agentSettings={agentSettings} mcpSettings={mcpSettings} open onClose={vi.fn()} />);
+    render(<AgentPanel cwd="/tmp/ws" agentSettings={agentSettings} mcpSettings={mcpSettings} open onClose={vi.fn()} width={320} onResize={vi.fn()} />);
     await openNewHumanThread(user);
     const handler = lastEventHandler();
 
@@ -193,7 +193,7 @@ describe("AgentPanel", () => {
   it("returns to the thread list on back, then closes the drawer on close", async () => {
     const onClose = vi.fn();
     const user = userEvent.setup();
-    render(<AgentPanel cwd="/tmp/ws" agentSettings={agentSettings} mcpSettings={mcpSettings} open onClose={onClose} />);
+    render(<AgentPanel cwd="/tmp/ws" agentSettings={agentSettings} mcpSettings={mcpSettings} open onClose={onClose} width={320} onResize={vi.fn()} />);
     await openNewHumanThread(user);
 
     await user.click(screen.getByLabelText(/back to threads/i));
@@ -205,7 +205,7 @@ describe("AgentPanel", () => {
 
   it("creates a cron thread with its schedule shown, and deletes it", async () => {
     const user = userEvent.setup();
-    render(<AgentPanel cwd="/tmp/ws" agentSettings={agentSettings} mcpSettings={mcpSettings} open onClose={vi.fn()} />);
+    render(<AgentPanel cwd="/tmp/ws" agentSettings={agentSettings} mcpSettings={mcpSettings} open onClose={vi.fn()} width={320} onResize={vi.fn()} />);
 
     await user.click(await screen.findByRole("button", { name: /new thread/i }));
     await user.click(screen.getByRole("radio", { name: /scheduled/i }));

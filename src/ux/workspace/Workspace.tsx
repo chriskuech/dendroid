@@ -46,7 +46,7 @@ interface WorkspaceProps {
 }
 
 export function Workspace({ rootPath, onDocumentReady, onOpenSettings }: WorkspaceProps) {
-  const { settings, setEditorFocused, chromeFaded, chromeTransitionMs } = useAppState();
+  const { settings, setEditorFocused, chromeFaded, chromeTransitionMs, updateSettings } = useAppState();
   const db = useDb();
   const mcp = useMcp();
   const automationsEngine = useAutomationsEngine();
@@ -241,6 +241,8 @@ export function Workspace({ rootPath, onDocumentReady, onOpenSettings }: Workspa
         onOpenSettings={onOpenSettings}
         faded={chromeFaded}
         transitionMs={chromeTransitionMs}
+        width={settings.sidebarWidth}
+        onResize={(sidebarWidth) => updateSettings({ sidebarWidth })}
       />
 
       <div className="workspace__editor">
@@ -280,6 +282,8 @@ export function Workspace({ rootPath, onDocumentReady, onOpenSettings }: Workspa
         mcpSettings={settings.mcp}
         open={agentOpen}
         onClose={() => setAgentOpen(false)}
+        width={settings.agentPanelWidth}
+        onResize={(agentPanelWidth) => updateSettings({ agentPanelWidth })}
       />
     </div>
   );

@@ -10,6 +10,8 @@
 import type { CSSProperties } from "react";
 import type { DendroidDocument } from "../../lib/crdt/document";
 import type { OutlineEntry } from "../../lib/crdt/outline";
+import { SIDEBAR_WIDTH_MAX, SIDEBAR_WIDTH_MIN } from "../../lib/types";
+import { useResizableWidth } from "../../lib/useResizableWidth";
 import { TreeView } from "../tree/TreeView";
 import { MindMapView } from "../mindmap/MindMapView";
 import { HistoryView } from "../history/HistoryView";
@@ -54,6 +56,11 @@ interface SidebarProps {
    * ever hides the sidebar — zen mode fades it out, nothing unmounts it. */
   faded?: boolean;
   transitionMs?: number;
+  /** Content-column width (px, `AppSettings.sidebarWidth`) and its
+   * pointerup commit callback, driving the drag handle on the sidebar's
+   * right edge. See `lib/useResizableWidth.ts`. */
+  width: number;
+  onResize: (width: number) => void;
 }
 
 export function Sidebar({
@@ -74,12 +81,22 @@ export function Sidebar({
   onOpenSettings,
   faded = false,
   transitionMs = 120,
+  width,
+  onResize,
 }: SidebarProps) {
   const style: CSSProperties = {
     opacity: faded ? 0 : 1,
     pointerEvents: faded ? "none" : "auto",
     transition: `opacity ${transitionMs}ms cubic-bezier(0.2, 0, 0, 1)`,
   };
+
+  const { width: liveContentWidth, handleProps } = useResizableWidth({
+    width,
+    min: SIDEBAR_WIDTH_MIN,
+    max: SIDEBAR_WIDTH_MAX,
+    edge: "end",
+    onResize,
+  });
 
   return (
     <div className="sidebar" style={style}>
@@ -143,7 +160,7 @@ export function Sidebar({
           <SettingsIcon size={16} />
         </button>
       </div>
-      <div className="sidebar__content">
+      <div className="sidebar__content" style={{ width: `${liveContentWidth}px` }}>
         {view === "tree" ? (
           <TreeView
             entries={entries}
@@ -168,6 +185,7 @@ export function Sidebar({
           <HistoryView crdt={crdt} />
         ) : null}
       </div>
+      <div className="sidebar__resize-handle" role="separator" aria-orientation="vertical" aria-label="Resize sidebar" {...handleProps} />
     </div>
   );
 }

@@ -33,7 +33,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useAcp } from "../../adapters/acp/context";
 import type { AcpBridgeEvent, AcpPermissionOption } from "../../adapters/acp";
 import { createThread, deleteThread as deleteThreadRecord, listThreads, type NewThreadInput } from "./threads";
-import type { AgentSettings, ChatThread, McpSettings } from "../../lib/types";
+import { AGENT_PANEL_WIDTH_MAX, AGENT_PANEL_WIDTH_MIN, type AgentSettings, type ChatThread, type McpSettings } from "../../lib/types";
 import { AgentIcon } from "../../ui/icons";
 import { OverlayPanel } from "../../ui/OverlayPanel";
 import { SidePanelHeader } from "../../ui/SidePanelHeader";
@@ -55,13 +55,19 @@ interface AgentPanelProps {
   mcpSettings: McpSettings;
   open: boolean;
   onClose: () => void;
+  /** Persisted width (px, `AppSettings.agentPanelWidth`) of the drawer's
+   * left edge drag handle — see `ui/OverlayPanel.tsx`'s `resize` prop and
+   * `lib/useResizableWidth.ts`. */
+  width: number;
+  /** Fires once, with the final width, when a resize drag ends. */
+  onResize: (width: number) => void;
 }
 
 function withEntry<T>(map: Record<string, T>, id: string, value: T): Record<string, T> {
   return { ...map, [id]: value };
 }
 
-export function AgentPanel({ cwd, agentSettings, mcpSettings, open, onClose }: AgentPanelProps) {
+export function AgentPanel({ cwd, agentSettings, mcpSettings, open, onClose, width, onResize }: AgentPanelProps) {
   const acp = useAcp();
   const [threads, setThreads] = useState<ChatThread[]>([]);
   const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
@@ -198,7 +204,7 @@ export function AgentPanel({ cwd, agentSettings, mcpSettings, open, onClose }: A
       open={open}
       onOpenChange={(next) => !next && onClose()}
       title="Agent chat"
-      widthPx={320}
+      resize={{ width, min: AGENT_PANEL_WIDTH_MIN, max: AGENT_PANEL_WIDTH_MAX, onResize }}
       onBackdropClick={onClose}
       // Escape steps back one screen at a time — out of the new-thread
       // form, or out of a thread's chat back to the list — and only closes
