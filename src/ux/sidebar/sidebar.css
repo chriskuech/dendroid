@@ -1,4 +1,4 @@
-/* Rail + swappable content (Tree / Mind Map) — see
+/* Rail + swappable content (Tree / Graph) — see
  * components/sidebar/Sidebar.tsx. Owns the one border/background/fade this
  * whole shell gets (workspace.css's `.tree-view` rules are otherwise
  * untouched) — the content views nested inside are bare `.side-panel`
