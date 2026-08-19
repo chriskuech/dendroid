@@ -113,4 +113,32 @@ describe("Sidebar", () => {
     rerender(<Sidebar {...baseProps({ onClose })} />);
     expect(screen.getByLabelText(/close sidebar/i)).toBeInTheDocument();
   });
+
+  it("clicking the active rail icon in the nested (drawer) variant closes the drawer instead of re-selecting it", async () => {
+    const user = userEvent.setup();
+    const onViewChange = vi.fn();
+    const onClose = vi.fn();
+    render(<Sidebar {...baseProps({ view: "tree", onViewChange, onClose })} />);
+    await user.click(screen.getByRole("tab", { name: /^tree$/i }));
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(onViewChange).not.toHaveBeenCalled();
+  });
+
+  it("clicking an inactive rail icon in the nested (drawer) variant still just switches views", async () => {
+    const user = userEvent.setup();
+    const onViewChange = vi.fn();
+    const onClose = vi.fn();
+    render(<Sidebar {...baseProps({ view: "tree", onViewChange, onClose })} />);
+    await user.click(screen.getByRole("tab", { name: /mind map/i }));
+    expect(onViewChange).toHaveBeenCalledWith("mindmap");
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("clicking the active rail icon in the persistent (non-drawer) variant is a no-op select, not a close", async () => {
+    const user = userEvent.setup();
+    const onViewChange = vi.fn();
+    render(<Sidebar {...baseProps({ view: "tree", onViewChange })} />);
+    await user.click(screen.getByRole("tab", { name: /^tree$/i }));
+    expect(onViewChange).toHaveBeenCalledWith("tree");
+  });
 });
