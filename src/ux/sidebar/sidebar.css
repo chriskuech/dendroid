@@ -52,7 +52,7 @@
   color: var(--text);
 }
 
-/* Same "always show current state" convention as `.tree-row__reroot.is-root`
+/* Same "always show current state" convention as `.tree-row--is-root`
  * — the active tab stays accent-colored without needing to be hovered. */
 .sidebar__rail-btn.is-active {
   color: var(--accent);

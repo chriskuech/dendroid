@@ -84,7 +84,7 @@
 
 /* The most recent entry — "restoring" it would be a no-op — gets a plain
  * label instead of a button, same "always show current state" convention
- * as `.tree-row__reroot.is-root`. */
+ * as `.tree-row--is-root`. */
 .history-row__current {
   flex: none;
   font-size: 10px;

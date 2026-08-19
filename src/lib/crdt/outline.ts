@@ -43,7 +43,7 @@ export type OutlineEntry = { kind: "heading"; heading: HeadingDto } | { kind: "l
  * `maxDepth` beyond it. Shared by an expanded `@`-link's read-only preview
  * in both the editor (`ux/editor/tiptap/linkRef.ts`) and the tree view
  * (`ux/tree/TreeView.tsx`), and by `TreeView.tsx`'s own
- * `visibleRows`/`rootGroupRange` for a heading's ordinary children. */
+ * `visibleRows`/`rootSubtreeRange` for a heading's ordinary children. */
 export function subtreeRows(outline: readonly HeadingDto[], targetId: string, maxDepth: number): HeadingDto[] {
   const start = outline.findIndex((h) => h.id === targetId);
   if (start === -1) return [];
