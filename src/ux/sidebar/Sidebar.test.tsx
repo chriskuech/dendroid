@@ -31,6 +31,8 @@ function baseProps(overrides: Partial<React.ComponentProps<typeof Sidebar>> = {}
     onOpenSettings: vi.fn(),
     width: 280,
     onResize: vi.fn(),
+    open: true,
+    onOpenChange: vi.fn(),
     ...overrides,
   };
 }
@@ -142,12 +144,41 @@ describe("Sidebar", () => {
     expect(onResize).toHaveBeenCalledWith(220);
   });
 
-  it("clicking the active rail icon in the persistent (non-drawer) variant is a no-op select", async () => {
+  it("clicking the active rail icon in the persistent (non-drawer) variant collapses the content pane instead of re-selecting it", async () => {
     const user = userEvent.setup();
     const onViewChange = vi.fn();
-    render(<Sidebar {...baseProps({ view: "tree", onViewChange })} />);
+    const onOpenChange = vi.fn();
+    render(<Sidebar {...baseProps({ view: "tree", onViewChange, onOpenChange })} />);
+    await user.click(screen.getByRole("tab", { name: /^tree$/i }));
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+    expect(onViewChange).not.toHaveBeenCalled();
+  });
+
+  it("clicking a different rail icon in the persistent variant switches views and keeps it open", async () => {
+    const user = userEvent.setup();
+    const onViewChange = vi.fn();
+    const onOpenChange = vi.fn();
+    render(<Sidebar {...baseProps({ view: "tree", onViewChange, onOpenChange })} />);
+    await user.click(screen.getByRole("tab", { name: /mind map/i }));
+    expect(onViewChange).toHaveBeenCalledWith("mindmap");
+    expect(onOpenChange).toHaveBeenCalledWith(true);
+  });
+
+  it("collapsing the persistent variant hides the content pane and resize handle but keeps the rail", () => {
+    render(<Sidebar {...baseProps({ open: false })} />);
+    expect(document.querySelector(".sidebar__rail")).toBeInTheDocument();
+    expect(document.querySelector(".sidebar__content")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/resize sidebar/i)).not.toBeInTheDocument();
+  });
+
+  it("clicking any rail icon while collapsed reopens the content pane", async () => {
+    const user = userEvent.setup();
+    const onViewChange = vi.fn();
+    const onOpenChange = vi.fn();
+    render(<Sidebar {...baseProps({ view: "tree", open: false, onViewChange, onOpenChange })} />);
     await user.click(screen.getByRole("tab", { name: /^tree$/i }));
     expect(onViewChange).toHaveBeenCalledWith("tree");
+    expect(onOpenChange).toHaveBeenCalledWith(true);
   });
 
   it("renders a close button and skips the resize handle only when onClose is given", () => {

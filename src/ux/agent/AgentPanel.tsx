@@ -61,13 +61,21 @@ interface AgentPanelProps {
   width: number;
   /** Fires once, with the final width, when a resize drag ends. */
   onResize: (width: number) => void;
+  /** Forwarded to `ui/OverlayPanel.tsx`'s `dim` — whether this drawer
+   * darkens and blocks the rest of the page while open. Defaults to `true`
+   * (fully modal, this component's original behavior). Workspace.tsx passes
+   * `!isNarrow` from here down: at <900px there's no room for anything else
+   * on screen, so the drawer stays modal; at >=900px it doesn't dim, so it
+   * can be open at the same time as the persistent left Sidebar instead of
+   * the two competing over which one gets to be open. */
+  dim?: boolean;
 }
 
 function withEntry<T>(map: Record<string, T>, id: string, value: T): Record<string, T> {
   return { ...map, [id]: value };
 }
 
-export function AgentPanel({ cwd, agentSettings, mcpSettings, open, onClose, width, onResize }: AgentPanelProps) {
+export function AgentPanel({ cwd, agentSettings, mcpSettings, open, onClose, width, onResize, dim = true }: AgentPanelProps) {
   const acp = useAcp();
   const [threads, setThreads] = useState<ChatThread[]>([]);
   const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
@@ -205,6 +213,7 @@ export function AgentPanel({ cwd, agentSettings, mcpSettings, open, onClose, wid
       onOpenChange={(next) => !next && onClose()}
       title="Agent chat"
       resize={{ width, min: AGENT_PANEL_WIDTH_MIN, max: AGENT_PANEL_WIDTH_MAX, onResize }}
+      dim={dim}
       onBackdropClick={onClose}
       // Escape steps back one screen at a time — out of the new-thread
       // form, or out of a thread's chat back to the list — and only closes

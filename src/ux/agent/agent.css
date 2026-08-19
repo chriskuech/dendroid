@@ -2,7 +2,10 @@
  * overlay (unlike the left Sidebar, which becomes a persistent column at
  * >=900px) — it's supplementary chrome the user opens deliberately, not
  * primary navigation, so there's no wide-layout variant that pushes the
- * editor to make room for it. */
+ * editor to make room for it. It stops dimming the rest of the page at
+ * that same >=900px breakpoint though (AgentPanel.tsx's `dim` prop, via
+ * `ui/OverlayPanel.tsx`) — there's room for it to sit open alongside the
+ * persistent Sidebar without either one blocking the other. */
 
 .agent-toggle {
   position: fixed;

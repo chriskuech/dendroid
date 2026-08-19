@@ -67,6 +67,12 @@ export function Workspace({ rootPath, onDocumentReady, onOpenSettings }: Workspa
   // graph (see ux/sidebar/Sidebar.tsx). Shared between the wide sidebar and
   // the narrow drawer so switching in one is remembered by the other.
   const [sidebarView, setSidebarView] = useState<SidebarView>("tree");
+  // Whether the persistent (>=900px) sidebar's content pane is showing, vs.
+  // collapsed down to just its rail — see Sidebar.tsx's `open`/
+  // `onOpenChange`. Starts open (the sidebar's long-standing default);
+  // unlike `drawerOpen` below there's no width-crossing effect to reset
+  // this on, since it's simply ignored by the <900px drawer variant.
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   // The editor's headingFold plugin is the source of truth (see
   // Editor.tsx / ux/editor/tiptap/headingFold.ts) — this is just its state
   // mirrored down so the tree view can render the same folds. Toggling
@@ -302,6 +308,8 @@ export function Workspace({ rootPath, onDocumentReady, onOpenSettings }: Workspa
           transitionMs={chromeTransitionMs}
           width={settings.sidebarWidth}
           onResize={(sidebarWidth) => updateSettings({ sidebarWidth })}
+          open={sidebarOpen}
+          onOpenChange={setSidebarOpen}
         />
       )}
 
@@ -375,6 +383,7 @@ export function Workspace({ rootPath, onDocumentReady, onOpenSettings }: Workspa
         onClose={() => setAgentOpen(false)}
         width={settings.agentPanelWidth}
         onResize={(agentPanelWidth) => updateSettings({ agentPanelWidth })}
+        dim={isNarrow}
       />
     </div>
   );
