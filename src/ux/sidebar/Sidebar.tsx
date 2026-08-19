@@ -93,6 +93,20 @@ export function Sidebar({
         transition: `opacity ${transitionMs}ms cubic-bezier(0.2, 0, 0, 1)`,
       };
 
+  // Nested (drawer) variant only: tapping the rail icon for the panel
+  // that's already showing closes the drawer instead of re-selecting the
+  // same view (a no-op that left the drawer stuck open). The persistent
+  // column has no `onClose` and no drawer to close, so it keeps the plain
+  // select-only behavior — clicking the active tab there is just a no-op,
+  // same as before.
+  const handleRailClick = (targetView: SidebarView) => {
+    if (onClose && view === targetView) {
+      onClose();
+      return;
+    }
+    onViewChange(targetView);
+  };
+
   return (
     <div className={`sidebar${onClose ? " sidebar--nested" : ""}`} style={style}>
       <div className="sidebar__rail" role="tablist" aria-label="Sidebar view">
@@ -102,7 +116,7 @@ export function Sidebar({
           className={`sidebar__rail-btn${view === "tree" ? " is-active" : ""}`}
           aria-label="Tree"
           aria-selected={view === "tree"}
-          onClick={() => onViewChange("tree")}
+          onClick={() => handleRailClick("tree")}
         >
           <LogoIcon size={16} />
         </button>
@@ -112,7 +126,7 @@ export function Sidebar({
           className={`sidebar__rail-btn${view === "mindmap" ? " is-active" : ""}`}
           aria-label="Mind map"
           aria-selected={view === "mindmap"}
-          onClick={() => onViewChange("mindmap")}
+          onClick={() => handleRailClick("mindmap")}
         >
           <GraphIcon size={16} />
         </button>
@@ -122,7 +136,7 @@ export function Sidebar({
           className={`sidebar__rail-btn${view === "history" ? " is-active" : ""}`}
           aria-label="History"
           aria-selected={view === "history"}
-          onClick={() => onViewChange("history")}
+          onClick={() => handleRailClick("history")}
         >
           <HistoryIcon size={16} />
         </button>
@@ -132,7 +146,7 @@ export function Sidebar({
           className={`sidebar__rail-btn${view === "database" ? " is-active" : ""}`}
           aria-label="Databases"
           aria-selected={view === "database"}
-          onClick={() => onViewChange("database")}
+          onClick={() => handleRailClick("database")}
         >
           <DatabaseIcon size={16} />
         </button>
@@ -142,7 +156,7 @@ export function Sidebar({
           className={`sidebar__rail-btn${view === "automation" ? " is-active" : ""}`}
           aria-label="Automations"
           aria-selected={view === "automation"}
-          onClick={() => onViewChange("automation")}
+          onClick={() => handleRailClick("automation")}
         >
           <AutomationIcon size={16} />
         </button>
