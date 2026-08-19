@@ -23,7 +23,7 @@ import { HistoryView } from "../history/HistoryView";
 import { DatabaseHistoryView } from "../history/DatabaseHistoryView";
 import { DatabaseListView } from "../database/DatabaseListView";
 import { AutomationsView } from "../automations/AutomationsView";
-import { AutomationIcon, CloseIcon, DatabaseIcon, GraphIcon, HistoryIcon, LogoIcon } from "../../ui/icons";
+import { AutomationIcon, CloseIcon, DatabaseIcon, GraphIcon, HistoryIcon, LogoIcon, SettingsIcon } from "../../ui/icons";
 import "./sidebar.css";
 
 export type SidebarView = "tree" | "mindmap" | "history" | "database" | "automation";
@@ -51,6 +51,11 @@ interface SidebarProps {
    * itself swaps from the Editor to a `DatabaseView`. */
   selectedDatabaseId: string | null;
   onSelectDatabase: (id: string) => void;
+  /** Opens the app's `SettingsPage` (owned by `Shell.tsx`, a Shell/Workspace
+   * ancestor) — the rail's bottom button, formerly a standalone
+   * `.settings-launcher` fixed over the whole window (see App.css), now
+   * lives here instead. */
+  onOpenSettings: () => void;
   /** Same "faded chrome" wiring TreeView used to apply to itself — see
    * Workspace.tsx's `chromeFaded`/`chromeTransitionMs`. Only meaningful for
    * the persistent (>=900px) sidebar; ignored once `drawerStyle` is given. */
@@ -78,6 +83,7 @@ export function Sidebar({
   onReroot,
   selectedDatabaseId,
   onSelectDatabase,
+  onOpenSettings,
   faded = false,
   transitionMs = 120,
   onClose,
@@ -159,6 +165,14 @@ export function Sidebar({
           onClick={() => handleRailClick("automation")}
         >
           <AutomationIcon size={16} />
+        </button>
+        <button
+          type="button"
+          className="sidebar__rail-btn sidebar__rail-btn--settings"
+          aria-label="Open settings"
+          onClick={onOpenSettings}
+        >
+          <SettingsIcon size={16} />
         </button>
       </div>
       <div className="sidebar__content">

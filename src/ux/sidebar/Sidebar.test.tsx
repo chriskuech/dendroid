@@ -28,6 +28,7 @@ function baseProps(overrides: Partial<React.ComponentProps<typeof Sidebar>> = {}
     onReroot: vi.fn(),
     selectedDatabaseId: null,
     onSelectDatabase: vi.fn(),
+    onOpenSettings: vi.fn(),
     ...overrides,
   };
 }
@@ -103,6 +104,14 @@ describe("Sidebar", () => {
     render(<Sidebar {...baseProps({ view: "mindmap" })} />);
     expect(screen.getByRole("tab", { name: /mind map/i })).toHaveAttribute("aria-selected", "true");
     expect(screen.getByRole("tab", { name: /^tree$/i })).toHaveAttribute("aria-selected", "false");
+  });
+
+  it("clicking the settings rail button calls onOpenSettings", async () => {
+    const user = userEvent.setup();
+    const onOpenSettings = vi.fn();
+    render(<Sidebar {...baseProps({ onOpenSettings })} />);
+    await user.click(screen.getByRole("button", { name: /open settings/i }));
+    expect(onOpenSettings).toHaveBeenCalled();
   });
 
   it("renders a close button only when onClose is given", () => {

@@ -49,23 +49,3 @@
   color: var(--text-3);
 }
 
-.settings-launcher {
-  position: fixed;
-  right: 16px;
-  bottom: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  background: transparent;
-  border: none;
-  border-radius: 0;
-  cursor: pointer;
-  color: var(--text-3);
-  z-index: 10;
-}
-
-.settings-launcher:hover {
-  color: var(--text);
-}
