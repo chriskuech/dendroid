@@ -3,8 +3,6 @@ import { useAppState } from "../../lib/AppState";
 import { AGENT_PROVIDERS } from "./agentProviders";
 import type { DendroidDocument } from "../../lib/crdt/document";
 import { useDialog } from "../../adapters/dialog/context";
-import { useMcp } from "../../adapters/mcp/context";
-import type { McpSkill } from "../../adapters/mcp";
 import { SYNC_PROVIDERS } from "../../lib/syncProviders";
 import { DEPTH_MIN, DEPTH_MAX, type Aesthetic, type AgentProvider, type ColorMode, type EditorMode } from "../../lib/types";
 import { CloseIcon } from "../../ui/icons";
@@ -20,7 +18,6 @@ const SECTIONS = [
   { id: "editor", label: "Editor" },
   { id: "workspace", label: "Workspace" },
   { id: "mcp", label: "Local MCP" },
-  { id: "skills", label: "Skills" },
   { id: "agent", label: "Agent" },
 ] as const;
 
@@ -40,26 +37,9 @@ const AESTHETIC_META: Record<Aesthetic, { label: string; swatches: string[] }> =
 export function SettingsPage({ onClose, crdt = null }: { onClose: () => void; crdt?: DendroidDocument | null }) {
   const { workspace, settings, updateSettings, updateSyncConfig } = useAppState();
   const dialog = useDialog();
-  const mcp = useMcp();
   const [active, setActive] = useState<SectionId>("appearance");
   const [copied, setCopied] = useState(false);
-  const [skills, setSkills] = useState<McpSkill[]>([]);
   const sectionRefs = useRef<Partial<Record<SectionId, HTMLDivElement>>>({});
-
-  // The skill catalog is static per build (one entry per `#[tool]` in
-  // `src-mcp`) — fetched once on mount rather than re-derived from
-  // `settings.mcp`, since enabling/disabling one doesn't change the
-  // catalog itself, only which entries in it are toggled on.
-  useEffect(() => {
-    void mcp.listMcpSkills().then(setSkills);
-  }, [mcp]);
-
-  function toggleSkill(name: string, enabled: boolean) {
-    const disabledSkills = enabled
-      ? settings.mcp.disabledSkills.filter((n) => n !== name)
-      : [...settings.mcp.disabledSkills, name];
-    updateSettings({ mcp: { ...settings.mcp, disabledSkills } });
-  }
 
   function selectAgentProvider(provider: AgentProvider) {
     const meta = AGENT_PROVIDERS[provider];
@@ -334,45 +314,6 @@ export function SettingsPage({ onClose, crdt = null }: { onClose: () => void; cr
               </Button>
             </div>
           </div>
-        </div>
-
-        <div
-          id="skills"
-          className="settings__section"
-          ref={(el) => {
-            if (el) sectionRefs.current.skills = el;
-          }}
-        >
-          <span className="settings__section-title">Skills</span>
-          {skills.length === 0 ? (
-            <span className="settings__row-hint">No skills to show yet — this list is populated by the desktop app.</span>
-          ) : (
-            <div className="panel">
-              {skills.map((skill) => {
-                const enabled = !settings.mcp.disabledSkills.includes(skill.name);
-                return (
-                  <div className="panel-row" key={skill.name}>
-                    <span className={`panel-row__dot${enabled ? " panel-row__dot--on" : ""}`} />
-                    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                      <span className="panel-row__title">{skill.name}</span>
-                      <span className="panel-row__sub">{skill.description || "No description."}</span>
-                    </div>
-                    <Switch
-                      checked={enabled}
-                      onChange={(next) => toggleSkill(skill.name, next)}
-                      aria-label={`${enabled ? "Disable" : "Enable"} ${skill.name}`}
-                      style={{ marginLeft: "auto" }}
-                    />
-                  </div>
-                );
-              })}
-            </div>
-          )}
-          <span className="settings__block-hint">
-            Skills are the tools dendroid's Local MCP server exposes — an outline/tree reader, section editor, and
-            database tools. Turning one off hides it from any MCP client, including the Agent chat drawer, which
-            connects to this same server when Local MCP is enabled above.
-          </span>
         </div>
 
         <div
