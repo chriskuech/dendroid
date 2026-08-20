@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { DEFAULT_SETTINGS, type AgentSettings, type AppSettings, type FeatureSettings, type SyncConfig, type Workspace } from "./types";
+import { DEFAULT_SETTINGS, type AgentSettings, type AppSettings, type FeatureSettings, type Workspace } from "./types";
 import { NARROW_QUERY } from "./layout";
 import { useMaterialize } from "../adapters/materialize/context";
 import { useMcp } from "../adapters/mcp/context";
@@ -48,7 +48,7 @@ interface AppStateValue {
    * one value rather than each running its own idle timer. */
   chromeFaded: boolean;
   chromeTransitionMs: number;
-  createWorkspace: (input: { name: string; sync: SyncConfig }) => Promise<void>;
+  createWorkspace: (input: { name: string; rootPath: string }) => Promise<void>;
   /** Drops back into the onboarding flow to create a workspace that
    * replaces the current one (only one workspace is active at a time —
    * see `createWorkspace`). Driven by the "File > New Workspace" menu
@@ -58,7 +58,9 @@ interface AppStateValue {
    * to the current workspace. Only valid once one already exists. */
   cancelNewWorkspace: () => void;
   updateSettings: (patch: Partial<AppSettings>) => void;
-  updateSyncConfig: (sync: SyncConfig) => void;
+  /** Changes the active workspace's folder — Settings' Storage > Folder
+   * "Choose…" button. */
+  updateWorkspaceRootPath: (rootPath: string) => void;
 }
 
 const AppStateContext = createContext<AppStateValue | null>(null);
@@ -73,11 +75,11 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   const [editorFocused, setEditorFocused] = useState(false);
   // Fixed for this window's whole lifetime (a window doesn't change which
   // one it is), so a ref rather than state — read by `createWorkspace`/
-  // `updateSyncConfig` below to skip persisting into the single shared
-  // `settingsStore` workspace that every *other* window reads on launch.
-  // Without this, e.g. picking a new sync folder in a secondary window's
-  // Settings would silently steal "the" workspace out from under the
-  // window that opened it.
+  // `updateWorkspaceRootPath` below to skip persisting into the single
+  // shared `settingsStore` workspace that every *other* window reads on
+  // launch. Without this, e.g. picking a new folder in a secondary
+  // window's Settings would silently steal "the" workspace out from under
+  // the window that opened it.
   const isSecondaryWindow = useRef(typeof window !== "undefined" && !!window.__DENDROID_INITIAL_WORKSPACE_ROOT__);
   const isNarrow = useMediaQuery(NARROW_QUERY);
   // Not gated on `isNarrow` — the narrow topbar (hamburger + breadcrumb)
@@ -165,7 +167,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
         setWorkspace({
           id: crypto.randomUUID(),
           name: folderNameFromPath(initialRoot),
-          sync: { type: "file", rootPath: initialRoot },
+          rootPath: initialRoot,
           createdAt: new Date().toISOString(),
         });
         setStatus("ready");
@@ -205,11 +207,11 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   }, [status, settings.materialize, materialize]);
 
   const createWorkspace = useCallback(
-    async (input: { name: string; sync: SyncConfig }) => {
+    async (input: { name: string; rootPath: string }) => {
       const ws: Workspace = {
         id: crypto.randomUUID(),
         name: input.name,
-        sync: input.sync,
+        rootPath: input.rootPath,
         createdAt: new Date().toISOString(),
       };
       if (!isSecondaryWindow.current) await settingsStore.saveWorkspace(ws);
@@ -238,11 +240,11 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     [settingsStore],
   );
 
-  const updateSyncConfig = useCallback(
-    (sync: SyncConfig) => {
+  const updateWorkspaceRootPath = useCallback(
+    (rootPath: string) => {
       setWorkspace((prev) => {
         if (!prev) return prev;
-        const next = { ...prev, sync };
+        const next = { ...prev, rootPath };
         if (!isSecondaryWindow.current) void settingsStore.saveWorkspace(next);
         return next;
       });
@@ -265,7 +267,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       beginNewWorkspace,
       cancelNewWorkspace,
       updateSettings,
-      updateSyncConfig,
+      updateWorkspaceRootPath,
     }),
     [
       status,
@@ -280,7 +282,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       beginNewWorkspace,
       cancelNewWorkspace,
       updateSettings,
-      updateSyncConfig,
+      updateWorkspaceRootPath,
     ],
   );
 

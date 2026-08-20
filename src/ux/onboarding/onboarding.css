@@ -55,22 +55,6 @@
   gap: 22px;
 }
 
-.onboarding__label {
-  font-size: 10px;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: var(--text-3);
-}
-
-.onboarding__provider-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 1px;
-  background: var(--line);
-  border: 1px solid var(--line);
-  max-width: none;
-}
-
 .onboarding__footer {
   display: flex;
   align-items: center;

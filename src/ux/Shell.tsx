@@ -47,7 +47,7 @@ export function Shell() {
     async function openWorkspace() {
       const selected = await dialog.pickFolder();
       if (!selected) return;
-      await createWorkspace({ name: folderNameFromPath(selected), sync: { type: "file", rootPath: selected } });
+      await createWorkspace({ name: folderNameFromPath(selected), rootPath: selected });
     }
 
     // "Open Workspace in New Window…" also picks a folder here, but hands
@@ -96,20 +96,9 @@ export function Shell() {
     return <WorkspaceOnboarding onCancel={workspace ? cancelNewWorkspace : undefined} />;
   }
 
-  // Only the "file" sync provider is implemented (see lib/syncProviders.ts)
-  // — its rootPath is where the ledger lives, per whitepaper.md's Core
-  // section: `{workspace_root}/ledger/{yyyy-mm-dd}.{session_id}.log`.
-  const rootPath = workspace?.sync.type === "file" ? workspace.sync.rootPath : null;
-
   return (
     <>
-      {rootPath ? (
-        <Workspace rootPath={rootPath} onDocumentReady={setCrdt} onOpenSettings={() => setSettingsOpen(true)} />
-      ) : (
-        <main className="home">
-          <span className="home__loading">This workspace's sync provider isn't supported yet.</span>
-        </main>
-      )}
+      {workspace && <Workspace rootPath={workspace.rootPath} onDocumentReady={setCrdt} onOpenSettings={() => setSettingsOpen(true)} />}
       {settingsOpen && <SettingsPage onClose={() => setSettingsOpen(false)} crdt={crdt} />}
     </>
   );
