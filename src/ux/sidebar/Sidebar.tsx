@@ -29,7 +29,7 @@
 import type { CSSProperties } from "react";
 import type { DendroidDocument } from "../../lib/crdt/document";
 import type { OutlineEntry } from "../../lib/crdt/outline";
-import { SIDEBAR_WIDTH_MAX, SIDEBAR_WIDTH_MIN } from "../../lib/types";
+import { SIDEBAR_WIDTH_MAX, SIDEBAR_WIDTH_MIN, type FeatureSettings } from "../../lib/types";
 import { useResizableWidth } from "../../lib/useResizableWidth";
 import { TreeView } from "../tree/TreeView";
 import { MindMapView } from "../mindmap/MindMapView";
@@ -66,6 +66,12 @@ interface SidebarProps {
    * itself swaps from the Editor to a `DatabaseView`. */
   selectedDatabaseId: string | null;
   onSelectDatabase: (id: string) => void;
+  /** Settings' "Features" section — which rail tabs actually show. `tree`/
+   * `graph`/`history`/`databases` gate their own tab one-for-one;
+   * `research` gates both `automation` and `skills` at once (see
+   * `FeatureSettings`'s doc comment). A tab whose feature is off is
+   * skipped in the rail entirely, not just disabled — same as `Workspace.tsx`'s own agent-chat toggle. */
+  features: FeatureSettings;
   /** Opens the app's `SettingsPage` (owned by `Shell.tsx`, a Shell/Workspace
    * ancestor) — the rail's bottom button, formerly a standalone
    * `.settings-launcher` fixed over the whole window (see App.css), now
@@ -116,6 +122,7 @@ export function Sidebar({
   onReroot,
   selectedDatabaseId,
   onSelectDatabase,
+  features,
   onOpenSettings,
   faded = false,
   transitionMs = 120,
@@ -186,66 +193,78 @@ export function Sidebar({
   return (
     <div className={`sidebar${onClose ? " sidebar--nested" : ""}`} style={style}>
       <div className="sidebar__rail" role="tablist" aria-label="Sidebar view">
-        <button
-          type="button"
-          role="tab"
-          className={`sidebar__rail-btn${isActive("tree") ? " is-active" : ""}`}
-          aria-label="Tree"
-          aria-selected={isActive("tree")}
-          onClick={() => handleRailClick("tree")}
-        >
-          <LogoIcon size={16} />
-        </button>
-        <button
-          type="button"
-          role="tab"
-          className={`sidebar__rail-btn${isActive("mindmap") ? " is-active" : ""}`}
-          aria-label="Graph"
-          aria-selected={isActive("mindmap")}
-          onClick={() => handleRailClick("mindmap")}
-        >
-          <GraphIcon size={16} />
-        </button>
-        <button
-          type="button"
-          role="tab"
-          className={`sidebar__rail-btn${isActive("history") ? " is-active" : ""}`}
-          aria-label="History"
-          aria-selected={isActive("history")}
-          onClick={() => handleRailClick("history")}
-        >
-          <HistoryIcon size={16} />
-        </button>
-        <button
-          type="button"
-          role="tab"
-          className={`sidebar__rail-btn${isActive("database") ? " is-active" : ""}`}
-          aria-label="Databases"
-          aria-selected={isActive("database")}
-          onClick={() => handleRailClick("database")}
-        >
-          <DatabaseIcon size={16} />
-        </button>
-        <button
-          type="button"
-          role="tab"
-          className={`sidebar__rail-btn${isActive("automation") ? " is-active" : ""}`}
-          aria-label="Automations"
-          aria-selected={isActive("automation")}
-          onClick={() => handleRailClick("automation")}
-        >
-          <AutomationIcon size={16} />
-        </button>
-        <button
-          type="button"
-          role="tab"
-          className={`sidebar__rail-btn${isActive("skills") ? " is-active" : ""}`}
-          aria-label="Skills"
-          aria-selected={isActive("skills")}
-          onClick={() => handleRailClick("skills")}
-        >
-          <SkillIcon size={16} />
-        </button>
+        {features.tree && (
+          <button
+            type="button"
+            role="tab"
+            className={`sidebar__rail-btn${isActive("tree") ? " is-active" : ""}`}
+            aria-label="Tree"
+            aria-selected={isActive("tree")}
+            onClick={() => handleRailClick("tree")}
+          >
+            <LogoIcon size={16} />
+          </button>
+        )}
+        {features.graph && (
+          <button
+            type="button"
+            role="tab"
+            className={`sidebar__rail-btn${isActive("mindmap") ? " is-active" : ""}`}
+            aria-label="Graph"
+            aria-selected={isActive("mindmap")}
+            onClick={() => handleRailClick("mindmap")}
+          >
+            <GraphIcon size={16} />
+          </button>
+        )}
+        {features.history && (
+          <button
+            type="button"
+            role="tab"
+            className={`sidebar__rail-btn${isActive("history") ? " is-active" : ""}`}
+            aria-label="History"
+            aria-selected={isActive("history")}
+            onClick={() => handleRailClick("history")}
+          >
+            <HistoryIcon size={16} />
+          </button>
+        )}
+        {features.databases && (
+          <button
+            type="button"
+            role="tab"
+            className={`sidebar__rail-btn${isActive("database") ? " is-active" : ""}`}
+            aria-label="Databases"
+            aria-selected={isActive("database")}
+            onClick={() => handleRailClick("database")}
+          >
+            <DatabaseIcon size={16} />
+          </button>
+        )}
+        {features.research && (
+          <button
+            type="button"
+            role="tab"
+            className={`sidebar__rail-btn${isActive("automation") ? " is-active" : ""}`}
+            aria-label="Automations"
+            aria-selected={isActive("automation")}
+            onClick={() => handleRailClick("automation")}
+          >
+            <AutomationIcon size={16} />
+          </button>
+        )}
+        {features.research && (
+          <button
+            type="button"
+            role="tab"
+            className={`sidebar__rail-btn${isActive("skills") ? " is-active" : ""}`}
+            aria-label="Skills"
+            aria-selected={isActive("skills")}
+            onClick={() => handleRailClick("skills")}
+          >
+            <SkillIcon size={16} />
+          </button>
+        )}
         <button
           type="button"
           className="sidebar__rail-btn sidebar__rail-btn--settings"
@@ -260,7 +279,7 @@ export function Sidebar({
        * means just the rail above, no content pane or resize handle below. */}
       {(onClose || open) && (
         <div className="sidebar__content" style={onClose ? undefined : { width: `${liveContentWidth}px` }}>
-          {view === "tree" ? (
+          {view === "tree" && features.tree ? (
             <TreeView
               entries={entries}
               collapsedIds={collapsedIds}
@@ -272,17 +291,17 @@ export function Sidebar({
               onToggleLinkExpand={onToggleLinkExpand}
               onReroot={onReroot}
             />
-          ) : view === "mindmap" ? (
+          ) : view === "mindmap" && features.graph ? (
             <MindMapView entries={entries} onSelectHeading={onSelectHeading} />
-          ) : view === "database" ? (
+          ) : view === "database" && features.databases ? (
             <DatabaseListView selectedId={selectedDatabaseId} onSelect={onSelectDatabase} />
-          ) : view === "automation" ? (
+          ) : view === "automation" && features.research ? (
             <AutomationsView />
-          ) : view === "skills" ? (
+          ) : view === "skills" && features.research ? (
             <SkillsView />
-          ) : selectedDatabaseId ? (
+          ) : view === "history" && features.history && selectedDatabaseId ? (
             <DatabaseHistoryView databaseId={selectedDatabaseId} />
-          ) : crdt ? (
+          ) : view === "history" && features.history && crdt ? (
             <HistoryView crdt={crdt} />
           ) : null}
         </div>

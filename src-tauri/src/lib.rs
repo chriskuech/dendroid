@@ -5,6 +5,7 @@ mod agent_runtime;
 mod automation;
 mod commands;
 mod keychain;
+mod materialize;
 mod mcp;
 mod state;
 
@@ -251,9 +252,11 @@ pub fn run() {
 
                 for (label, bytes) in outbound {
                     commands::emit_update(&handle, &label, bytes);
+                    materialize::schedule_markdown(&handle, &label);
                 }
                 for label in db_changed {
                     commands::emit_db_update(&handle, &label);
+                    materialize::schedule_dbs(&handle, &label);
                 }
             });
 
@@ -293,6 +296,7 @@ pub fn run() {
             commands::db_revert_to,
             mcp::mcp_set_config,
             mcp::mcp_list_skills,
+            materialize::materialize_set_config,
             acp::acp_start,
             acp::acp_stop,
             acp::acp_send_prompt,

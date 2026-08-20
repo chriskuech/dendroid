@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { DEFAULT_SETTINGS, type AgentSettings, type AppSettings, type SyncConfig, type Workspace } from "./types";
+import { DEFAULT_SETTINGS, type AgentSettings, type AppSettings, type FeatureSettings, type SyncConfig, type Workspace } from "./types";
 import { NARROW_QUERY } from "./layout";
+import { useMaterialize } from "../adapters/materialize/context";
 import { useMcp } from "../adapters/mcp/context";
 import { useSettingsStore } from "../adapters/settingsStore/context";
 import { folderNameFromPath } from "./path";
@@ -65,6 +66,7 @@ const AppStateContext = createContext<AppStateValue | null>(null);
 export function AppStateProvider({ children }: { children: ReactNode }) {
   const settingsStore = useSettingsStore();
   const mcp = useMcp();
+  const materialize = useMaterialize();
   const [status, setStatus] = useState<Status>("loading");
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
@@ -138,11 +140,25 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
         if (legacyAgent && !("provider" in legacyAgent) && legacyAgent.command) {
           agent.provider = "custom";
         }
+        // Same "old shape predates the field" story as `agent` above:
+        // `features` (and its `research` switch) didn't exist before this
+        // section shipped, so a save from before then has no opinion on
+        // it. Rather than defaulting it off and silently hiding an agent
+        // someone already had configured (pre-`AgentProvider` saves aside,
+        // covered by the `agent.provider` migration just above), infer it
+        // from whether an agent was actually set up.
+        const legacyFeatures = savedSettings.features as Partial<FeatureSettings> | undefined;
+        const features = { ...DEFAULT_SETTINGS.features, ...savedSettings.features };
+        if (!legacyFeatures || !("research" in legacyFeatures)) {
+          features.research = agent.provider !== "none";
+        }
         setSettings({
           ...DEFAULT_SETTINGS,
           ...savedSettings,
           mcp: { ...DEFAULT_SETTINGS.mcp, ...savedSettings.mcp },
           agent,
+          features,
+          materialize: { ...DEFAULT_SETTINGS.materialize, ...savedSettings.materialize },
         });
       }
       if (initialRoot) {
@@ -179,6 +195,14 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     if (status !== "ready") return;
     void mcp.applyMcpConfig(settings.mcp);
   }, [status, settings.mcp, mcp]);
+
+  // Same "cover every change, not just the first" story as the effect
+  // above — see `Workspace.tsx`'s own materialize effect for the cold-start
+  // half (an already-open workspace when this fires for the first time).
+  useEffect(() => {
+    if (status !== "ready") return;
+    void materialize.applyMaterializeConfig(settings.materialize);
+  }, [status, settings.materialize, materialize]);
 
   const createWorkspace = useCallback(
     async (input: { name: string; sync: SyncConfig }) => {

@@ -22,6 +22,7 @@ import type { OutlineEntry } from "../../lib/crdt/outline";
 import type { DatabaseDto } from "../../adapters/db";
 import { useAutomationsEngine } from "../../adapters/automationsEngine/context";
 import { useDb } from "../../adapters/db/context";
+import { useMaterialize } from "../../adapters/materialize/context";
 import { useMcp } from "../../adapters/mcp/context";
 import { Sidebar, type SidebarView } from "../sidebar/Sidebar";
 import { AgentPanel } from "../agent/AgentPanel";
@@ -50,6 +51,7 @@ export function Workspace({ rootPath, onDocumentReady, onOpenSettings }: Workspa
   const { workspace, settings, isNarrow, setEditorFocused, chromeFaded, chromeTransitionMs, updateSettings } = useAppState();
   const db = useDb();
   const mcp = useMcp();
+  const materialize = useMaterialize();
   const automationsEngine = useAutomationsEngine();
   const crdtRef = useRef<DendroidDocument | null>(null);
   const editorRef = useRef<EditorHandle>(null);
@@ -163,6 +165,15 @@ export function Workspace({ rootPath, onDocumentReady, onOpenSettings }: Workspa
     if (ready) void mcp.applyMcpConfig(settings.mcp);
   }, [ready, settings.mcp, mcp]);
 
+  // Same cold-start-race story as the "Local MCP" effect above: "Storage >
+  // Materialize" already on from a previous session, before this window's
+  // `workspace_open` (and so its entry in `AppDocState::sessions`) has
+  // actually run. `AppState`'s own effect covers every change after this
+  // one fires.
+  useEffect(() => {
+    if (ready) void materialize.applyMaterializeConfig(settings.materialize);
+  }, [ready, settings.materialize, materialize]);
+
   // Tells the automation engine (src-tauri/src/automation.rs) which cwd to
   // spawn its agent processes in, and re-syncs it whenever this workspace's
   // root or the configured agent command/args change — see
@@ -231,6 +242,29 @@ export function Workspace({ rootPath, onDocumentReady, onOpenSettings }: Workspa
     if (!isNarrow) setDrawerOpen(false);
   }, [isNarrow]);
 
+  // Turning off the Feature switch backing whichever sidebar tab is
+  // currently showing (Settings' new "Features" section — see
+  // `Sidebar.tsx`'s own `features` prop) would otherwise leave the sidebar
+  // open on a tab its own rail button no longer has. Falls back to the
+  // first still-enabled tab, in the same order the rail renders them; if
+  // every tab is off, `sidebarView` is simply left pointing at the last one
+  // — `Sidebar.tsx`'s content switch already no-ops for a `view` whose
+  // feature is off, so this just leaves the (rail-less) content pane blank
+  // rather than picking an arbitrary disabled tab to show instead.
+  useEffect(() => {
+    const allowed: Record<SidebarView, boolean> = {
+      tree: settings.features.tree,
+      mindmap: settings.features.graph,
+      history: settings.features.history,
+      database: settings.features.databases,
+      automation: settings.features.research,
+      skills: settings.features.research,
+    };
+    if (allowed[sidebarView]) return;
+    const fallback = (Object.keys(allowed) as SidebarView[]).find((view) => allowed[view]);
+    if (fallback) setSidebarView(fallback);
+  }, [settings.features, sidebarView]);
+
   // "Dendroid / Notes are a graph" style breadcrumb (comp/Dendroid
   // Screens.dc.html section "03 Tree", <900px variant) — workspace name,
   // plus whatever heading the editor is currently rooted to.
@@ -271,6 +305,7 @@ export function Workspace({ rootPath, onDocumentReady, onOpenSettings }: Workspa
     onViewChange: setSidebarView,
     selectedDatabaseId,
     onSelectDatabase: setSelectedDatabaseId,
+    features: settings.features,
   };
 
   // One <Editor> in one stable tree position regardless of `isNarrow` — two
@@ -362,29 +397,33 @@ export function Workspace({ rootPath, onDocumentReady, onOpenSettings }: Workspa
         </OverlayPanel>
       )}
 
-      <button
-        type="button"
-        className={`agent-toggle${agentOpen ? " is-active" : ""}`}
-        onClick={() => setAgentOpen((v) => !v)}
-        aria-label={agentOpen ? "Close agent chat" : "Open agent chat"}
-        style={{
-          opacity: chromeFaded ? 0 : 1,
-          pointerEvents: chromeFaded ? "none" : "auto",
-          transition: `opacity ${chromeTransitionMs}ms cubic-bezier(0.2, 0, 0, 1)`,
-        }}
-      >
-        <AgentIcon size={16} />
-      </button>
-      <AgentPanel
-        cwd={rootPath}
-        agentSettings={settings.agent}
-        mcpSettings={settings.mcp}
-        open={agentOpen}
-        onClose={() => setAgentOpen(false)}
-        width={settings.agentPanelWidth}
-        onResize={(agentPanelWidth) => updateSettings({ agentPanelWidth })}
-        dim={isNarrow}
-      />
+      {settings.features.research && (
+        <>
+          <button
+            type="button"
+            className={`agent-toggle${agentOpen ? " is-active" : ""}`}
+            onClick={() => setAgentOpen((v) => !v)}
+            aria-label={agentOpen ? "Close agent chat" : "Open agent chat"}
+            style={{
+              opacity: chromeFaded ? 0 : 1,
+              pointerEvents: chromeFaded ? "none" : "auto",
+              transition: `opacity ${chromeTransitionMs}ms cubic-bezier(0.2, 0, 0, 1)`,
+            }}
+          >
+            <AgentIcon size={16} />
+          </button>
+          <AgentPanel
+            cwd={rootPath}
+            agentSettings={settings.agent}
+            mcpSettings={settings.mcp}
+            open={agentOpen}
+            onClose={() => setAgentOpen(false)}
+            width={settings.agentPanelWidth}
+            onResize={(agentPanelWidth) => updateSettings({ agentPanelWidth })}
+            dim={isNarrow}
+          />
+        </>
+      )}
     </div>
   );
 }

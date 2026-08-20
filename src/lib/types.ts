@@ -65,6 +65,36 @@ export interface AgentSettings {
   args: string;
 }
 
+/** Settings' "Features" section — each switch adds (or removes) its own
+ * tab from the left `Sidebar` (see `ux/sidebar/Sidebar.tsx`'s `SidebarView`
+ * filtering), rather than being a settings-only concern. `research` is the
+ * odd one out: it gates three tabs at once (Automations + Skills on the
+ * left, the agent Chat drawer on the right — see `Workspace.tsx`) since
+ * all three are meaningless without an agent configured, and it's also the
+ * only one with its own sub-settings (`AgentSettings`, rendered directly
+ * beneath it in `SettingsPage.tsx` and only while it's on). */
+export interface FeatureSettings {
+  tree: boolean;
+  graph: boolean;
+  history: boolean;
+  databases: boolean;
+  research: boolean;
+}
+
+/** Settings' "Storage > Materialize" section — each switch, independent of
+ * the other, additionally writes a plain-file projection of ledgered state
+ * alongside the workspace's own `ledger`/`db-ledger` folders: `markdown` as
+ * a single Markdown file, `dbs` as one plain `.sqlite` file per database.
+ * Both are purely derived, disposable views (regenerated from scratch on
+ * every write, debounced — see `src-tauri/src/materialize.rs`) meant for
+ * tools outside dendroid (a git diff, `grep`, a SQLite browser) rather than
+ * anything dendroid itself reads back — the ledger stays the only source
+ * of truth either way. */
+export interface MaterializeSettings {
+  dbs: boolean;
+  markdown: boolean;
+}
+
 /** Row-change kinds an `Automation`'s data watch can fire on, mirroring
  * SQL's own INSERT/UPDATE/DELETE vocabulary. */
 export type TriggerEvent = "insert" | "update" | "delete";
@@ -213,6 +243,8 @@ export interface AppSettings {
   auralFeedback: boolean;
   mcp: McpSettings;
   agent: AgentSettings;
+  features: FeatureSettings;
+  materialize: MaterializeSettings;
   /** Width (px) of the persistent left Sidebar's content column —
    * user-adjustable by dragging its right edge (see
    * `ux/sidebar/Sidebar.tsx`, `lib/useResizableWidth.ts`). Only meaningful
@@ -243,6 +275,17 @@ export const DEFAULT_SETTINGS: AppSettings = {
     provider: "none",
     command: "",
     args: "",
+  },
+  features: {
+    tree: true,
+    graph: true,
+    history: true,
+    databases: true,
+    research: false,
+  },
+  materialize: {
+    dbs: false,
+    markdown: false,
   },
   sidebarWidth: 280,
   agentPanelWidth: 320,

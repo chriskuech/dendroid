@@ -55,6 +55,25 @@ fn replace_content_swaps_the_whole_section_body() {
 }
 
 #[test]
+fn materialize_markdown_renders_the_whole_document_with_links_unexpanded() {
+    let root = tmp_workspace("materialize-markdown");
+    let mut dendroid = block_on(open_native(&root, "session-a")).unwrap();
+
+    block_on(dendroid.insert("root", "# Project\n\nTop-level body.\n\n## Child\n\nChild body.\n")).unwrap();
+    let headings = dendroid.outline().unwrap();
+    let project_id = headings.iter().find(|h| h.title == "Project").unwrap().id.clone();
+    let child_id = headings.iter().find(|h| h.title == "Child").unwrap().id.clone();
+    block_on(dendroid.insert(&project_id, &format!("See also @{{{child_id}}}.\n"))).unwrap();
+
+    let materialized = dendroid.materialize_markdown().unwrap();
+    assert!(materialized.contains("# Project"));
+    assert!(materialized.contains("Top-level body."));
+    assert!(materialized.contains("## Child"), "every depth should be included, not just the top level");
+    assert!(materialized.contains("Child body."));
+    assert!(materialized.contains(&format!("@{{{child_id}}}")), "links stay bare references, not inlined");
+}
+
+#[test]
 fn insert_can_express_a_link_and_get_tree_can_expand_it() {
     let root = tmp_workspace("link");
     let mut dendroid = block_on(open_native(&root, "session-a")).unwrap();

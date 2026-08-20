@@ -42,3 +42,8 @@ rusqlite = { version = "0.40", features = ["bundled"] }
 # `#[test]` fns without pulling in a full async runtime — `NativeLedgerStorage`
 # never actually suspends, so there's nothing for a real executor to do.
 pollster = "0.4"
+# Only for `tests/sqldb.rs`'s `materialize_to` test, to open the written
+# `.sqlite` file back up independently and confirm it's a real, standalone
+# database — not just re-exported from the crate itself (integration tests
+# only see the public API), so this needs its own copy.
+rusqlite = { version = "0.40", features = ["bundled"] }

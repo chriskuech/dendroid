@@ -198,6 +198,35 @@ fn concurrent_sessions_merge_via_poll_external() {
 }
 
 #[test]
+fn materialize_to_writes_one_plain_sqlite_file_per_database() {
+    let root = tmp_workspace("sqldb-materialize");
+    let mut sql = block_on(open_native_sql(&root, "session-a")).unwrap();
+    let id = block_on(sql.create_database("My Notes DB")).unwrap();
+    block_on(sql.exec(&id, "CREATE TABLE t (v TEXT)", vec![], false)).unwrap();
+    block_on(sql.exec(&id, "INSERT INTO t (v) VALUES ('hello')", vec![], false)).unwrap();
+
+    let out_dir = root.join("materialized-dbs");
+    sql.materialize_to(&out_dir).unwrap();
+
+    let entries: Vec<_> = fs::read_dir(&out_dir).unwrap().map(|e| e.unwrap().file_name().into_string().unwrap()).collect();
+    assert_eq!(entries.len(), 1);
+    assert!(entries[0].starts_with("My_Notes_DB-"), "unexpected filename: {entries:?}");
+    assert!(entries[0].ends_with(".sqlite"));
+
+    // The written file is a real, standalone SQLite database, readable by
+    // opening it directly — not just bytes that happen to look right.
+    let materialized = rusqlite::Connection::open(out_dir.join(&entries[0])).unwrap();
+    let value: String = materialized.query_row("SELECT v FROM t", [], |row| row.get(0)).unwrap();
+    assert_eq!(value, "hello");
+
+    // A second call (e.g. after a database was deleted) starts from a
+    // clean directory rather than accumulating stale files.
+    block_on(sql.delete_database(&id)).unwrap();
+    sql.materialize_to(&out_dir).unwrap();
+    assert!(fs::read_dir(&out_dir).unwrap().next().is_none());
+}
+
+#[test]
 fn db_ledger_lands_in_its_own_directory_separate_from_the_tree_ledger() {
     let root = tmp_workspace("sqldb-layout");
     let mut sql = block_on(open_native_sql(&root, "session-a")).unwrap();

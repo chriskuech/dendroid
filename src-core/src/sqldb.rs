@@ -626,4 +626,49 @@ impl<S: LedgerStorage> SqlWorkspace<S> {
         }
         Ok(changed)
     }
+
+    /// Settings' "Storage > Materialize > DBs" switch: writes every live
+    /// database out as its own plain, standalone `.sqlite` file under
+    /// `dir` — readable by any ordinary SQLite tool, no `db-ledger/` replay
+    /// required. Purely a derived, disposable projection (see
+    /// `src-tauri/src/materialize.rs`, which debounces calling this): `dir`
+    /// is wiped and fully rewritten every time rather than diffed, so a
+    /// database deleted since the last call doesn't leave a stale file
+    /// behind, and there's no incremental-update logic to keep in sync
+    /// with `DbHandle`'s own timeline/revert machinery.
+    ///
+    /// Each file is named after its database (sanitized to a safe
+    /// filename) with its id appended, so two same-named databases never
+    /// collide — `list_databases` doesn't guarantee unique names, only
+    /// unique ids.
+    pub fn materialize_to(&self, dir: &std::path::Path) -> Result<()> {
+        if dir.exists() {
+            std::fs::remove_dir_all(dir).map_err(|e| DendroidError::Sql(format!("failed to clear {}: {e}", dir.display())))?;
+        }
+        std::fs::create_dir_all(dir).map_err(|e| DendroidError::Sql(format!("failed to create {}: {e}", dir.display())))?;
+
+        for (id, handle) in &self.dbs {
+            let filename = format!("{}-{}.sqlite", sanitize_filename(&handle.name), &id[..8.min(id.len())]);
+            let path = dir.join(filename);
+            // `VACUUM INTO` needs no extra rusqlite feature (unlike the
+            // `backup` API) and refuses to overwrite an existing file,
+            // which is exactly why `dir` was just wiped above.
+            handle.conn.execute("VACUUM INTO ?1", [path.to_string_lossy().into_owned()]).map_err(sql_err)?;
+        }
+        Ok(())
+    }
+}
+
+/// A database's display name, made safe as a filename component: anything
+/// that isn't alphanumeric/`-`/`_` becomes `_`, and an empty result (e.g. a
+/// name that was entirely punctuation) falls back to `"database"` so
+/// `materialize_to` never has to skip a database for want of a name.
+fn sanitize_filename(name: &str) -> String {
+    let sanitized: String =
+        name.chars().map(|c| if c.is_ascii_alphanumeric() || c == '-' || c == '_' { c } else { '_' }).collect();
+    if sanitized.is_empty() {
+        "database".to_string()
+    } else {
+        sanitized
+    }
 }
