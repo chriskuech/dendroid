@@ -63,6 +63,26 @@ interface AppStateValue {
   updateWorkspaceRootPath: (rootPath: string) => void;
 }
 
+/** A save from before "Flatten Storage Folder" (the sync-provider-stub
+ * removal) persisted `Workspace.sync.rootPath` instead of a top-level
+ * `rootPath` — `Workspace` no longer has a `sync` field at all, so without
+ * this, `workspace.rootPath` comes back `undefined` and every
+ * `workspace_open` IPC call fails outright ("missing required key root"),
+ * the app's entire error screen. Widened to a legacy shape for this check
+ * alone, same "saved JSON predates the field and doesn't actually conform"
+ * story as `legacyAgent`/`legacyFeatures` below. Returns `ws` itself
+ * (`null` included) unchanged once it already has a `rootPath`, so the
+ * caller can tell "migrated, re-save it" apart from "already current."
+ */
+export function normalizeLegacyWorkspace(ws: Workspace | null): Workspace | null {
+  if (!ws) return ws;
+  const legacy = ws as Workspace & { sync?: { type: "file"; rootPath: string } };
+  if (legacy.rootPath) return ws;
+  const legacyRootPath = legacy.sync?.rootPath;
+  if (!legacyRootPath) return ws;
+  return { id: legacy.id, name: legacy.name, rootPath: legacyRootPath, createdAt: legacy.createdAt };
+}
+
 const AppStateContext = createContext<AppStateValue | null>(null);
 
 export function AppStateProvider({ children }: { children: ReactNode }) {
@@ -172,8 +192,12 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
         });
         setStatus("ready");
       } else {
-        setWorkspace(ws);
-        setStatus(ws ? "ready" : "onboarding");
+        const normalizedWs = normalizeLegacyWorkspace(ws);
+        if (normalizedWs && normalizedWs !== ws && !isSecondaryWindow.current) {
+          void settingsStore.saveWorkspace(normalizedWs);
+        }
+        setWorkspace(normalizedWs);
+        setStatus(normalizedWs ? "ready" : "onboarding");
       }
     })();
     return () => {
