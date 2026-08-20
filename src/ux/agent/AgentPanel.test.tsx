@@ -148,8 +148,20 @@ describe("AgentPanel", () => {
     // The handler routes events by their own `threadId` field, independent
     // of whichever id `startAgent` ends up called with — since only one
     // thread is open here, any id lands in the timeline currently on screen.
-    handler({ kind: "update", threadId: activeThreadId(), payload: { sessionUpdate: "agent_message_chunk", content: { type: "text", text: "Hel" } } });
-    handler({ kind: "update", threadId: activeThreadId(), payload: { sessionUpdate: "agent_message_chunk", content: { type: "text", text: "lo!" } } });
+    // `payload` here is the real wire shape a `session/update` notification's
+    // `params` actually has — `{sessionId, update: {...}}` (see
+    // `src-acp/tests/roundtrip.rs`) — not the inner `update` object flattened
+    // to the top level, so this also exercises `applyUpdate`'s unwrapping.
+    handler({
+      kind: "update",
+      threadId: activeThreadId(),
+      payload: { sessionId: "sess-1", update: { sessionUpdate: "agent_message_chunk", content: { type: "text", text: "Hel" } } },
+    });
+    handler({
+      kind: "update",
+      threadId: activeThreadId(),
+      payload: { sessionId: "sess-1", update: { sessionUpdate: "agent_message_chunk", content: { type: "text", text: "lo!" } } },
+    });
 
     expect(await screen.findByText("Hello!")).toBeInTheDocument();
   });
@@ -163,7 +175,7 @@ describe("AgentPanel", () => {
     handler({
       kind: "update",
       threadId: activeThreadId(),
-      payload: { sessionUpdate: "tool_call", toolCallId: "t1", title: "Reading outline.md", status: "in_progress" },
+      payload: { sessionId: "sess-1", update: { sessionUpdate: "tool_call", toolCallId: "t1", title: "Reading outline.md", status: "in_progress" } },
     });
 
     const call = await screen.findByText("Reading outline.md");

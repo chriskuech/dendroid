@@ -20,13 +20,21 @@ export class AgentUnavailableError extends Error {
   }
 }
 
-/** A `session/update` notification's raw `params` — see the ACP spec for
+/** A `session/update` notification's `update` field — see the ACP spec for
  * `sessionUpdate` kinds (`"agent_message_chunk"`, `"agent_thought_chunk"`,
  * `"tool_call"`, `"tool_call_update"`, `"plan"`, …). Left loosely typed
  * rather than modeled field-by-field, mirroring `dendroid_acp::AcpEvent::
  * Update`'s own doc comment: `AgentPanel.tsx` picks out what it renders and
  * ignores the rest, so a future ACP update kind doesn't need a Rust *and*
- * TypeScript schema change to reach the UI. */
+ * TypeScript schema change to reach the UI.
+ *
+ * `"update"` events' `payload` (below) is actually one level up from this —
+ * the notification's raw `params`, i.e. `{sessionId, update: AcpUpdate}` —
+ * since that's what `dendroid_acp::AcpEvent::Update`/`src-tauri/src/
+ * acp.rs`'s `AcpEventPayload::Update` forward verbatim from the wire (see
+ * `src-acp/tests/roundtrip.rs`). `ux/agent/timelineUpdates.ts`'s
+ * `applyUpdate` unwraps that `update` field itself, so this type still
+ * describes the shape callers actually switch on. */
 export type AcpUpdate = { sessionUpdate?: string; [key: string]: unknown };
 
 /** Mirrors `src-tauri/src/acp.rs`'s `AcpEventEnvelope` — `threadId` plus

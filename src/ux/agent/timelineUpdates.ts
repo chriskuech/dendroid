@@ -55,7 +55,16 @@ function appendThoughtChunk(prev: TimelineItem[], chunk: string): TimelineItem[]
   return [...prev, { id: newId(), kind: "thought", text: chunk, streaming: true }];
 }
 
-export function applyUpdate(prev: TimelineItem[], update: AcpUpdate): TimelineItem[] {
+export function applyUpdate(prev: TimelineItem[], payload: AcpUpdate): TimelineItem[] {
+  // `payload` is a `session/update` notification's raw `params` — per the
+  // ACP spec (and `src-acp/tests/roundtrip.rs`'s fixture) that's
+  // `{sessionId, update: {sessionUpdate, ...}}`, not the inner update
+  // object itself. Unwrap it here, once, rather than at every call site
+  // (`AgentPanel.tsx`'s live event handler and `AutomationRunChat.tsx`'s
+  // replay both hand this straight through from the wire) — falling back
+  // to `payload` itself keeps this working for callers/tests that already
+  // pass the unwrapped shape.
+  const update = (payload.update as AcpUpdate | undefined) ?? payload;
   switch (update.sessionUpdate) {
     case "agent_message_chunk":
       return appendMessageChunk(prev, extractText(update.content));
