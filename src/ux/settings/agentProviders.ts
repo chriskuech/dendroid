@@ -67,3 +67,12 @@ export const AGENT_PROVIDERS: Record<AgentProvider, AgentProviderMeta> = {
     editable: true,
   },
 };
+
+/** `AGENT_PROVIDERS` minus `"none"` — what Settings' Features > Research
+ * provider picker actually offers. "None" has nothing to do once Research
+ * is switched on at all (that switch is itself the on/off control — see
+ * `SettingsPage.tsx`), so it isn't a real choice there, just `AgentProvider`'s
+ * default/pre-Research resting state. */
+export const RESEARCH_AGENT_PROVIDERS = (Object.keys(AGENT_PROVIDERS) as AgentProvider[])
+  .filter((provider) => provider !== "none")
+  .map((provider) => AGENT_PROVIDERS[provider]);

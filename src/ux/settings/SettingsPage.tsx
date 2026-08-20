@@ -1,9 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useAppState } from "../../lib/AppState";
-import { AGENT_PROVIDERS } from "./agentProviders";
+import { AGENT_PROVIDERS, RESEARCH_AGENT_PROVIDERS } from "./agentProviders";
 import type { DendroidDocument } from "../../lib/crdt/document";
 import { useDialog } from "../../adapters/dialog/context";
-import { SYNC_PROVIDERS } from "../../lib/syncProviders";
 import {
   DEPTH_MIN,
   DEPTH_MAX,
@@ -55,7 +54,7 @@ const AESTHETIC_META: Record<Aesthetic, { label: string; swatches: string[] }> =
 };
 
 export function SettingsPage({ onClose, crdt = null }: { onClose: () => void; crdt?: DendroidDocument | null }) {
-  const { workspace, settings, updateSettings, updateSyncConfig } = useAppState();
+  const { workspace, settings, updateSettings, updateWorkspaceRootPath } = useAppState();
   const dialog = useDialog();
   const [active, setActive] = useState<SectionId>("appearance");
   const [copied, setCopied] = useState(false);
@@ -72,6 +71,19 @@ export function SettingsPage({ onClose, crdt = null }: { onClose: () => void; cr
         args: meta.editable ? settings.agent.args : meta.args,
       },
     });
+  }
+
+  // Research's own switch doubles as the "is an agent configured" toggle
+  // (see `FeatureSettings.research`'s doc comment) — flipping it on with
+  // no provider picked yet (`agent.provider === "none"`, the default
+  // resting state) snaps to the first real one rather than leaving the
+  // picker below it on a value ("None") that isn't even one of its own
+  // options anymore (see `RESEARCH_AGENT_PROVIDERS`).
+  function toggleResearch(research: boolean) {
+    updateSettings({ features: { ...settings.features, research } });
+    if (research && settings.agent.provider === "none") {
+      selectAgentProvider(RESEARCH_AGENT_PROVIDERS[0].kind);
+    }
   }
 
   useEffect(() => {
@@ -102,10 +114,10 @@ export function SettingsPage({ onClose, crdt = null }: { onClose: () => void; cr
     setActive(id);
   }
 
-  async function handleChangeSyncPath() {
-    if (!workspace || workspace.sync.type !== "file") return;
-    const selected = await dialog.pickFolder(workspace.sync.rootPath);
-    if (selected) updateSyncConfig({ type: "file", rootPath: selected });
+  async function handleChangeFolder() {
+    if (!workspace) return;
+    const selected = await dialog.pickFolder(workspace.rootPath);
+    if (selected) updateWorkspaceRootPath(selected);
   }
 
   const mcpConfig = `{ "dendroid": { "url": "http://${settings.mcp.host}:${settings.mcp.port}/mcp" } }`;
@@ -262,7 +274,7 @@ export function SettingsPage({ onClose, crdt = null }: { onClose: () => void; cr
                 <span className="settings__row-label">{feature.label}</span>
                 <Switch
                   checked={settings.features[feature.key]}
-                  onChange={(value) => updateSettings({ features: { ...settings.features, [feature.key]: value } })}
+                  onChange={feature.key === "research" ? toggleResearch : (value) => updateSettings({ features: { ...settings.features, [feature.key]: value } })}
                 />
                 <span className="settings__row-hint">{feature.hint}</span>
               </div>
@@ -274,9 +286,9 @@ export function SettingsPage({ onClose, crdt = null }: { onClose: () => void; cr
                     <Segmented<AgentProvider>
                       value={settings.agent.provider}
                       onChange={selectAgentProvider}
-                      options={(Object.keys(AGENT_PROVIDERS) as AgentProvider[]).map((provider) => ({
-                        value: provider,
-                        label: AGENT_PROVIDERS[provider].label,
+                      options={RESEARCH_AGENT_PROVIDERS.map((provider) => ({
+                        value: provider.kind,
+                        label: provider.label,
                       }))}
                     />
                   </div>
@@ -325,47 +337,23 @@ export function SettingsPage({ onClose, crdt = null }: { onClose: () => void; cr
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             <span className="settings__subsection-title">Folder</span>
             <div className="panel">
-              {workspace?.sync.type === "file" && (
-                <>
-                  <div className="panel-row">
-                    <span className="panel-row__dot panel-row__dot--on" />
-                    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                      <span className="panel-row__title">File</span>
-                      <span className="panel-row__sub">Stored locally on disk. Store in a cloud-synced folder for free multi-device sync.</span>
-                    </div>
-                    <span className="panel-row__status">connected</span>
-                  </div>
-                  <div className="panel-row" style={{ background: "var(--surface)" }}>
-                    <span className="panel-row__dot" style={{ border: "none" }} />
-                    <input
-                      type="text"
-                      value={workspace.sync.rootPath}
-                      readOnly
-                      className="field-input"
-                      style={{ flex: 1, background: "var(--bg)" }}
-                    />
-                    <Button variant="secondary" onClick={handleChangeSyncPath}>
-                      Choose…
-                    </Button>
-                  </div>
-                </>
-              )}
-              {SYNC_PROVIDERS.filter((p) => !p.available).map((provider) => (
-                <div className="panel-row" key={provider.kind}>
-                  <span className="panel-row__dot" />
-                  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                    <span className="panel-row__title panel-row__title--muted">{provider.label}</span>
-                    <span className="panel-row__sub" style={{ color: "var(--line-strong)" }}>
-                      {provider.description}
-                    </span>
-                  </div>
-                  <span className="badge" style={{ marginLeft: "auto" }}>
-                    Coming soon
-                  </span>
-                </div>
-              ))}
+              <div className="panel-row" style={{ background: "var(--surface)" }}>
+                <span className="panel-row__dot" style={{ border: "none" }} />
+                <input
+                  type="text"
+                  value={workspace?.rootPath ?? ""}
+                  readOnly
+                  className="field-input"
+                  style={{ flex: 1, background: "var(--bg)" }}
+                />
+                <Button variant="secondary" onClick={handleChangeFolder}>
+                  Choose…
+                </Button>
+              </div>
             </div>
-            <span className="settings__block-hint">Providers are mutually exclusive.</span>
+            <span className="settings__block-hint">
+              Stored locally on disk. Store in a cloud-synced folder for free multi-device sync.
+            </span>
           </div>
 
           <EncryptionSection crdt={crdt} />

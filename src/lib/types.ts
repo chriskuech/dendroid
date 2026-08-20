@@ -6,23 +6,13 @@ export type Aesthetic = "terminal" | "parchment";
 export type ColorMode = "dark" | "light" | "system";
 export type EditorMode = "zen" | "overlay";
 
-/** Sync provider kinds. Only "file" is implemented; the rest are reserved
- * so the picker/registry has somewhere to grow into (see whitepaper.md). */
-export type SyncProviderKind = "file" | "vault" | "cloud" | "git" | "github";
-
-export interface FileSyncConfig {
-  type: "file";
-  /** Absolute path to the folder holding the transaction log. */
-  rootPath: string;
-}
-
-// Future: VaultSyncConfig | CloudSyncConfig | GitSyncConfig | GitHubSyncConfig
-export type SyncConfig = FileSyncConfig;
-
 export interface Workspace {
   id: string;
   name: string;
-  sync: SyncConfig;
+  /** Absolute path to the folder holding the transaction log — see
+   * whitepaper.md's Core section:
+   * `{workspace_root}/ledger/{yyyy-mm-dd}.{session_id}.log`. */
+  rootPath: string;
   createdAt: string;
 }
 
