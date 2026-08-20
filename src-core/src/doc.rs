@@ -314,6 +314,19 @@ impl<S: LedgerStorage> DendroidDocument<S> {
         markdown::resolve_slice(&self.doc, root_id, depth, expand_links, link_depth)
     }
 
+    /// Settings' "Storage > Materialize > Markdown" switch: the whole
+    /// document, rendered as one plain markdown file — every heading at
+    /// every depth, `@`-links left as bare references rather than inlined
+    /// (unlike `get_tree`'s `expand_links`, there's no natural depth cap
+    /// for "materialize everything" to pass instead). Purely a derived,
+    /// disposable projection (see `src-tauri/src/materialize.rs`, which
+    /// debounces writing this to disk) — the ledger stays the source of
+    /// truth this is regenerated from on every call, not something this
+    /// reads back.
+    pub fn materialize_markdown(&self) -> Result<String> {
+        markdown::resolve_slice(&self.doc, None, u32::MAX, false, 0)
+    }
+
     /// Parses `content` and appends it inside `target_id`'s section — see
     /// `markdown::apply_markdown`. What MCP's `insert` wraps.
     pub async fn insert(&mut self, target_id: &str, content: &str) -> Result<()> {

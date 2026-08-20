@@ -4,7 +4,15 @@ import { AGENT_PROVIDERS } from "./agentProviders";
 import type { DendroidDocument } from "../../lib/crdt/document";
 import { useDialog } from "../../adapters/dialog/context";
 import { SYNC_PROVIDERS } from "../../lib/syncProviders";
-import { DEPTH_MIN, DEPTH_MAX, type Aesthetic, type AgentProvider, type ColorMode, type EditorMode } from "../../lib/types";
+import {
+  DEPTH_MIN,
+  DEPTH_MAX,
+  type Aesthetic,
+  type AgentProvider,
+  type ColorMode,
+  type EditorMode,
+  type FeatureSettings,
+} from "../../lib/types";
 import { CloseIcon } from "../../ui/icons";
 import { Button } from "../../ui/Button";
 import { Segmented } from "../../ui/Segmented";
@@ -16,12 +24,24 @@ import "./settings.css";
 const SECTIONS = [
   { id: "appearance", label: "Appearance" },
   { id: "editor", label: "Editor" },
-  { id: "workspace", label: "Workspace" },
+  { id: "features", label: "Features" },
+  { id: "storage", label: "Storage" },
   { id: "mcp", label: "Local MCP" },
-  { id: "agent", label: "Agent" },
 ] as const;
 
 type SectionId = (typeof SECTIONS)[number]["id"];
+
+/** Settings' "Features" switches, in the order the section (and the
+ * sidebar rail — see `Sidebar.tsx`) lists them. `key` is the
+ * `FeatureSettings` field it maps to; `hint` names the sidebar tab(s) it
+ * adds, since that's the only thing most of these switches actually do. */
+const FEATURE_META: { key: keyof FeatureSettings; label: string; hint: string }[] = [
+  { key: "tree", label: "Tree", hint: "Adds the Tree tab to the left sidebar." },
+  { key: "graph", label: "Graph", hint: "Adds the Graph tab to the left sidebar." },
+  { key: "history", label: "History", hint: "Adds the History tab to the left sidebar." },
+  { key: "databases", label: "Databases", hint: "Adds the Databases tab to the left sidebar." },
+  { key: "research", label: "Research", hint: "Adds the Automations and Skills tabs to the left sidebar, and Chat to the right sidebar." },
+];
 
 const AESTHETIC_META: Record<Aesthetic, { label: string; swatches: string[] }> = {
   terminal: {
@@ -229,16 +249,81 @@ export function SettingsPage({ onClose, crdt = null }: { onClose: () => void; cr
         </div>
 
         <div
-          id="workspace"
+          id="features"
           className="settings__section"
           ref={(el) => {
-            if (el) sectionRefs.current.workspace = el;
+            if (el) sectionRefs.current.features = el;
           }}
         >
-          <span className="settings__section-title">Workspace</span>
+          <span className="settings__section-title">Features</span>
+          {FEATURE_META.map((feature) => (
+            <div key={feature.key} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <div className="settings__row">
+                <span className="settings__row-label">{feature.label}</span>
+                <Switch
+                  checked={settings.features[feature.key]}
+                  onChange={(value) => updateSettings({ features: { ...settings.features, [feature.key]: value } })}
+                />
+                <span className="settings__row-hint">{feature.hint}</span>
+              </div>
+
+              {feature.key === "research" && settings.features.research && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 12, paddingLeft: 16 }}>
+                  <div className="settings__row">
+                    <span className="settings__row-label">Provider</span>
+                    <Segmented<AgentProvider>
+                      value={settings.agent.provider}
+                      onChange={selectAgentProvider}
+                      options={(Object.keys(AGENT_PROVIDERS) as AgentProvider[]).map((provider) => ({
+                        value: provider,
+                        label: AGENT_PROVIDERS[provider].label,
+                      }))}
+                    />
+                  </div>
+                  <span className="settings__row-hint">{AGENT_PROVIDERS[settings.agent.provider].description}</span>
+
+                  {settings.agent.provider === "custom" && (
+                    <>
+                      <div className="field">
+                        <span className="field__label">Command</span>
+                        <input
+                          className="field-input"
+                          value={settings.agent.command}
+                          placeholder="e.g. claude-agent-acp"
+                          onChange={(e) => updateSettings({ agent: { ...settings.agent, command: e.target.value } })}
+                        />
+                      </div>
+                      <div className="field">
+                        <span className="field__label">Arguments</span>
+                        <input
+                          className="field-input"
+                          value={settings.agent.args}
+                          placeholder="space-separated, optional"
+                          onChange={(e) => updateSettings({ agent: { ...settings.agent, args: e.target.value } })}
+                        />
+                      </div>
+                    </>
+                  )}
+                  <span className="settings__block-hint">
+                    Any Agent Client Protocol (ACP) agent — launched over stdio the first time the chat drawer connects.
+                  </span>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+
+        <div
+          id="storage"
+          className="settings__section"
+          ref={(el) => {
+            if (el) sectionRefs.current.storage = el;
+          }}
+        >
+          <span className="settings__section-title">Storage</span>
 
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            <span className="settings__subsection-title">Sync</span>
+            <span className="settings__subsection-title">Folder</span>
             <div className="panel">
               {workspace?.sync.type === "file" && (
                 <>
@@ -284,6 +369,29 @@ export function SettingsPage({ onClose, crdt = null }: { onClose: () => void; cr
           </div>
 
           <EncryptionSection crdt={crdt} />
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <span className="settings__subsection-title">Materialize</span>
+            <div className="settings__row">
+              <span className="settings__row-label">DBs</span>
+              <Switch
+                checked={settings.materialize.dbs}
+                onChange={(dbs) => updateSettings({ materialize: { ...settings.materialize, dbs } })}
+              />
+              <span className="settings__row-hint">Additionally saves databases as plain SQLite files, debounced.</span>
+            </div>
+            <div className="settings__row">
+              <span className="settings__row-label">Markdown</span>
+              <Switch
+                checked={settings.materialize.markdown}
+                onChange={(markdown) => updateSettings({ materialize: { ...settings.materialize, markdown } })}
+              />
+              <span className="settings__row-hint">Additionally saves the markdown tree as a plain markdown file, debounced.</span>
+            </div>
+            <span className="settings__block-hint">
+              Both are derived, disposable projections of the ledger for tools outside dendroid — the ledger stays the source of truth.
+            </span>
+          </div>
         </div>
 
         <div
@@ -318,56 +426,6 @@ export function SettingsPage({ onClose, crdt = null }: { onClose: () => void; cr
               </Button>
             </div>
           </div>
-        </div>
-
-        <div
-          id="agent"
-          className="settings__section"
-          ref={(el) => {
-            if (el) sectionRefs.current.agent = el;
-          }}
-        >
-          <span className="settings__section-title">Agent</span>
-          <div className="settings__row">
-            <span className="settings__row-label">Provider</span>
-            <Segmented<AgentProvider>
-              value={settings.agent.provider}
-              onChange={selectAgentProvider}
-              options={(Object.keys(AGENT_PROVIDERS) as AgentProvider[]).map((provider) => ({
-                value: provider,
-                label: AGENT_PROVIDERS[provider].label,
-              }))}
-            />
-          </div>
-          <span className="settings__row-hint">{AGENT_PROVIDERS[settings.agent.provider].description}</span>
-
-          {settings.agent.provider !== "none" && (
-            <>
-              <div className="field">
-                <span className="field__label">Command</span>
-                <input
-                  className="field-input"
-                  value={settings.agent.command}
-                  placeholder="e.g. claude-agent-acp"
-                  readOnly={settings.agent.provider !== "custom"}
-                  onChange={(e) => updateSettings({ agent: { ...settings.agent, command: e.target.value } })}
-                />
-              </div>
-              <div className="field">
-                <span className="field__label">Arguments</span>
-                <input
-                  className="field-input"
-                  value={settings.agent.args}
-                  placeholder="space-separated, optional"
-                  readOnly={settings.agent.provider !== "custom"}
-                  onChange={(e) => updateSettings({ agent: { ...settings.agent, args: e.target.value } })}
-                />
-              </div>
-            </>
-          )}
-          <span className="settings__block-hint">
-            Any Agent Client Protocol (ACP) agent — launched over stdio the first time the chat drawer connects.
-          </span>
         </div>
       </main>
     </div>

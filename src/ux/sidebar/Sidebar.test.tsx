@@ -28,6 +28,7 @@ function baseProps(overrides: Partial<React.ComponentProps<typeof Sidebar>> = {}
     onReroot: vi.fn(),
     selectedDatabaseId: null,
     onSelectDatabase: vi.fn(),
+    features: { tree: true, graph: true, history: true, databases: true, research: true },
     onOpenSettings: vi.fn(),
     width: 280,
     onResize: vi.fn(),

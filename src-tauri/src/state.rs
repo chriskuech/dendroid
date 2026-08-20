@@ -1,4 +1,6 @@
 use std::collections::HashMap;
+use std::path::PathBuf;
+use std::sync::atomic::AtomicU64;
 use std::sync::Arc;
 
 use tokio::sync::Mutex;
@@ -18,6 +20,22 @@ pub struct Session {
     /// alongside it in `commands::workspace_open` and torn down the same
     /// way (`lib.rs`'s `on_window_event`).
     pub sql: Arc<Mutex<NativeSqlWorkspace>>,
+    /// This window's workspace root — `commands::workspace_open`'s own
+    /// `root` argument, kept alongside the session rather than only ever
+    /// passed around as a plain `String` so `crate::materialize` has
+    /// somewhere to write `materialized.md`/`materialized-dbs/` without
+    /// needing its own separate root-tracking map.
+    pub root: PathBuf,
+}
+
+/// Settings' "Storage > Materialize" switches — see `crate::materialize`.
+/// Global rather than per-window, same as `AppSettings` itself: there's one
+/// app-wide Settings page, not a per-workspace one, so every open window's
+/// workspace materializes (or doesn't) the same way.
+#[derive(Clone, Copy, Default)]
+pub struct MaterializeConfig {
+    pub markdown: bool,
+    pub dbs: bool,
 }
 
 /// A running `dendroid-mcp` server this process started — just enough to
@@ -85,6 +103,14 @@ pub struct AppDocState {
     /// already populated. Never held across anything but that setup, so
     /// it's not on the hot path for a thread that's already connected.
     pub bun_setup: Mutex<()>,
+    /// Settings' "Storage > Materialize" switches — see `crate::materialize`.
+    pub materialize_config: Mutex<MaterializeConfig>,
+    /// One debounce generation counter per (window label, "markdown" or
+    /// "dbs") — see `crate::materialize::schedule`'s doc comment for how
+    /// this actually debounces. Entries accumulate for the lifetime of the
+    /// process rather than being cleaned up on window close; each one is
+    /// just a `u64`, so this never grows large enough to matter.
+    pub materialize_generations: Mutex<HashMap<String, Arc<AtomicU64>>>,
 }
 
 /// Builds the composite key `AppDocState::acp_sessions` is keyed by — see
@@ -104,6 +130,8 @@ impl AppDocState {
             mcp_handle: Mutex::new(None),
             acp_sessions: Mutex::new(HashMap::new()),
             bun_setup: Mutex::new(()),
+            materialize_config: Mutex::new(MaterializeConfig::default()),
+            materialize_generations: Mutex::new(HashMap::new()),
         }
     }
 }

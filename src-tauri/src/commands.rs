@@ -90,7 +90,7 @@ pub async fn workspace_open(
 
     let label = window.label().to_string();
     let mut sessions = state.sessions.lock().await;
-    sessions.insert(label.clone(), Session { doc: Arc::new(Mutex::new(doc)), sql: Arc::new(Mutex::new(sql)) });
+    sessions.insert(label.clone(), Session { doc: Arc::new(Mutex::new(doc)), sql: Arc::new(Mutex::new(sql)), root: path.clone() });
     drop(sessions);
 
     // Whichever window opens a workspace first in this process's lifetime
@@ -179,6 +179,7 @@ pub async fn doc_import_update(window: Window, state: State<'_, AppDocState>, up
     if let Some(bytes) = delta {
         emit_update(window.app_handle(), &label, bytes);
     }
+    crate::materialize::schedule_markdown(window.app_handle(), &label);
     Ok(())
 }
 
@@ -218,6 +219,7 @@ pub async fn doc_insert(window: Window, state: State<'_, AppDocState>, target_id
     if let Some(bytes) = delta {
         emit_update(window.app_handle(), &label, bytes);
     }
+    crate::materialize::schedule_markdown(window.app_handle(), &label);
     Ok(())
 }
 
@@ -248,6 +250,7 @@ pub async fn doc_revert_to(window: Window, state: State<'_, AppDocState>, token:
     if let Some(bytes) = delta {
         emit_update(window.app_handle(), &label, bytes);
     }
+    crate::materialize::schedule_markdown(window.app_handle(), &label);
     Ok(())
 }
 
@@ -272,6 +275,7 @@ pub async fn doc_replace_content(
     if let Some(bytes) = delta {
         emit_update(window.app_handle(), &label, bytes);
     }
+    crate::materialize::schedule_markdown(window.app_handle(), &label);
     Ok(())
 }
 
@@ -384,6 +388,7 @@ pub async fn db_create(window: Window, state: State<'_, AppDocState>, name: Stri
     drop(sql);
 
     emit_db_update(window.app_handle(), &label);
+    crate::materialize::schedule_dbs(window.app_handle(), &label);
     Ok(id)
 }
 
@@ -398,6 +403,7 @@ pub async fn db_delete(window: Window, state: State<'_, AppDocState>, id: String
     drop(sql);
 
     emit_db_update(window.app_handle(), &label);
+    crate::materialize::schedule_dbs(window.app_handle(), &label);
     Ok(())
 }
 
@@ -434,6 +440,7 @@ pub async fn db_exec(
     drop(db);
 
     emit_db_update(window.app_handle(), &label);
+    crate::materialize::schedule_dbs(window.app_handle(), &label);
 
     if !is_batch {
         if let Some((event, table)) = crate::automation::detect_write(&sql) {
@@ -522,5 +529,6 @@ pub async fn db_revert_to(window: Window, state: State<'_, AppDocState>, id: Str
     drop(sql);
 
     emit_db_update(window.app_handle(), &label);
+    crate::materialize::schedule_dbs(window.app_handle(), &label);
     Ok(())
 }
